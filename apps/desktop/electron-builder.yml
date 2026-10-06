@@ -1,0 +1,83 @@
+# How the installers are built. Reference: https://www.electron.build
+# Build for the computer you're on with `pnpm --filter @trusic/desktop dist`; installers land in apps/desktop/release/.
+
+appId: app.trusic.desktop # Must match APP_ID in src/constants.ts. Never change it after release.
+productName: Trusic
+copyright: Copyright © 2026 Trusic
+artifactName: ${productName}-${version}-${os}-${arch}.${ext}
+
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - package.json
+  - dist/**/*.js
+  - static/**/*
+  # The built web app (pnpm --filter @trusic/web build), served inside the app at app://trusic/.
+  - from: ../web/dist
+    to: web
+
+# The app has no runtime dependencies or native modules.
+npmRebuild: false
+# The UI is in English; this keeps Chromium's other languages out of the download.
+electronLanguages:
+  - en-US
+  - en-GB
+# No auto-update server yet: installers are downloaded from the GitHub workflow run.
+publish: null
+
+# Switches baked into the Electron binary that remove ways to run code in the app other than its own.
+electronFuses:
+  runAsNode: false
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  onlyLoadAppFromAsar: true
+  grantFileProtocolExtraPrivileges: false
+
+mac:
+  icon: build/icon.icns
+  category: public.app-category.music
+  target:
+    # One download that runs natively on both Apple Silicon and Intel Macs.
+    - target: dmg
+      arch: universal
+    - target: zip
+      arch: universal
+  # "-" means an ad-hoc signature: free, and enough for Apple Silicon Macs to run the app. It isn't an Apple
+  # Developer ID, so macOS still warns on first launch (see README). With a Developer ID, remove this line and
+  # set hardenedRuntime to true, plus notarize.
+  identity: "-"
+  hardenedRuntime: false
+
+dmg:
+  title: ${productName}
+
+win:
+  icon: build/icon.ico
+  target:
+    - target: nsis
+      arch: x64
+
+nsis:
+  # A one-click installer: no admin rights, installs for the current user, then opens Trusic.
+  oneClick: true
+  artifactName: ${productName}-Setup-${version}.${ext}
+  shortcutName: Trusic
+
+linux:
+  executableName: trusic
+  # Names the .desktop file after desktopName in package.json, which Electron also uses as the window's
+  # class, so the taskbar and media controls show the Trusic icon.
+  syncDesktopName: true
+  icon: build/icon.png
+  category: Audio
+  synopsis: Music streaming that pays the humans who make it.
+  target:
+    - target: AppImage
+      arch: x64
+
+appImage:
+  # Keep Chromium's sandbox on. The AppImage's launcher still adds --no-sandbox by itself on systems that
+  # block it (such as Ubuntu 24.04), so the app always starts.
+  executableArgs: []

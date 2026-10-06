@@ -258,16 +258,40 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   // Lock screen, headphone buttons and media keys.
   useEffect(() => {
     if (!("mediaSession" in navigator) || !current) return;
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title: current.title,
-      artist: current.artist.name,
-      album: current.release?.title ?? "Trusic",
-      artwork: current.artworkUrl ? [{ src: current.artworkUrl, sizes: "512x512" }] : [],
-    });
+    let cancelled = false;
+    let blobUrl: string | null = null;
+    const setMetadata = (artwork: string | null) => {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: current.title,
+        artist: current.artist.name,
+        album: current.release?.title ?? "Trusic",
+        artwork: artwork ? [{ src: artwork, sizes: "512x512" }] : [],
+      });
+    };
+    const art = current.artworkUrl ? new URL(current.artworkUrl, window.location.href) : null;
+    if (!art || art.protocol === "https:" || art.protocol === "http:") {
+      setMetadata(art?.href ?? null);
+    } else {
+      // The desktop app serves everything from app://, which the system's media controls can't load, so hand
+      // them a copy of the artwork instead.
+      setMetadata(null);
+      fetch(art.href)
+        .then((res) => (res.ok ? res.blob() : null))
+        .then((blob) => {
+          if (cancelled || !blob) return;
+          blobUrl = URL.createObjectURL(blob);
+          setMetadata(blobUrl);
+        })
+        .catch(() => undefined);
+    }
     navigator.mediaSession.setActionHandler("play", () => void audioRef.current!.play());
     navigator.mediaSession.setActionHandler("pause", () => audioRef.current!.pause());
     navigator.mediaSession.setActionHandler("nexttrack", next);
     navigator.mediaSession.setActionHandler("previoustrack", previous);
+    return () => {
+      cancelled = true;
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+    };
   }, [current, next, previous]);
 
   const value = useMemo<PlayerState>(

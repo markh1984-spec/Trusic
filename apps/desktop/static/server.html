@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!-- No scripts: the window's preload drives the form. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'" />
+    <title>Trusic server</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 24px 28px;
+        background: #0c0d10;
+        color: #eef0f4;
+        font:
+          14px/1.5 system-ui,
+          -apple-system,
+          "Segoe UI",
+          Roboto,
+          "Helvetica Neue",
+          Arial,
+          sans-serif;
+        -webkit-font-smoothing: antialiased;
+        user-select: none;
+      }
+      h1 {
+        margin: 0 0 6px;
+        font-size: 18px;
+        letter-spacing: -0.01em;
+      }
+      p {
+        margin: 0 0 16px;
+        color: #98a0ad;
+      }
+      label {
+        display: block;
+        margin-bottom: 6px;
+        font-weight: 600;
+      }
+      input {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #262a33;
+        border-radius: 8px;
+        background: #171a20;
+        color: inherit;
+        font: inherit;
+        user-select: text;
+      }
+      input:focus {
+        outline: 2px solid #3fd99a;
+        outline-offset: 1px;
+      }
+      .note {
+        min-height: 3em;
+        margin: 8px 0 0;
+        font-size: 13px;
+      }
+      .note--error {
+        color: #ff6b6b;
+      }
+      .environment {
+        margin: -6px 0 16px;
+        font-size: 13px;
+        color: #f4bf4f;
+      }
+      .actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+      }
+      button {
+        padding: 8px 18px;
+        border: 1px solid #262a33;
+        border-radius: 999px;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #1d2129;
+      }
+      button:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
+      .primary {
+        border-color: transparent;
+        background: #3fd99a;
+        color: #04150e;
+        font-weight: 600;
+      }
+      .primary:hover {
+        background: #5ee3ad;
+      }
+      .quiet {
+        margin-right: auto;
+        padding-left: 0;
+        border: none;
+        color: #98a0ad;
+      }
+      .quiet:hover {
+        background: none;
+        color: #eef0f4;
+      }
+    </style>
+  </head>
+  <body>
+    <form id="form" autocomplete="off">
+      <h1>Trusic server</h1>
+      <p>Trusic gets your music and your account from this address. Changing it signs you out.</p>
+      <p id="environment" class="environment" hidden></p>
+      <label for="url">Server address</label>
+      <input id="url" name="url" type="text" inputmode="url" spellcheck="false" required />
+      <p id="note" class="note" role="status" aria-live="polite"></p>
+      <div class="actions">
+        <button type="button" id="default" class="quiet">Use default</button>
+        <button type="button" id="cancel">Cancel</button>
+        <button type="submit" id="save" class="primary">Save and reload</button>
+      </div>
+    </form>
+  </body>
+</html>

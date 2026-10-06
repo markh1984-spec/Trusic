@@ -40,6 +40,12 @@
 - One Docker image and a Render blueprint for a free public demo (sign-ups closed, shared demo password). See
   [HOSTING.md](HOSTING.md).
 
+**Desktop app**
+
+- Mac, Windows and Linux app (Electron, `apps/desktop`) that runs the web app unchanged, with media keys and the
+  system's "now playing" controls. The server is chosen in the app. Unsigned installers come from a manual GitHub
+  workflow.
+
 ## Next: things Spotify has that we don't yet
 
 - Recommendations and editorial: personalised home feed, radio, "Human-made only" listening mode.
@@ -53,8 +59,8 @@
 
 ## Apps
 
-- **Desktop (Mac/Windows/Linux):** wrap the web app with Tauri (small, native) or Electron. The web app is a
-  single-page app with one shared player, so most of the work is packaging, auto-update and media keys.
+- **Desktop (Mac/Windows/Linux):** the app exists (see Done). Still to do: code signing (Apple Developer Program
+  and a Windows certificate) and automatic updates.
 - **iPhone and Android:** first version in `apps/mobile` (Expo), reusing `@trusic/core`, `@trusic/client` and the
   shared queue in `@trusic/player`. It has browse, search, AI labels, the player with background audio, library,
   "your money" and accounts, and can be tried on a phone with Expo Go. Next: test builds with EAS Build, offline

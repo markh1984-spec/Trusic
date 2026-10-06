@@ -41,7 +41,7 @@ Demo logins (password `trusic-demo`):
 
 ```
 packages/core     The rules: AI scoring and the payout engine. Pure TypeScript, no dependencies, heavily tested.
-packages/client   Typed API client and response types, shared by every app (web and mobile; desktop next).
+packages/client   Typed API client and response types, shared by every app.
 packages/player   The play queue (shuffle, repeat, play next), shared by the web and mobile players.
 apps/api          Fastify + Drizzle + Postgres. Accounts, uploads, streaming, scoring, appeals, payouts.
 apps/web          React web app (Vite). Spotify-style player with queue, shuffle and repeat; releases,
@@ -49,6 +49,8 @@ apps/web          React web app (Vite). Spotify-style player with queue, shuffle
                   statements, artist earnings, public transparency page, admin.
 apps/mobile       iPhone and Android app (Expo). Browse, search, AI labels, player with background audio,
                   library, "your money" and accounts. Try it on your phone with Expo Go: see apps/mobile/README.md.
+apps/desktop      Mac, Windows and Linux app (Electron): the web app in its own window, with media keys.
+                  Installers are built by a manual GitHub workflow. See apps/desktop/README.md.
 docs/             Product rules, decisions, open questions and roadmap.
 ```
 

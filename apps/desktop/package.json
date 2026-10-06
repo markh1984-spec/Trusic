@@ -1,0 +1,25 @@
+{
+  "name": "@trusic/desktop",
+  "productName": "Trusic",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Trusic desktop app for Mac, Windows and Linux: the web app in an Electron window.",
+  "author": "Trusic",
+  "main": "dist/main.js",
+  "desktopName": "trusic.desktop",
+  "scripts": {
+    "dev": "tsc -p tsconfig.build.json && electron . --dev-server=http://localhost:5173",
+    "build": "pnpm --filter @trusic/web build && node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.build.json",
+    "dist": "pnpm run build && electron-builder --publish never",
+    "icons": "node scripts/make-icons.mjs",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.1",
+    "electron": "^44.5.1",
+    "electron-builder": "^26.15.3",
+    "typescript": "5.9.3",
+    "vitest": "^5.0.3"
+  }
+}

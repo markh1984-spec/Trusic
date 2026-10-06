@@ -10,3 +10,6 @@ coverage/
 
 # Local tooling (e.g. agent worktrees)
 .claude/
+
+# Desktop installers (pnpm --filter @trusic/desktop dist)
+apps/desktop/release/

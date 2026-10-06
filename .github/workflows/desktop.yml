@@ -1,0 +1,58 @@
+name: Desktop installers
+
+# Builds the Mac, Windows and Linux installers and attaches them to the workflow run.
+#
+# It only runs when started by hand (Actions → Desktop installers → Run workflow). On a private repository
+# GitHub counts each macOS minute as 10 minutes and each Windows minute as 2 against the free monthly
+# allowance, so building on every push would use it up quickly. See apps/desktop/README.md.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  installers:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    # A safety limit, so a stuck build can't burn through the allowance.
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS
+            os: macos-latest
+            platform: --mac
+            files: |
+              apps/desktop/release/*.dmg
+              apps/desktop/release/*.zip
+          - name: Windows
+            os: windows-latest
+            platform: --win
+            files: apps/desktop/release/*.exe
+          - name: Linux
+            os: ubuntu-latest
+            platform: --linux
+            files: apps/desktop/release/*.AppImage
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @trusic/desktop test
+      # Builds the web app, then the desktop app's code.
+      - run: pnpm --filter @trusic/desktop build
+      - name: Build installers (unsigned)
+        working-directory: apps/desktop
+        run: pnpm exec electron-builder ${{ matrix.platform }} --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Trusic-${{ matrix.name }}
+          path: ${{ matrix.files }}
+          if-no-files-found: error
+          # Installers are large and private repositories get little free artifact storage.
+          retention-days: 7
