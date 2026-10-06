@@ -114,6 +114,9 @@ export const trackRoutes =
 
     app.post("/tracks", async (request, reply) => {
       const user = await requireUser(db, request);
+      if (user.suspendedAt) {
+        throw new HttpError(403, "Your account is suspended after three false AI declarations, so you can't upload.");
+      }
       return withUpload(request, storage, "audio", async ({ fields, filePath }) => {
         if (!filePath) throw new HttpError(400, 'Attach the audio file in a field named "audio".');
 

@@ -14,7 +14,7 @@
  * 5. Each track's money is divided between its payees by their agreed splits.
  *
  * All amounts are integer minor units, and every penny is accounted for: Trusic's
- * share + artist payouts + carried forward always equals revenue + carried in.
+ * share + artist payouts + carried forward always equals revenue + carried in + clawbacks in.
  */
 import { clampScore } from "./ai-score";
 import { allocate, assertMinor, sum, type Minor } from "./money";
@@ -62,6 +62,11 @@ export interface PayoutInput {
    * goes into the human pot whole.
    */
   carriedIn?: Minor;
+  /**
+   * Money clawed back from tracks found to have declared less AI than they used.
+   * Trusic's share was already taken, so it goes into the human pot whole.
+   */
+  clawbacksIn?: Minor;
   /** Streams from every listener, paying or not. */
   streams: StreamCount[];
   config?: Partial<PayoutConfig>;
@@ -119,6 +124,8 @@ export interface PayoutResult {
     paidToArtists: Minor;
     /** Brought in from last period's human pot. */
     carriedIn: Minor;
+    /** Clawed back from false declarations, paid out to human music this period. */
+    clawbacksIn: Minor;
     /** Human-pot money with no human streams to go to. Pass it as next period's `carriedIn`. */
     carriedForward: Minor;
     /** Money AI tracks gave up, redistributed to human-made music. */
@@ -129,6 +136,7 @@ export interface PayoutResult {
   humanPot: {
     amount: Minor;
     fromCarriedIn: Minor;
+    fromClawbacks: Minor;
     fromUnattributed: Minor;
     fromListenersWithNoStreams: Minor;
     fromAiOnlyListening: Minor;
@@ -197,6 +205,8 @@ export function calculatePayouts(input: PayoutInput): PayoutResult {
   assertMinor(unattributed, "unattributedRevenue");
   const carriedIn = input.carriedIn ?? 0;
   assertMinor(carriedIn, "carriedIn");
+  const clawbacksIn = input.clawbacksIn ?? 0;
+  assertMinor(clawbacksIn, "clawbacksIn");
 
   const splitPlatform = (amount: Minor): [Minor, Minor] => {
     if (amount === 0) return [0, 0];
@@ -211,6 +221,7 @@ export function calculatePayouts(input: PayoutInput): PayoutResult {
   let platformTotal = 0;
   const humanPot = {
     fromCarriedIn: carriedIn,
+    fromClawbacks: clawbacksIn,
     fromUnattributed: 0,
     fromListenersWithNoStreams: 0,
     fromAiOnlyListening: 0,
@@ -278,7 +289,8 @@ export function calculatePayouts(input: PayoutInput): PayoutResult {
   //    In the "no AI weighting" baseline, AI-only listeners would have paid their
   //    own tracks directly, so only the other two sources go through the pot.
   const potTracks = [...totalStreams.keys()].sort();
-  const basePotAmount = humanPot.fromCarriedIn + humanPot.fromUnattributed + humanPot.fromListenersWithNoStreams;
+  const basePotAmount =
+    humanPot.fromCarriedIn + humanPot.fromClawbacks + humanPot.fromUnattributed + humanPot.fromListenersWithNoStreams;
   const humanPotAmount = basePotAmount + humanPot.fromAiOnlyListening;
 
   let carriedForward = 0;
@@ -339,7 +351,7 @@ export function calculatePayouts(input: PayoutInput): PayoutResult {
 
   const revenue = sum([...revenueByListener.values()]) + unattributed;
   const paidToArtists = sum(payees.map((p) => p.amount));
-  if (platformTotal + paidToArtists + carriedForward !== revenue + carriedIn) {
+  if (platformTotal + paidToArtists + carriedForward !== revenue + carriedIn + clawbacksIn) {
     throw new Error(
       `payout books do not balance: ${platformTotal} + ${paidToArtists} + ${carriedForward} != ${revenue} + ${carriedIn}`,
     );
@@ -355,6 +367,7 @@ export function calculatePayouts(input: PayoutInput): PayoutResult {
       artistShare: revenue - platformTotal,
       paidToArtists,
       carriedIn,
+      clawbacksIn,
       carriedForward,
       forfeitedByAi: sum(trackPayouts.map((t) => t.forfeited)),
       streams: streamTotal,

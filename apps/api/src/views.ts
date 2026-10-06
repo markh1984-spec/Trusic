@@ -210,13 +210,16 @@ export async function loadReleaseSummaries(
   });
 }
 
-export function toUser(u: Pick<typeof users.$inferSelect, "id" | "email" | "displayName" | "isAdmin" | "plan">): User {
+export function toUser(
+  u: Pick<typeof users.$inferSelect, "id" | "email" | "displayName" | "isAdmin" | "plan" | "suspendedAt">,
+): User {
   return {
     id: u.id,
     email: u.email,
     displayName: u.displayName,
     isAdmin: u.isAdmin,
     plan: u.plan === "premium" ? "premium" : "free",
+    suspended: u.suspendedAt !== null,
   };
 }
 

@@ -10,7 +10,8 @@ import { Icon } from "../components/Icon";
 import { LikeButton } from "../components/LikeButton";
 import { ScoreBreakdown } from "../components/ScoreBreakdown";
 import { TrackMenu } from "../components/TrackMenu";
-import { duration } from "../format";
+import { duration, money } from "../format";
+import { useAuth } from "../auth";
 import { useAsync } from "../hooks";
 import { usePlayer, usePlayTracks } from "../player";
 
@@ -34,6 +35,7 @@ export function TrackPage() {
   const { data: track, error, loading, reload } = useAsync(() => api.track(id), [id]);
   const play = usePlayTracks();
   const player = usePlayer();
+  const { me } = useAuth();
 
   if (error) return <ErrorNote message={error} />;
   if (loading || !track) return <Loading />;
@@ -121,9 +123,82 @@ export function TrackPage() {
           ) : null}
         </div>
 
-        {track.isOwner ? <OwnerPanel track={track} onChange={reload} /> : <HowPaidCard track={track} />}
+        <div className="stack">
+          {track.isOwner ? <OwnerPanel track={track} onChange={reload} /> : <HowPaidCard track={track} />}
+          {me?.user.isAdmin ? <AdminTrackCard track={track} onChange={reload} /> : null}
+        </div>
       </section>
     </>
+  );
+}
+
+/** Admins can re-score a track, or record a false declaration as a strike. */
+function AdminTrackCard({ track, onChange }: { track: TrackDetail; onChange(): void }) {
+  const [score, setScore] = useState(String(track.aiScore));
+  const [reason, setReason] = useState("");
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const act = async (work: () => Promise<string>) => {
+    setError(null);
+    setMessage(null);
+    try {
+      setMessage(await work());
+      onChange();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "That didn't work.");
+    }
+  };
+
+  return (
+    <div className="card card--admin">
+      <h2>Admin</h2>
+      <p className="muted small">
+        Declared {track.declaredScore}, currently {track.aiScore} ({track.scoreSource}).
+      </p>
+      {error ? <ErrorNote message={error} /> : null}
+      {message ? <p className="note note--ok small">{message}</p> : null}
+      <div className="form">
+        <label>
+          Score
+          <input type="number" min={0} max={100} value={score} onChange={(e) => setScore(e.target.value)} />
+        </label>
+        <button
+          className="button button--ghost"
+          onClick={() =>
+            void act(async () => {
+              await api.reviewTrack(track.id, { score: Number(score) });
+              return `Score set to ${score}.`;
+            })
+          }
+        >
+          Set score (no strike)
+        </button>
+        <label>
+          Why this is a false declaration
+          <textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} />
+        </label>
+        <button
+          className="button button--danger"
+          disabled={reason.trim().length < 5}
+          onClick={() => {
+            if (
+              !window.confirm(
+                "Issue a strike? Past earnings will be clawed back, and three strikes suspends the account.",
+              )
+            ) {
+              return;
+            }
+            void act(async () => {
+              const r = await api.strikeTrack(track.id, { score: Number(score), reason: reason.trim() });
+              return `Strike ${r.strikeCount} issued. ${money(r.strike.clawbackTotal)} clawed back.${r.suspended ? " The account is now suspended." : ""}`;
+            });
+          }}
+        >
+          Strike: false declaration
+        </button>
+      </div>
+    </div>
   );
 }
 

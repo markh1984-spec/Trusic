@@ -1,10 +1,11 @@
-import type { EarningsPeriod, ListenerStatementView, Subscription, Transparency } from "@trusic/client";
+import type { Balance, EarningsPeriod, ListenerStatementView, Subscription, Transparency } from "@trusic/client";
 import { aiLabel, DEFAULT_PAYOUT_CONFIG, type AiLabel, type HumanPotReason } from "@trusic/core";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import type { FastifyPluginAsync } from "fastify";
 import type { AppDeps } from "../app";
 import { requireUser } from "../auth";
 import {
+  ledgerEntries,
   payoutListenerStatements,
   payoutPayeeLines,
   payoutRuns,
@@ -14,6 +15,7 @@ import {
   users,
 } from "../db/schema";
 import { currentPeriod, runSummaries } from "../payout-service";
+import { loadStrikes } from "../strikes";
 import { loadTrackSummaries, toUser } from "../views";
 
 export const moneyRoutes =
@@ -147,6 +149,39 @@ export const moneyRoutes =
           })
           .sort((a, b) => b.amount - a.amount),
       })) satisfies EarningsPeriod[];
+    });
+
+    /** An artist's running balance: earnings in, clawbacks and payouts out. */
+    app.get("/me/balance", async (request) => {
+      const user = await requireUser(db, request);
+      const [rows, myStrikes] = await Promise.all([
+        db
+          .select({ entry: ledgerEntries, finalizedAt: payoutRuns.finalizedAt })
+          .from(ledgerEntries)
+          .leftJoin(payoutRuns, eq(payoutRuns.id, ledgerEntries.runId))
+          .where(eq(ledgerEntries.userId, user.id))
+          .orderBy(desc(ledgerEntries.createdAt)),
+        loadStrikes(db, { userId: user.id }),
+      ]);
+      const entries = rows.map(({ entry: e, finalizedAt }) => ({
+        id: e.id,
+        type: e.type,
+        amount: e.amount,
+        note: e.note,
+        pending: e.type === "earnings" && !finalizedAt,
+        createdAt: e.createdAt.toISOString(),
+      }));
+      const pending = entries.filter((e) => e.pending).reduce((acc, e) => acc + e.amount, 0);
+      const balance = entries.reduce((acc, e) => acc + e.amount, 0);
+      return {
+        currency: config.currency,
+        balance,
+        available: balance - pending,
+        pending,
+        entries,
+        strikes: myStrikes.map((s) => s.strike),
+        suspended: user.suspendedAt !== null,
+      } satisfies Balance;
     });
 
     /** Public: how the money moved, month by month. */

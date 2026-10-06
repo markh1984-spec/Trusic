@@ -1,10 +1,12 @@
 import type { AiDeclaration } from "@trusic/core";
 import type {
   AdminAppeal,
+  AdminStrike,
   Appeal,
   Artist,
   ArtistPage,
   AuthResponse,
+  Balance,
   EarningsPeriod,
   HistoryItem,
   LibraryIds,
@@ -21,7 +23,9 @@ import type {
   RubricInfo,
   Split,
   StreamUrl,
+  StrikeResult,
   Subscription,
+  SuspendedAccount,
   TrackDetail,
   TrackList,
   Transparency,
@@ -259,6 +263,9 @@ export class TrusicClient {
   earnings() {
     return this.request<EarningsPeriod[]>("GET", "/me/earnings");
   }
+  balance() {
+    return this.request<Balance>("GET", "/me/balance");
+  }
   transparency() {
     return this.request<Transparency>("GET", "/transparency");
   }
@@ -267,7 +274,10 @@ export class TrusicClient {
   adminAppeals(status: "open" | "upheld" | "rejected" = "open") {
     return this.request<AdminAppeal[]>("GET", `/admin/appeals?status=${status}`);
   }
-  resolveAppeal(id: string, input: { decision: "upheld" | "rejected"; score?: number; note?: string }) {
+  resolveAppeal(
+    id: string,
+    input: { decision: "upheld" | "rejected"; score?: number; note?: string; strike?: boolean },
+  ) {
     return this.request<Appeal>("POST", `/admin/appeals/${id}/resolve`, input);
   }
   reviewTrack(trackId: string, input: { score: number; note?: string }) {
@@ -275,6 +285,21 @@ export class TrusicClient {
   }
   runPayouts(period: string) {
     return this.request<PayoutRunSummary>("POST", "/admin/payouts/run", { period });
+  }
+  finalizePayouts(period: string) {
+    return this.request<PayoutRunSummary>("POST", `/admin/payouts/${period}/finalize`);
+  }
+  strikeTrack(trackId: string, input: { score: number; reason: string }) {
+    return this.request<StrikeResult>("POST", `/admin/tracks/${trackId}/strike`, input);
+  }
+  adminStrikes() {
+    return this.request<AdminStrike[]>("GET", "/admin/strikes");
+  }
+  suspendedAccounts() {
+    return this.request<SuspendedAccount[]>("GET", "/admin/suspended");
+  }
+  reinstate(userId: string) {
+    return this.request<void>("POST", `/admin/users/${userId}/reinstate`);
   }
 }
 

@@ -1,4 +1,4 @@
-import type { AdminAppeal, PayoutRunSummary } from "@trusic/client";
+import type { AdminAppeal } from "@trusic/client";
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router";
 import { api } from "../api";
@@ -6,6 +6,7 @@ import { AiBadge } from "../components/AiBadge";
 import { ErrorNote, Loading, RequireAuth } from "../components/Guards";
 import { money, periodName } from "../format";
 import { useAsync } from "../hooks";
+import { useToast } from "../toast";
 
 export function AdminPage() {
   return (
@@ -13,50 +14,94 @@ export function AdminPage() {
       <h1>Admin</h1>
       <Payouts />
       <Appeals />
+      <Strikes />
     </RequireAuth>
   );
 }
 
 function Payouts() {
   const [period, setPeriod] = useState(new Date().toISOString().slice(0, 7));
-  const [result, setResult] = useState<PayoutRunSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const runs = useAsync(() => api.transparency().then((t) => t.runs), []);
+  const toast = useToast();
 
-  const run = async (e: FormEvent) => {
-    e.preventDefault();
+  const act = async (work: () => Promise<unknown>, done: string) => {
     setBusy(true);
     setError(null);
     try {
-      setResult(await api.runPayouts(period));
+      await work();
+      toast(done);
+      runs.reload();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Payout run failed.");
+      setError(err instanceof Error ? err.message : "That didn't work.");
     } finally {
       setBusy(false);
     }
+  };
+
+  const run = (e: FormEvent) => {
+    e.preventDefault();
+    void act(() => api.runPayouts(period), `Calculated ${periodName(period)}`);
   };
 
   return (
     <section className="card">
       <h2>Monthly payouts</h2>
       <p className="muted small">
-        Calculates the month from plays and revenue, and publishes it to statements, earnings and the transparency page.
-        Running a month again replaces its results.
+        Calculate a month from plays and revenue, check it, then finalise it. Until it's finalised a month can be
+        recalculated (strikes recalculate it automatically). Once finalised it's locked for paying out, and later
+        corrections are made by clawing money back.
       </p>
       <form className="row" onSubmit={run}>
         <input type="month" value={period} onChange={(e) => setPeriod(e.target.value)} required aria-label="Month" />
         <button className="button" disabled={busy}>
-          {busy ? "Running…" : "Run payouts"}
+          {busy ? "Working…" : "Calculate"}
         </button>
       </form>
       {error ? <ErrorNote message={error} /> : null}
-      {result ? (
-        <p className="note note--ok">
-          {periodName(result.period)}: {money(result.totals.revenue, result.currency)} in,{" "}
-          {money(result.totals.paidToArtists, result.currency)} to artists,{" "}
-          {money(result.totals.forfeitedByAi, result.currency)} moved from AI to human music.{" "}
-          <Link to="/transparency">View →</Link>
-        </p>
+      {runs.data?.length ? (
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Month</th>
+              <th className="num">Revenue</th>
+              <th className="num">To artists</th>
+              <th className="num">AI → human</th>
+              <th className="num">Clawbacks in</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {runs.data.map((r) => (
+              <tr key={r.id}>
+                <td>{periodName(r.period)}</td>
+                <td className="num">{money(r.totals.revenue, r.currency)}</td>
+                <td className="num">{money(r.totals.paidToArtists, r.currency)}</td>
+                <td className="num">{money(r.totals.forfeitedByAi, r.currency)}</td>
+                <td className="num">{r.totals.clawbacksIn ? money(r.totals.clawbacksIn, r.currency) : "–"}</td>
+                <td>
+                  {r.finalizedAt ? (
+                    <span className="status status--ok">Finalised</span>
+                  ) : (
+                    <button
+                      className="button button--ghost button--small"
+                      disabled={busy}
+                      onClick={() => {
+                        if (!window.confirm(`Finalise ${periodName(r.period)}? It can't be recalculated afterwards.`)) {
+                          return;
+                        }
+                        void act(() => api.finalizePayouts(r.period), `Finalised ${periodName(r.period)}`);
+                      }}
+                    >
+                      Finalise
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       ) : null}
     </section>
   );
@@ -84,11 +129,13 @@ function AppealItem({ appeal, onDone }: { appeal: AdminAppeal; onDone(): void })
   const [error, setError] = useState<string | null>(null);
   const t = appeal.track;
 
-  const resolve = async (decision: "upheld" | "rejected") => {
+  const resolve = async (decision: "upheld" | "rejected", strike = false) => {
     setError(null);
+    if (strike && !window.confirm("Issue a strike? The track's past earnings will be clawed back.")) return;
     try {
       await api.resolveAppeal(appeal.id, {
         decision,
+        strike,
         ...(score !== "" ? { score: Number(score) } : {}),
         ...(note.trim() ? { note: note.trim() } : {}),
       });
@@ -145,11 +192,84 @@ function AppealItem({ appeal, onDone }: { appeal: AdminAppeal; onDone(): void })
         <button className="button button--ghost" onClick={() => void resolve("rejected")}>
           Reject
         </button>
+        <button className="button button--danger" onClick={() => void resolve("rejected", true)}>
+          Reject + strike
+        </button>
       </div>
       <p className="muted small">
         Uphold resets the score to what the artist declared; reject keeps the current score. A score you enter replaces
-        either.
+        either. <strong>Reject + strike</strong> is for a false declaration: the artist gets a strike, the track's
+        over-earnings in finalised months are clawed back, and three strikes suspends the account.
       </p>
     </article>
+  );
+}
+
+function Strikes() {
+  const strikes = useAsync(() => api.adminStrikes(), []);
+  const suspended = useAsync(() => api.suspendedAccounts(), []);
+  const toast = useToast();
+
+  return (
+    <section className="card">
+      <h2>Strikes</h2>
+      {strikes.error ? <ErrorNote message={strikes.error} /> : null}
+      {strikes.data?.length === 0 ? <p className="muted">No strikes yet.</p> : null}
+      {strikes.data?.length ? (
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Track</th>
+              <th>Artist</th>
+              <th className="num">Declared → corrected</th>
+              <th className="num">Clawed back</th>
+              <th>Reason</th>
+            </tr>
+          </thead>
+          <tbody>
+            {strikes.data.map(({ strike: s, artist }) => (
+              <tr key={s.id}>
+                <td className="muted">{new Date(s.createdAt).toLocaleDateString("en-GB")}</td>
+                <td>
+                  <Link to={`/track/${s.trackId}`}>{s.trackTitle}</Link>
+                </td>
+                <td>
+                  <Link to={`/artist/${artist.slug}`}>{artist.name}</Link>
+                </td>
+                <td className="num">
+                  {s.declaredScore} → {s.correctedScore}
+                </td>
+                <td className="num">{s.clawbackTotal ? money(s.clawbackTotal) : "–"}</td>
+                <td className="small">{s.reason}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : null}
+
+      <h3>Suspended accounts</h3>
+      {suspended.data?.length === 0 ? <p className="muted small">None.</p> : null}
+      {suspended.data?.map((u) => (
+        <div key={u.id} className="row suspended-row">
+          <span>
+            <strong>{u.displayName}</strong> <span className="muted">{u.email}</span>
+          </span>
+          <span className="muted small">
+            {u.strikes} strikes · suspended {new Date(u.suspendedAt).toLocaleDateString("en-GB")}
+          </span>
+          <button
+            className="button button--ghost button--small"
+            onClick={async () => {
+              await api.reinstate(u.id);
+              toast(`Reinstated ${u.displayName}`);
+              suspended.reload();
+            }}
+          >
+            Reinstate
+          </button>
+        </div>
+      ))}
+    </section>
   );
 }

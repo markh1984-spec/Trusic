@@ -8,8 +8,8 @@ const solo = (id: string, aiScore: number) => ({
 });
 
 function expectBalanced(result: PayoutResult) {
-  const { revenue, platform, paidToArtists, carriedIn, carriedForward } = result.totals;
-  expect(platform + paidToArtists + carriedForward).toBe(revenue + carriedIn);
+  const { revenue, platform, paidToArtists, carriedIn, clawbacksIn, carriedForward } = result.totals;
+  expect(platform + paidToArtists + carriedForward).toBe(revenue + carriedIn + clawbacksIn);
   expect(result.payees.reduce((a, p) => a + p.amount, 0)).toBe(paidToArtists);
   expect(result.tracks.reduce((a, t) => a + t.amount, 0)).toBe(paidToArtists);
 }
@@ -167,6 +167,23 @@ describe("calculatePayouts", () => {
     expect(result.totals.platform).toBe(0);
     expect(result.humanPot.fromCarriedIn).toBe(800);
     expect(amountFor(result, "band")).toBe(800);
+    expectBalanced(result);
+  });
+
+  it("pays clawed-back money to human music, with no second platform cut", () => {
+    const result = calculatePayouts({
+      period: "p",
+      tracks: [solo("band", 0), solo("liar", 100)],
+      listenerRevenue: [],
+      clawbacksIn: 500,
+      streams: [
+        { listenerId: "l", trackId: "band", streams: 1 },
+        { listenerId: "l", trackId: "liar", streams: 5 },
+      ],
+    });
+    expect(result.humanPot.fromClawbacks).toBe(500);
+    expect(amountFor(result, "band")).toBe(500);
+    expect(amountFor(result, "liar")).toBe(0);
     expectBalanced(result);
   });
 

@@ -34,6 +34,8 @@ export const users = pgTable("users", {
   isAdmin: boolean("is_admin").notNull().default(false),
   /** "free" or "premium". Real billing (Stripe) will own this later. */
   plan: text("plan").notNull().default("free"),
+  /** Set when an artist reaches three strikes. Uploads are blocked and their tracks hidden. */
+  suspendedAt: timestamp("suspended_at", { withTimezone: true }),
   createdAt: createdAt(),
 });
 
@@ -121,7 +123,8 @@ export const tracks = pgTable(
     /** Detection raised the score above the declaration. */
     flagged: boolean("flagged").notNull().default(false),
 
-    status: text("status").$type<"live" | "removed">().notNull().default("live"),
+    /** "suspended" hides a suspended artist's tracks until they're reinstated. */
+    status: text("status").$type<"live" | "removed" | "suspended">().notNull().default("live"),
     createdAt: createdAt(),
   },
   (t) => [
@@ -219,6 +222,11 @@ export const payoutRuns = pgTable(
     config: jsonb("config").$type<PayoutConfig>().notNull(),
     totals: jsonb("totals").$type<PayoutTotals>().notNull(),
     humanPot: jsonb("human_pot").$type<HumanPot>().notNull(),
+    /**
+     * Set when the month is locked for paying out. A finalised month can't be
+     * recalculated; mistakes found later are corrected by clawbacks instead.
+     */
+    finalizedAt: timestamp("finalized_at", { withTimezone: true }),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("payout_runs_period_idx").on(t.period)],
@@ -336,4 +344,58 @@ export const playlistEntries = pgTable(
     addedAt: timestamp("added_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("playlist_entries_playlist_idx").on(t.playlistId, t.position)],
+);
+
+/**
+ * A proven false declaration: the artist declared less AI than they used.
+ * The track's score is corrected and what it over-earned is clawed back.
+ */
+export const strikes = pgTable(
+  "strikes",
+  {
+    id: id(),
+    /** The account that owns the artist profile. */
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    trackId: uuid("track_id")
+      .notNull()
+      .references(() => tracks.id),
+    reason: text("reason").notNull(),
+    declaredScore: integer("declared_score").notNull(),
+    correctedScore: integer("corrected_score").notNull(),
+    /** Total over-earned across past months, owed back by the track's payees. */
+    clawbackTotal: money("clawback_total"),
+    /** The payout month whose human pot received the clawback. Null until the next run. */
+    appliedInPeriod: text("applied_in_period"),
+    issuedByUserId: uuid("issued_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: createdAt(),
+  },
+  (t) => [index("strikes_user_idx").on(t.userId)],
+);
+
+export type LedgerEntryType = "earnings" | "clawback" | "payout" | "adjustment";
+
+/**
+ * Each payee's running balance: monthly earnings in, clawbacks and payouts out.
+ * Signed amounts in pence. Earnings rows belong to a payout run and are replaced
+ * if that month is recalculated.
+ */
+export const ledgerEntries = pgTable(
+  "ledger_entries",
+  {
+    id: id(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    type: text("type").$type<LedgerEntryType>().notNull(),
+    amount: bigint("amount", { mode: "number" }).notNull(),
+    runId: uuid("run_id").references(() => payoutRuns.id, { onDelete: "cascade" }),
+    strikeId: uuid("strike_id").references(() => strikes.id),
+    note: text("note").notNull().default(""),
+    createdAt: createdAt(),
+  },
+  (t) => [index("ledger_user_idx").on(t.userId)],
 );

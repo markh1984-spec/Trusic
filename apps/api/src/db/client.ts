@@ -14,6 +14,8 @@ import * as schema from "./schema";
  * PGlite flavour so app code doesn't care which one is running.
  */
 export type Db = PgliteDatabase<typeof schema>;
+/** A transaction handle, usable wherever a query only needs `select`/`insert`/`update`/`delete`. */
+export type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
 export interface Database {
   db: Db;

@@ -15,7 +15,7 @@ import { loadConfig } from "./config";
 import { openDatabase } from "./db/client";
 import { plays, revenueEntries, users } from "./db/schema";
 import { MetadataDetector } from "./detection";
-import { currentPeriod, periodBounds, previousPeriod, runPayouts } from "./payout-service";
+import { currentPeriod, finalizeRun, periodBounds, previousPeriod, runPayouts } from "./payout-service";
 import { LocalMediaStorage } from "./storage";
 import { synthPng, synthWav } from "./synth";
 
@@ -352,6 +352,7 @@ for (const i of premium) await db.update(users).set({ plan: "premium" }).where(e
 
 console.log(`Running payouts for ${previous}…`);
 const run = await runPayouts(db, previous, config.currency);
+await finalizeRun(db, previous);
 console.log(
   `  ${run.totals.revenue}p in, ${run.totals.platform}p to Trusic, ${run.totals.paidToArtists}p to artists, ${run.totals.forfeitedByAi}p moved from AI to human music`,
 );

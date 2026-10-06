@@ -20,7 +20,10 @@ export interface User {
   email: string;
   displayName: string;
   isAdmin: boolean;
+  /** "free" means not subscribed: previews only. There is no free tier. */
   plan: "free" | "premium";
+  /** Suspended after three strikes: can't upload, and their tracks are hidden. */
+  suspended: boolean;
 }
 
 export interface ArtistRef {
@@ -141,6 +144,8 @@ export interface PayoutRunSummary {
   platformSharePercent: number;
   totals: PayoutTotals;
   humanPot: HumanPot;
+  /** When the month was locked for paying out; null while it can still be recalculated. */
+  finalizedAt: string | null;
   /** Streams and money by AI label. */
   byLabel: Record<AiLabel, { tracks: number; streams: number; amount: number; forfeited: number }>;
   createdAt: string;
@@ -259,4 +264,65 @@ export interface PlaylistDetail extends PlaylistSummary {
   entries: PlaylistEntry[];
   durationMs: number;
   isOwner: boolean;
+}
+
+/** A proven false declaration. */
+export interface Strike {
+  id: string;
+  trackId: string;
+  trackTitle: string;
+  reason: string;
+  declaredScore: number;
+  correctedScore: number;
+  /** What the track over-earned in past months, in pence, owed back by its payees. */
+  clawbackTotal: number;
+  /** The month whose human pot received the clawed-back money, once paid out. */
+  appliedInPeriod: string | null;
+  createdAt: string;
+}
+
+export interface StrikeResult {
+  strike: Strike;
+  strikeCount: number;
+  suspended: boolean;
+}
+
+export interface AdminStrike {
+  strike: Strike;
+  artist: ArtistRef;
+  user: { id: string; email: string; displayName: string };
+}
+
+export interface SuspendedAccount {
+  id: string;
+  email: string;
+  displayName: string;
+  suspendedAt: string;
+  strikes: number;
+}
+
+export type LedgerEntryType = "earnings" | "clawback" | "payout" | "adjustment";
+
+export interface LedgerEntry {
+  id: string;
+  type: LedgerEntryType;
+  /** Signed, in pence: earnings are positive, clawbacks and payouts negative. */
+  amount: number;
+  note: string;
+  /** Earnings from a month that isn't finalised yet, so not available to pay out. */
+  pending: boolean;
+  createdAt: string;
+}
+
+/** An artist's running balance: earnings in, clawbacks and payouts out. */
+export interface Balance {
+  currency: string;
+  /** Everything, including months not yet finalised. */
+  balance: number;
+  /** What can be paid out now. Can be negative while a clawback is being recovered. */
+  available: number;
+  pending: number;
+  entries: LedgerEntry[];
+  strikes: Strike[];
+  suspended: boolean;
 }

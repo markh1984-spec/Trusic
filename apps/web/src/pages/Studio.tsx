@@ -32,12 +32,85 @@ function Studio() {
           Upload a track
         </Link>
       </div>
+      <BalanceCard />
       <Earnings />
       {artists.map((a) => (
         <ArtistSection key={a.id} slug={a.slug} />
       ))}
       <NewArtist />
     </>
+  );
+}
+
+const ENTRY_NAMES = {
+  earnings: "Earnings",
+  clawback: "Clawback",
+  payout: "Paid out",
+  adjustment: "Adjustment",
+} as const;
+
+/** What the artist is owed, what's been clawed back, and any strikes. */
+function BalanceCard() {
+  const { data, error } = useAsync(() => api.balance(), []);
+  if (error) return <ErrorNote message={error} />;
+  if (!data) return null;
+  return (
+    <section className="card">
+      {data.suspended ? (
+        <p className="note note--error">
+          Your account is suspended after three false AI declarations. Your tracks are hidden and you can't upload.
+          Contact Trusic to appeal.
+        </p>
+      ) : null}
+      <div className="balance">
+        <div>
+          <span className="muted small">Available to pay out</span>
+          <strong className={data.available < 0 ? "text-danger" : ""}>{money(data.available, data.currency)}</strong>
+        </div>
+        <div>
+          <span className="muted small">Pending (month not finalised)</span>
+          <strong>{money(data.pending, data.currency)}</strong>
+        </div>
+      </div>
+      {data.strikes.length ? (
+        <>
+          <h3>Strikes ({data.strikes.length} of 3)</h3>
+          <ul className="plain-list">
+            {data.strikes.map((s) => (
+              <li key={s.id}>
+                <span>
+                  <strong>{s.trackTitle}</strong>: declared AI {s.declaredScore}, corrected to {s.correctedScore}.{" "}
+                  <span className="muted">{s.reason}</span>
+                </span>
+                {s.clawbackTotal ? (
+                  <strong className="text-danger">−{money(s.clawbackTotal, data.currency)}</strong>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
+      {data.entries.length ? (
+        <details>
+          <summary className="small">History</summary>
+          <table className="table">
+            <tbody>
+              {data.entries.map((e) => (
+                <tr key={e.id}>
+                  <td className="muted">{new Date(e.createdAt).toLocaleDateString("en-GB")}</td>
+                  <td>
+                    {ENTRY_NAMES[e.type]}
+                    {e.pending ? <span className="muted small"> (pending)</span> : null}
+                  </td>
+                  <td className="small">{e.note}</td>
+                  <td className={`num ${e.amount < 0 ? "text-danger" : ""}`}>{money(e.amount, data.currency)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </details>
+      ) : null}
+    </section>
   );
 }
 

@@ -1810,3 +1810,44 @@ blockquote {
 a.plan-pill {
   text-decoration: none;
 }
+
+.button--small {
+  padding: 5px 12px;
+  font-size: 0.8rem;
+}
+.button--danger {
+  background: transparent;
+  color: #ff9b9b;
+  border-color: #8a3a3a;
+}
+.button--danger:hover:not(:disabled) {
+  border-color: var(--danger);
+}
+.text-danger {
+  color: #ff9b9b;
+}
+.card--admin {
+  border: 1px dashed #4a5260;
+}
+.balance {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 32px;
+  margin-bottom: 8px;
+}
+.balance > div {
+  display: flex;
+  flex-direction: column;
+}
+.balance strong {
+  font-size: 1.6rem;
+}
+.suspended-row {
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+details summary {
+  cursor: pointer;
+  margin: 8px 0;
+}

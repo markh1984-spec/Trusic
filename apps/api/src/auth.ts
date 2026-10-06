@@ -40,7 +40,10 @@ export async function deleteSession(db: Db, token: string): Promise<void> {
   await db.delete(sessions).where(eq(sessions.tokenHash, sha256(token)));
 }
 
-export type AuthUser = Pick<typeof users.$inferSelect, "id" | "email" | "displayName" | "isAdmin" | "plan">;
+export type AuthUser = Pick<
+  typeof users.$inferSelect,
+  "id" | "email" | "displayName" | "isAdmin" | "plan" | "suspendedAt"
+>;
 
 export function bearerToken(request: FastifyRequest): string | null {
   const header = request.headers.authorization;
@@ -56,6 +59,7 @@ export async function findUserByToken(db: Db, token: string): Promise<AuthUser |
       displayName: users.displayName,
       isAdmin: users.isAdmin,
       plan: users.plan,
+      suspendedAt: users.suspendedAt,
     })
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.userId))
