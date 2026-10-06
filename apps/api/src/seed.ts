@@ -209,7 +209,7 @@ t.harbour1 = await upload(
   "Tidal Grid",
   "Electronic",
   human(
-    { composition: "assisted", instrumentation: "assisted", lyrics: "not_applicable", vocals: "not_applicable" },
+    { composition: "assisted", instrumentation: "generated", lyrics: "not_applicable", vocals: "not_applicable" },
     { assistiveTools: ["stem_separation", "mastering"] },
   ),
 );
@@ -315,7 +315,7 @@ const tastes: Record<string, number>[] = [
   { mara1: 20, mara2: 15, pines3: 6 }, // priya: singer-songwriters
   { harbour1: 25, harbour2: 18, neon3: 10 }, // dev: electronic
   { pines1: 5, velvet1: 12, neon4: 6 }, // alex
-  { pines2: 3, mara1: 3, harbour2: 3 }, // kim: free listener
+  {}, // kim: not subscribed, so only hears previews (which never count)
 ];
 const premium = [0, 1, 2, 3, 4];
 

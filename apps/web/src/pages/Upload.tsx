@@ -23,7 +23,7 @@ import { useAsync } from "../hooks";
 
 const LEVELS: { value: StageDeclaration; label: string; hint: string }[] = [
   { value: "none", label: "No AI", hint: "People did this" },
-  { value: "assisted", label: "AI-assisted", hint: "A person led; AI helped" },
+  { value: "assisted", label: "AI-assisted", hint: "A person led; AI helped. Free" },
   { value: "generated", label: "AI-generated", hint: "AI made it" },
   { value: "not_applicable", label: "Doesn't apply", hint: "e.g. no vocals" },
 ];

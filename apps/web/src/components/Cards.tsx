@@ -1,4 +1,5 @@
 import type { Artist, PlaylistSummary, ReleaseSummary } from "@trusic/client";
+import { AI_LABELS } from "@trusic/core";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { Artwork, PlaylistCover } from "./Artwork";
@@ -7,13 +8,11 @@ export const TYPE_NAMES = { album: "Album", ep: "EP", single: "Single" } as cons
 
 export const releaseYear = (r: { releaseDate: string | null }) => r.releaseDate?.slice(0, 4) ?? null;
 
-/** "4 human-made" / "2 human-made · 1 AI-generated" */
+/** "4 Human-made" / "2 Human-made · 1 AI Slop" */
 export function releaseAiSummary(r: ReleaseSummary): string {
-  const parts = [
-    r.aiLabels.human ? `${r.aiLabels.human} human-made` : null,
-    r.aiLabels.ai_assisted ? `${r.aiLabels.ai_assisted} AI-assisted` : null,
-    r.aiLabels.ai_generated ? `${r.aiLabels.ai_generated} AI-generated` : null,
-  ].filter(Boolean);
+  const parts = (["human", "ai_assisted", "ai_generated"] as const)
+    .filter((label) => r.aiLabels[label] > 0)
+    .map((label) => `${r.aiLabels[label]} ${AI_LABELS[label].name}`);
   return parts.join(" · ") || "No tracks yet";
 }
 
@@ -21,9 +20,9 @@ export function releaseAiSummary(r: ReleaseSummary): string {
 export function releaseLabel(r: ReleaseSummary): { className: string; name: string } | null {
   const { human, ai_assisted, ai_generated } = r.aiLabels;
   if (r.trackCount === 0) return null;
-  if (human === r.trackCount) return { className: "human", name: "Human-made" };
-  if (ai_generated === r.trackCount) return { className: "ai_generated", name: "AI-generated" };
-  if (ai_assisted === r.trackCount) return { className: "ai_assisted", name: "AI-assisted" };
+  if (human === r.trackCount) return { className: "human", name: AI_LABELS.human.name };
+  if (ai_generated === r.trackCount) return { className: "ai_generated", name: AI_LABELS.ai_generated.name };
+  if (ai_assisted === r.trackCount) return { className: "ai_assisted", name: AI_LABELS.ai_assisted.name };
   return { className: "ai_assisted", name: "Some AI" };
 }
 

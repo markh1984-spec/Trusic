@@ -75,10 +75,9 @@ describe("scoreDeclaration", () => {
     expect(scoreDeclaration(declaration({ vocals: "generated" })).score).toBe(25);
   });
 
-  it("only lightly penalises AI-assisted work", () => {
-    // 15 weight x 25% = 3.75, rounds to 4.
-    expect(scoreDeclaration(declaration({ lyrics: "assisted" })).score).toBe(4);
-    expect(aiLabel(4)).toBe("human");
+  it("doesn't charge for AI-assisted work, only AI-generated parts", () => {
+    expect(scoreDeclaration(declaration({ lyrics: "assisted", composition: "assisted" })).score).toBe(0);
+    expect(scoreDeclaration(declaration({ composition: "assisted", vocals: "generated" })).score).toBe(25);
   });
 
   it("reports per-stage points that add up to the score", () => {

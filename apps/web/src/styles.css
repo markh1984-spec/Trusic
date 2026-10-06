@@ -1798,3 +1798,15 @@ blockquote {
     opacity: 1;
   }
 }
+
+.player__preview {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--assisted);
+}
+.player__preview a {
+  text-decoration: underline;
+}
+a.plan-pill {
+  text-decoration: none;
+}

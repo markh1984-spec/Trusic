@@ -10,9 +10,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useLocation, useNavigate } from "react-router";
 import { api, API_BASE, tokenStore } from "./api";
-import { useAuth } from "./auth";
 import { hasNext, initialQueue, queueReducer, upcomingFromContext, type QueueState, type RepeatMode } from "./queue";
 
 interface PlayerState {
@@ -22,6 +20,8 @@ interface PlayerState {
   durationMs: number;
   volume: number;
   error: string | null;
+  /** Not subscribed: only the first `previewMs` of each track plays. */
+  preview: boolean;
   shuffle: boolean;
   repeat: RepeatMode;
   contextLabel: string | null;
@@ -66,6 +66,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [durationMs, setDurationMs] = useState(0);
   const [volume, setVolumeState] = useState(0.8);
   const [error, setError] = useState<string | null>(null);
+  const [previewMs, setPreviewMs] = useState<number | null>(null);
+  const previewRef = useRef<number | null>(null);
+  /** Set once a preview reaches its limit, so we only move on once. */
+  const previewDone = useRef(false);
 
   const listened = useRef({ trackId: null as string | null, ms: 0, lastTime: 0 });
   const current = queue.current;
@@ -97,12 +101,28 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   // Wire up the audio element once.
   useEffect(() => {
     const audio = audioRef.current!;
+    const advance = () => {
+      const q = queueRef.current;
+      if (q.repeat === "one") dispatch({ type: "replay" });
+      else if (hasNext(q)) dispatch({ type: "next" });
+      else {
+        audio.pause();
+        audio.currentTime = 0;
+        previewDone.current = false;
+      }
+    };
     const onTime = () => {
       const now = audio.currentTime;
       const delta = now - listened.current.lastTime;
       if (!audio.paused && delta > 0 && delta < 2) listened.current.ms += delta * 1000;
       listened.current.lastTime = now;
       setPositionMs(now * 1000);
+      // A preview ends early, then moves on like a finished track.
+      if (previewRef.current !== null && now * 1000 >= previewRef.current && !previewDone.current) {
+        previewDone.current = true;
+        audio.pause();
+        advance();
+      }
     };
     const onSeeking = () => {
       listened.current.lastTime = audio.currentTime;
@@ -112,10 +132,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const onDuration = () => setDurationMs(Number.isFinite(audio.duration) ? audio.duration * 1000 : 0);
     const onEnded = () => {
       report();
-      const q = queueRef.current;
-      if (q.repeat === "one") dispatch({ type: "replay" });
-      else if (hasNext(q)) dispatch({ type: "next" });
-      else audio.currentTime = 0;
+      advance();
     };
     const onError = () => setError("This track couldn't be played.");
     const onPageHide = () => report(true);
@@ -153,9 +170,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setPositionMs(0);
     api
       .streamUrl(currentId)
-      .then(({ url }) => {
+      .then(({ url, preview, previewMs: limit }) => {
         if (cancelled) return;
-        listened.current = { trackId: currentId, ms: 0, lastTime: 0 };
+        previewRef.current = preview ? limit : null;
+        previewDone.current = false;
+        setPreviewMs(preview ? limit : null);
+        // Previews never count as plays, so there's nothing to report.
+        listened.current = { trackId: preview ? null : currentId, ms: 0, lastTime: 0 };
         audio.src = api.resolveUrl(url);
         return audio.play();
       })
@@ -247,9 +268,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       current,
       playing,
       positionMs,
-      durationMs: durationMs || current?.durationMs || 0,
+      durationMs: previewMs ?? (durationMs || current?.durationMs || 0),
       volume,
       error,
+      preview: previewMs !== null,
       shuffle: queue.shuffle,
       repeat: queue.repeat,
       contextLabel: queue.contextLabel,
@@ -274,6 +296,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       playing,
       positionMs,
       durationMs,
+      previewMs,
       volume,
       error,
       queue,
@@ -296,20 +319,11 @@ export function usePlayer(): PlayerState {
   return ctx;
 }
 
-/** Play a list of tracks, sending signed-out visitors to log in first. */
+/** Play a list of tracks. Anyone can: visitors and non-subscribers hear 30-second previews. */
 export function usePlayTracks() {
-  const { me } = useAuth();
   const player = usePlayer();
-  const navigate = useNavigate();
-  const location = useLocation();
   return useCallback(
-    (tracks: TrackSummary[], startIndex: number, label?: string) => {
-      if (!me) {
-        navigate(`/login?next=${encodeURIComponent(location.pathname + location.search)}`);
-        return;
-      }
-      player.playQueue(tracks, startIndex, label);
-    },
-    [me, navigate, location, player],
+    (tracks: TrackSummary[], startIndex: number, label?: string) => player.playQueue(tracks, startIndex, label),
+    [player],
   );
 }

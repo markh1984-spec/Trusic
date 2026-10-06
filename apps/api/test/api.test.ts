@@ -11,10 +11,16 @@ import type {
   Transparency,
 } from "@trusic/client";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { eq } from "drizzle-orm";
+import { plays } from "../src/db/schema";
 import { currentPeriod } from "../src/payout-service";
 import { ADMIN_EMAIL, createTestApp, declaration, multipart, wav, type TestApp } from "./helpers";
 
 let t: TestApp;
+/** Size of the 40-second test WAV every upload uses. */
+const fullSize = () => wav().length;
+let drummerUserId = "";
+const drummerId = () => drummerUserId;
 
 beforeAll(async () => {
   t = await createTestApp();
@@ -73,6 +79,7 @@ describe("Trusic API", () => {
     tokens.prompter = await register("prompter@trusic.test");
     tokens.fan = await register("fan@trusic.test");
     tokens.drummer = await register("drummer@trusic.test");
+    drummerUserId = (await call<Me>("GET", "/api/me", tokens.drummer)).body.user.id;
     tokens.admin = await register(ADMIN_EMAIL);
 
     expect(
@@ -177,9 +184,9 @@ describe("Trusic API", () => {
   });
 
   it("streams audio through signed URLs with range support", async () => {
-    expect((await call("GET", `/api/tracks/${ids.human}/stream`)).status).toBe(401);
-    const signed = await call<StreamUrl>("GET", `/api/tracks/${ids.human}/stream`, tokens.fan);
-    expect(signed.status).toBe(200);
+    // The artist hears their own track in full.
+    const signed = await call<StreamUrl>("GET", `/api/tracks/${ids.human}/stream`, tokens.band);
+    expect(signed.body).toMatchObject({ preview: false, previewMs: null });
 
     const partial = await t.app.inject({ method: "GET", url: signed.body.url, headers: { range: "bytes=0-99" } });
     expect(partial.statusCode).toBe(206);
@@ -190,9 +197,41 @@ describe("Trusic API", () => {
     const full = await t.app.inject({ method: "GET", url: signed.body.url });
     expect(full.statusCode).toBe(200);
     expect(full.headers["content-type"]).toBe("audio/wav");
+    expect(full.rawPayload.length).toBe(fullSize());
 
     const tampered = signed.body.url.replace(ids.human!, ids.ai!);
     expect((await t.app.inject({ method: "GET", url: tampered })).statusCode).toBe(403);
+  });
+
+  it("gives non-subscribers, signed in or not, a 30-second preview that can't be turned into the full track", async () => {
+    for (const token of [undefined, tokens.fan]) {
+      const signed = await call<StreamUrl>("GET", `/api/tracks/${ids.human}/stream`, token);
+      expect(signed.body).toMatchObject({ preview: true, previewMs: 30_000 });
+      const body = await t.app.inject({ method: "GET", url: signed.body.url });
+      expect(body.statusCode).toBe(200);
+      // 30 of the 40 seconds, plus a little slack.
+      expect(body.rawPayload.length).toBeLessThan(fullSize() * 0.9);
+      expect(body.rawPayload.length).toBeGreaterThan(fullSize() * 0.75);
+      const beyond = await t.app.inject({
+        method: "GET",
+        url: signed.body.url,
+        headers: { range: `bytes=${fullSize() - 10}-` },
+      });
+      expect(beyond.statusCode).toBe(416);
+      // Dropping the preview flag breaks the signature.
+      const upgraded = signed.body.url.replace("&preview=1", "");
+      expect((await t.app.inject({ method: "GET", url: upgraded })).statusCode).toBe(403);
+    }
+  });
+
+  it("only records plays from subscribers", async () => {
+    const res = await call<{ counted: boolean }>("POST", "/api/plays", tokens.drummer, {
+      trackId: ids.human,
+      msPlayed: 35_000,
+    });
+    expect(res.body.counted).toBe(false);
+    const rows = await t.database.db.select().from(plays).where(eq(plays.userId, drummerId()));
+    expect(rows).toEqual([]);
   });
 
   it("lets an artist appeal a flagged track, and an admin uphold it", async () => {

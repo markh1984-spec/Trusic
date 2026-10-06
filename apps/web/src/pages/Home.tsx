@@ -1,4 +1,4 @@
-import type { AiLabel } from "@trusic/core";
+import { AI_LABELS, type AiLabel } from "@trusic/core";
 import { useState } from "react";
 import { Link } from "react-router";
 import { api } from "../api";
@@ -9,9 +9,9 @@ import { useAsync } from "../hooks";
 
 const FILTERS: { value: AiLabel | ""; label: string }[] = [
   { value: "", label: "Everything" },
-  { value: "human", label: "Human-made" },
-  { value: "ai_assisted", label: "AI-assisted" },
-  { value: "ai_generated", label: "AI-generated" },
+  { value: "human", label: AI_LABELS.human.name },
+  { value: "ai_assisted", label: AI_LABELS.ai_assisted.name },
+  { value: "ai_generated", label: AI_LABELS.ai_generated.name },
 ];
 
 export function HomePage() {

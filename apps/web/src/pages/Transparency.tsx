@@ -117,15 +117,16 @@ export function TransparencyPage() {
         <h2>How the AI score is worked out</h2>
         <p>
           Artists declare, part by part, how much AI went into a track. Detection can raise that score but never lower
-          it, and artists can appeal to a person. Only AI doing the <em>creative</em> work counts: AI mastering, mixing,
-          stem separation and similar tools never affect the score.
+          it, and artists can appeal to a person. Only AI <em>generating</em> the music counts. AI that merely assisted
+          a person (suggesting a rhyme or a chord) is shown but free, and AI mastering, mixing, stem separation and
+          similar tools never affect the score.
         </p>
         <table className="table">
           <thead>
             <tr>
               <th>Part of the track</th>
               <th className="num">Weight</th>
-              <th className="num">AI-assisted</th>
+              <th className="num">AI-assisted (free)</th>
               <th className="num">AI-generated</th>
             </tr>
           </thead>

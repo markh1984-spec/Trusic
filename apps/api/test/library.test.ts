@@ -227,6 +227,8 @@ describe("library", () => {
   });
 
   it("shows recently played tracks once each, newest first, and snapshots the AI score", async () => {
+    // Only subscribers' plays are recorded.
+    await call(t, "POST", "/api/billing/subscribe", fan.token);
     for (const id of [trackIds[0], trackIds[1], trackIds[0]]) {
       await call(t, "POST", "/api/plays", fan.token, { trackId: id, msPlayed: 5000 });
       await new Promise((r) => setTimeout(r, 5));

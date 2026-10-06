@@ -87,6 +87,11 @@ export function PlayerBar({ queueOpen, onToggleQueue }: { queueOpen: boolean; on
           <span className="player__time">{duration(p.durationMs)}</span>
         </div>
         {p.error ? <p className="player__error">{p.error}</p> : null}
+        {track && p.preview && !p.error ? (
+          <p className="player__preview">
+            30-second preview. <Link to="/money">Subscribe</Link> to hear full tracks.
+          </p>
+        ) : null}
       </div>
 
       <div className="player__volume">

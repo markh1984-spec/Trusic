@@ -42,11 +42,11 @@ function Money() {
       <h1>Your money</h1>
       <section className="card plan">
         <div>
-          <h2>{premium ? "You're on Premium" : "You're on the free plan"}</h2>
+          <h2>{premium ? "You're on Premium" : "You're not subscribed"}</h2>
           <p className="muted">
             {premium
               ? "Your subscription is split between the tracks you play, weighted towards human-made music."
-              : "Go Premium and your money goes straight to the artists you actually listen to."}
+              : "You can hear 30-second previews. Subscribe to hear everything in full, with your money going straight to the artists you actually listen to. No ads, ever."}
           </p>
           <p className="muted small">Demo billing: no card needed. Real payments come later.</p>
         </div>

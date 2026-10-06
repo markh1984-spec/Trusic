@@ -93,9 +93,9 @@ export function Layout() {
           <div className="topbar__account">
             {me ? (
               <>
-                <span className={`plan-pill plan-pill--${me.user.plan}`}>
-                  {me.user.plan === "premium" ? "Premium" : "Free"}
-                </span>
+                <Link to="/money" className={`plan-pill plan-pill--${me.user.plan}`}>
+                  {me.user.plan === "premium" ? "Premium" : "Not subscribed"}
+                </Link>
                 <span className="topbar__name">
                   <Icon name="person" size={18} /> {me.user.displayName}
                 </span>

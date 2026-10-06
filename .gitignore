@@ -7,3 +7,6 @@ dist/
 !.env.example
 coverage/
 .DS_Store
+
+# Local tooling (e.g. agent worktrees)
+.claude/

@@ -92,7 +92,10 @@ export function RegisterPage() {
   return (
     <form className="card form auth-form" onSubmit={submit}>
       <h1>Join Trusic</h1>
-      <p className="muted">Listen free, go Premium to pay the artists you love, or upload your own music.</p>
+      <p className="muted">
+        Subscribe to hear every track in full, with your money going only to the artists you play. Or upload your own
+        music.
+      </p>
       {error ? <ErrorNote message={error} /> : null}
       <label>
         Your name
