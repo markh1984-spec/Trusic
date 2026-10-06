@@ -23,11 +23,28 @@
 - Player: queue panel, play next, add to queue, shuffle, repeat (all or one), "add to playlist" from any track.
 - Each play records the track's AI score at the time it was played, ready for open question 7.
 
+**Money and rules**
+
+- Subscribers only, no adverts. Visitors and non-subscribers can browse and hear 30-second previews, which never
+  count as plays.
+- AI assistance is free; labels are "Human-made", "Partly AI" and "AI Slop".
+- Strikes for false declarations: exact clawbacks for finalised months, recalculation of open months, suspension at
+  three strikes, admin reinstatement. Artist balances with a ledger.
+- Songwriting details (writers, collecting-society membership, covers, ISRC) collected at upload, with a summary for
+  PRS in admin.
+- Stripe in test mode: Checkout subscriptions with VAT-inclusive pricing and signed webhooks; artist payouts through
+  Stripe Connect with a £10 minimum. Without Stripe keys, demo billing works with pretend money.
+
+**Online**
+
+- One Docker image and a Render blueprint for a free public demo (sign-ups closed, shared demo password). See
+  [HOSTING.md](HOSTING.md).
+
 ## Next: things Spotify has that we don't yet
 
 - Recommendations and editorial: personalised home feed, radio, "Human-made only" listening mode.
 - Accounts: email verification, password reset, sign in with Apple/Google, profile settings.
-- Releases: credits, lyrics, pre-release scheduling.
+- Releases: lyrics, pre-release scheduling.
 - Audio: transcode uploads to HLS/AAC at several bitrates and serve them from object storage behind a CDN
   (the `MediaStorage` interface and signed URLs are already in place for this). Loudness normalisation. Resize
   artwork to standard sizes.
@@ -54,14 +71,15 @@
   [research/ai-detection.md](research/ai-detection.md).
 - **Rights and licensing.** Get a PRS for Music licence for the songwriting side (its small-service licence is 16%
   of revenue, with an unverified per-stream minimum that could matter a lot), decide how that fits the 80/20 split
-  (open question 10), and collect ISRC, ISWC and songwriter details at upload. Also needed: an artist agreement
+  (open question 10), and add ISWCs to the songwriter details already collected at upload. Also needed: an artist agreement
   covering the declaration and penalties, a takedown and repeat-infringer process, audio fingerprinting, and an
   Online Safety Act risk assessment within three months of launch. See
   [research/uk-licensing.md](research/uk-licensing.md) and its checklist for a music lawyer.
-- **Billing:** Stripe subscriptions on the web (with VAT handled), app-store billing on mobile, webhooks that write
-  `revenue_entries`.
-- **Paying artists:** Stripe Connect (or similar) payouts, KYC, minimum payout threshold, tax forms, and locking a
-  payout month once it has been paid.
+- **Billing:** switch Stripe to live mode (see [STRIPE.md](STRIPE.md)), deduct Stripe's fees from booked revenue,
+  and decide on app-store billing for the phone apps (or keep sending people to the website).
+- **Paying artists:** Stripe Connect's identity checks (KYC) and tax forms in live mode, and a payout schedule.
+- **Hosting that keeps data:** a real Postgres database (`DATABASE_URL`), object storage for audio and artwork, and a
+  server that doesn't sleep. The free demo deliberately resets on every restart.
 - **Fraud:** per-listener stream caps, bot detection, device fingerprinting. User-centric payouts already stop
   stream farms from taking other listeners' money; they can still waste their own.
 - **Security and operations:** move web sessions to httpOnly cookies, audit logging for admin actions, backups,
