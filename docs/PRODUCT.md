@@ -86,7 +86,8 @@ The exact score is always shown next to the label.
 
 Today's detector only reads file metadata (generators like Suno sometimes leave their name in the tags). It
 catches careless uploads but is trivially evaded. A real audio-analysis detector is a launch requirement (see the
-roadmap).
+roadmap). Even the best detectors can't reliably see _partial_ AI use, so for scores between 0 and 100 the
+artist's declaration will remain the main evidence; see [research/ai-detection.md](research/ai-detection.md).
 
 ## 3. Decisions log
 
@@ -117,7 +118,26 @@ These need a decision from the founder. The current behaviour is in brackets.
    revenue per listener already. [free listening with no ads; free streams only steer the human pot]
 6. **Price and market.** UK-first in GBP at £10.99/month? [GBP, £10.99 incl. VAT]
 7. **Score changes mid-month.** If an appeal changes a track's score on the 20th, should earlier streams use the
-   old score? [the score at calculation time applies to the whole month]
+   old score? [the score at calculation time applies to the whole month. Each play now records the score it was
+   played at, so switching to "score at play time" is a small change once decided]
 8. **Who can upload.** Direct uploads from artists only, or also deliveries from distributors (DistroKid, CD Baby…)
    and labels? [direct uploads only]
 9. **Minimum payout and payment rails.** How and when do artists get paid out, with what minimum? [not built yet]
+10. **What "80% to artists" covers.** Songwriting royalties (PRS for Music, about 16% of revenue on its small-service
+    licence) are normally paid out of the music makers' share. Does "80%" mean recording artists only (Trusic keeps
+    about 4%), recording plus songwriting (recording artists get about 64%), or 80/20 of what's left after
+    songwriters (67% / 17%)? See [research/uk-licensing.md](research/uk-licensing.md). [not modelled yet: the engine
+    pays 80% to recording payees]
+11. **How confident detection must be.** The research suggests only raising scores automatically when two signals
+    agree that a whole track is generated, and sending partial-AI signals to a person. Adopt that? See
+    [research/ai-detection.md](research/ai-detection.md). [one confident signal is enough]
+
+## 5. Research
+
+- [Detecting AI-generated music](research/ai-detection.md): what detection can and can't do, vendors to trial, an
+  evaluation plan, and what other platforms do.
+- [Licensing and legal obligations in the UK](research/uk-licensing.md): recording versus songwriting rights, PRS for
+  Music, how songwriting royalties affect the 80/20 split, platform liability, online safety and AI labelling.
+
+Both were compiled from web searches on 6 October 2026. Several primary sources couldn't be opened directly, so
+figures marked unverified must be checked before they go into a financial model.

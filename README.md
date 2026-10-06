@@ -12,7 +12,8 @@ decides how it gets paid:
   performed the music.
 
 The full economics, scoring rules and the decisions behind them are in [docs/PRODUCT.md](docs/PRODUCT.md).
-What's next is in [docs/ROADMAP.md](docs/ROADMAP.md).
+What's next is in [docs/ROADMAP.md](docs/ROADMAP.md), and research on AI detection and UK licensing is in
+[docs/research](docs/research).
 
 ## Try it
 
@@ -27,12 +28,12 @@ pnpm dev       # API on :3001, web app on http://localhost:5173
 
 Demo logins (password `trusic-demo`):
 
-| Email                   | What to look at                                                             |
-| ----------------------- | --------------------------------------------------------------------------- |
-| `listener@trusic.local` | A Premium listener. **Your money** shows where the money went.              |
-| `pines@trusic.local`    | The Hollow Pines (a human band). **Studio** shows earnings and band splits. |
-| `prompter@trusic.local` | An AI act, including a track flagged by detection and under appeal.         |
-| `admin@trusic.local`    | **Admin**: review appeals and run monthly payouts.                          |
+| Email                   | What to look at                                                                               |
+| ----------------------- | --------------------------------------------------------------------------------------------- |
+| `listener@trusic.local` | A Premium listener with playlists and liked songs. **Your money** shows where the money went. |
+| `pines@trusic.local`    | The Hollow Pines (a human band). **Studio** shows earnings and band splits.                   |
+| `prompter@trusic.local` | An AI act, including a track flagged by detection and under appeal.                           |
+| `admin@trusic.local`    | **Admin**: review appeals and run monthly payouts.                                            |
 
 `pnpm seed --reset` wipes local data and starts again.
 
@@ -42,8 +43,9 @@ Demo logins (password `trusic-demo`):
 packages/core     The rules: AI scoring and the payout engine. Pure TypeScript, no dependencies, heavily tested.
 packages/client   Typed API client and response types, shared by every app (web now; desktop and mobile next).
 apps/api          Fastify + Drizzle + Postgres. Accounts, uploads, streaming, scoring, appeals, payouts.
-apps/web          React web app (Vite). Spotify-style player, upload with live AI-score preview,
-                  listener statements, artist earnings, public transparency page, admin.
+apps/web          React web app (Vite). Spotify-style player with queue, shuffle and repeat; releases,
+                  playlists, liked songs and follows; upload with live AI-score preview; listener
+                  statements, artist earnings, public transparency page, admin.
 docs/             Product rules, decisions, open questions and roadmap.
 ```
 
