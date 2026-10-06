@@ -46,6 +46,8 @@ apps/api          Fastify + Drizzle + Postgres. Accounts, uploads, streaming, sc
 apps/web          React web app (Vite). Spotify-style player with queue, shuffle and repeat; releases,
                   playlists, liked songs and follows; upload with live AI-score preview; listener
                   statements, artist earnings, public transparency page, admin.
+apps/desktop      Mac, Windows and Linux app (Electron): the web app in its own window, with media keys.
+                  Installers are built by a manual GitHub workflow. See apps/desktop/README.md.
 docs/             Product rules, decisions, open questions and roadmap.
 ```
 

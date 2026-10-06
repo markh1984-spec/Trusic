@@ -7,3 +7,5 @@ dist/
 !.env.example
 coverage/
 .DS_Store
+# Desktop installers (pnpm --filter @trusic/desktop dist)
+apps/desktop/release/

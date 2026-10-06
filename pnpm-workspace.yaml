@@ -4,3 +4,7 @@ packages:
 
 onlyBuiltDependencies:
   - esbuild
+
+# Only used by electron-builder's Squirrel.Windows target. The desktop app builds NSIS installers instead.
+ignoredBuiltDependencies:
+  - electron-winstaller

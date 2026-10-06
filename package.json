@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "pnpm --parallel --filter @trusic/api --filter @trusic/web dev",
-    "build": "pnpm -r build",
+    "build": "pnpm -r --filter=!@trusic/desktop build",
     "start": "pnpm --filter @trusic/api start",
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",

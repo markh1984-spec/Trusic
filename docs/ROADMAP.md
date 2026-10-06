@@ -23,6 +23,12 @@
 - Player: queue panel, play next, add to queue, shuffle, repeat (all or one), "add to playlist" from any track.
 - Each play records the track's AI score at the time it was played, ready for open question 7.
 
+**Desktop app**
+
+- Mac, Windows and Linux app (Electron, `apps/desktop`) that runs the web app unchanged, with media keys and the
+  system's "now playing" controls. The server is chosen in the app. Unsigned installers come from a manual GitHub
+  workflow.
+
 ## Next: things Spotify has that we don't yet
 
 - Recommendations and editorial: personalised home feed, radio, "Human-made only" listening mode.
@@ -36,8 +42,9 @@
 
 ## Apps
 
-- **Desktop (Mac/Windows/Linux):** wrap the web app with Tauri (small, native) or Electron. The web app is a
-  single-page app with one shared player, so most of the work is packaging, auto-update and media keys.
+- **Desktop (Mac/Windows/Linux):** the app exists (see Done). Still to do: code signing (Apple Developer Program
+  and a Windows certificate), automatic updates, and cover art in the system's media controls, which needs the
+  web app to hand its artwork to `navigator.mediaSession` as a `blob:` URL.
 - **iPhone and Android:** React Native (Expo), reusing `@trusic/core` and `@trusic/client` so the rules and API
   types are shared. Needs background audio, lock-screen controls and offline storage.
 - **App-store billing:** Apple and Google take 15–30% of in-app subscriptions. Revenue in the payout engine is
