@@ -13,7 +13,14 @@ import {
 import { useLocation, useNavigate } from "react-router";
 import { api, API_BASE, tokenStore } from "./api";
 import { useAuth } from "./auth";
-import { hasNext, initialQueue, queueReducer, upcomingFromContext, type QueueState, type RepeatMode } from "./queue";
+import {
+  hasNext,
+  initialQueue,
+  queueReducer,
+  upcomingFromContext,
+  type QueueState,
+  type RepeatMode,
+} from "@trusic/player";
 
 interface PlayerState {
   current: TrackSummary | null;

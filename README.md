@@ -41,28 +41,32 @@ Demo logins (password `trusic-demo`):
 
 ```
 packages/core     The rules: AI scoring and the payout engine. Pure TypeScript, no dependencies, heavily tested.
-packages/client   Typed API client and response types, shared by every app (web now; desktop and mobile next).
+packages/client   Typed API client and response types, shared by every app (web and mobile; desktop next).
+packages/player   The play queue (shuffle, repeat, play next), shared by the web and mobile players.
 apps/api          Fastify + Drizzle + Postgres. Accounts, uploads, streaming, scoring, appeals, payouts.
 apps/web          React web app (Vite). Spotify-style player with queue, shuffle and repeat; releases,
                   playlists, liked songs and follows; upload with live AI-score preview; listener
                   statements, artist earnings, public transparency page, admin.
+apps/mobile       iPhone and Android app (Expo). Browse, search, AI labels, player with background audio,
+                  library, "your money" and accounts. Try it on your phone with Expo Go: see apps/mobile/README.md.
 docs/             Product rules, decisions, open questions and roadmap.
 ```
 
-The money rules live in one place (`packages/core`), so the server, the web app's live score preview and future
-mobile apps can never disagree about them.
+The money rules live in one place (`packages/core`), so the server, the web app's live score preview and the
+mobile app can never disagree about them.
 
 ## Scripts
 
-| Command          | What it does                                              |
-| ---------------- | --------------------------------------------------------- |
-| `pnpm dev`       | Run the API and web app with live reload                  |
-| `pnpm test`      | Run all tests                                             |
-| `pnpm typecheck` | Type-check every package                                  |
-| `pnpm format`    | Format with Prettier                                      |
-| `pnpm build`     | Build the web app                                         |
-| `pnpm seed`      | Load demo data                                            |
-| `pnpm start`     | Run the API in production mode, serving the built web app |
+| Command          | What it does                                                |
+| ---------------- | ----------------------------------------------------------- |
+| `pnpm dev`       | Run the API and web app with live reload                    |
+| `pnpm test`      | Run all tests                                               |
+| `pnpm typecheck` | Type-check every package                                    |
+| `pnpm format`    | Format with Prettier                                        |
+| `pnpm build`     | Build the web app                                           |
+| `pnpm seed`      | Load demo data                                              |
+| `pnpm start`     | Run the API in production mode, serving the built web app   |
+| `pnpm mobile`    | Start the phone app for Expo Go (see apps/mobile/README.md) |
 
 ## Running in production
 
