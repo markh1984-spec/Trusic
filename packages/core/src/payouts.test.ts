@@ -4,8 +4,8 @@ import { calculatePayouts, countStreams, PayoutInputError, type PayoutInput, typ
 const solo = (id: string, aiScore: number) => ({ id, aiScore, splits: [{ payeeId: `${id}-artist`, shareBps: 10_000 }] });
 
 function expectBalanced(result: PayoutResult) {
-  const { revenue, platform, paidToArtists, carriedForward } = result.totals;
-  expect(platform + paidToArtists + carriedForward).toBe(revenue);
+  const { revenue, platform, paidToArtists, carriedIn, carriedForward } = result.totals;
+  expect(platform + paidToArtists + carriedForward).toBe(revenue + carriedIn);
   expect(result.payees.reduce((a, p) => a + p.amount, 0)).toBe(paidToArtists);
   expect(result.tracks.reduce((a, t) => a + t.amount, 0)).toBe(paidToArtists);
 }
@@ -149,6 +149,20 @@ describe("calculatePayouts", () => {
     });
     expect(result.totals.carriedForward).toBe(800);
     expect(result.totals.paidToArtists).toBe(0);
+    expectBalanced(result);
+  });
+
+  it("pays last period's carried-forward pot to human music, with no second platform cut", () => {
+    const result = calculatePayouts({
+      period: "p",
+      tracks: [solo("band", 0)],
+      listenerRevenue: [],
+      carriedIn: 800,
+      streams: [{ listenerId: "free", trackId: "band", streams: 1 }],
+    });
+    expect(result.totals.platform).toBe(0);
+    expect(result.humanPot.fromCarriedIn).toBe(800);
+    expect(amountFor(result, "band")).toBe(800);
     expectBalanced(result);
   });
 

@@ -1,0 +1,19 @@
+{
+  "name": "@trusic/client",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Typed Trusic API client shared by the web, desktop and mobile apps.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@trusic/core": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  }
+}

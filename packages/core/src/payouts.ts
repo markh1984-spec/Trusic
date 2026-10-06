@@ -14,7 +14,7 @@
  * 5. Each track's money is divided between its payees by their agreed splits.
  *
  * All amounts are integer minor units, and every penny is accounted for: Trusic's
- * share + artist payouts + carried forward always equals revenue.
+ * share + artist payouts + carried forward always equals revenue + carried in.
  */
 import { clampScore } from "./ai-score";
 import { allocate, assertMinor, sum, type Minor } from "./money";
@@ -57,6 +57,11 @@ export interface PayoutInput {
   listenerRevenue: ListenerRevenue[];
   /** Revenue not tied to any listener. It goes straight to the human pot. */
   unattributedRevenue?: Minor;
+  /**
+   * Last period's `carriedForward`. Trusic's share was already taken, so it
+   * goes into the human pot whole.
+   */
+  carriedIn?: Minor;
   /** Streams from every listener, paying or not. */
   streams: StreamCount[];
   config?: Partial<PayoutConfig>;
@@ -112,7 +117,9 @@ export interface PayoutResult {
     platform: Minor;
     artistShare: Minor;
     paidToArtists: Minor;
-    /** Human-pot money with no human streams to go to. Roll it into the next period. */
+    /** Brought in from last period's human pot. */
+    carriedIn: Minor;
+    /** Human-pot money with no human streams to go to. Pass it as next period's `carriedIn`. */
     carriedForward: Minor;
     /** Money AI tracks gave up, redistributed to human-made music. */
     forfeitedByAi: Minor;
@@ -121,6 +128,7 @@ export interface PayoutResult {
   };
   humanPot: {
     amount: Minor;
+    fromCarriedIn: Minor;
     fromUnattributed: Minor;
     fromListenersWithNoStreams: Minor;
     fromAiOnlyListening: Minor;
@@ -187,6 +195,8 @@ export function calculatePayouts(input: PayoutInput): PayoutResult {
   }
   const unattributed = input.unattributedRevenue ?? 0;
   assertMinor(unattributed, "unattributedRevenue");
+  const carriedIn = input.carriedIn ?? 0;
+  assertMinor(carriedIn, "carriedIn");
 
   const splitPlatform = (amount: Minor): [Minor, Minor] => {
     if (amount === 0) return [0, 0];
@@ -199,7 +209,7 @@ export function calculatePayouts(input: PayoutInput): PayoutResult {
   const add = (m: Map<string, Minor>, k: string, v: Minor) => m.set(k, (m.get(k) ?? 0) + v);
 
   let platformTotal = 0;
-  const humanPot = { fromUnattributed: 0, fromListenersWithNoStreams: 0, fromAiOnlyListening: 0 };
+  const humanPot = { fromCarriedIn: carriedIn, fromUnattributed: 0, fromListenersWithNoStreams: 0, fromAiOnlyListening: 0 };
 
   // 1. Each listener's money goes to what they played.
   const listeners: ListenerStatement[] = [];
@@ -257,9 +267,8 @@ export function calculatePayouts(input: PayoutInput): PayoutResult {
   //    In the "no AI weighting" baseline, AI-only listeners would have paid their
   //    own tracks directly, so only the other two sources go through the pot.
   const potTracks = [...totalStreams.keys()].sort();
-  const humanPotAmount =
-    humanPot.fromUnattributed + humanPot.fromListenersWithNoStreams + humanPot.fromAiOnlyListening;
-  const basePotAmount = humanPot.fromUnattributed + humanPot.fromListenersWithNoStreams;
+  const basePotAmount = humanPot.fromCarriedIn + humanPot.fromUnattributed + humanPot.fromListenersWithNoStreams;
+  const humanPotAmount = basePotAmount + humanPot.fromAiOnlyListening;
 
   let carriedForward = 0;
   const potWeights = potTracks.map((id) => humanUnits(totalStreams.get(id)!, scoreOf(id)));
@@ -315,9 +324,9 @@ export function calculatePayouts(input: PayoutInput): PayoutResult {
 
   const revenue = sum([...revenueByListener.values()]) + unattributed;
   const paidToArtists = sum(payees.map((p) => p.amount));
-  if (platformTotal + paidToArtists + carriedForward !== revenue) {
+  if (platformTotal + paidToArtists + carriedForward !== revenue + carriedIn) {
     throw new Error(
-      `payout books do not balance: ${platformTotal} + ${paidToArtists} + ${carriedForward} != ${revenue}`,
+      `payout books do not balance: ${platformTotal} + ${paidToArtists} + ${carriedForward} != ${revenue} + ${carriedIn}`,
     );
   }
 
@@ -330,6 +339,7 @@ export function calculatePayouts(input: PayoutInput): PayoutResult {
       platform: platformTotal,
       artistShare: revenue - platformTotal,
       paidToArtists,
+      carriedIn,
       carriedForward,
       forfeitedByAi: sum(trackPayouts.map((t) => t.forfeited)),
       streams: streamTotal,
