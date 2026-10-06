@@ -1,9 +1,14 @@
+import type { ReleaseType } from "@trusic/client";
 import { useState, type FormEvent } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { api } from "../api";
 import { useAuth } from "../auth";
 import { AiBadge } from "../components/AiBadge";
+import { Artwork } from "../components/Artwork";
+import { CardGrid, TYPE_NAMES } from "../components/Cards";
 import { ErrorNote, Loading, RequireAuth } from "../components/Guards";
+import { Icon } from "../components/Icon";
+import { ImagePicker } from "../components/ImagePicker";
 import { money, periodName, plural } from "../format";
 import { useAsync } from "../hooks";
 
@@ -29,7 +34,7 @@ function Studio() {
       </div>
       <Earnings />
       {artists.map((a) => (
-        <ArtistTracks key={a.id} slug={a.slug} name={a.name} />
+        <ArtistSection key={a.id} slug={a.slug} />
       ))}
       <NewArtist />
     </>
@@ -102,33 +107,66 @@ function Earnings() {
   );
 }
 
-function ArtistTracks({ slug, name }: { slug: string; name: string }) {
-  const { data, error, loading } = useAsync(() => api.artist(slug), [slug]);
+function ArtistSection({ slug }: { slug: string }) {
+  const { data, error, loading, reload } = useAsync(() => api.artist(slug), [slug]);
+  const { refresh } = useAuth();
+  if (error) return <ErrorNote message={error} />;
+  if (loading && !data) return <Loading />;
+  if (!data) return null;
+  const { artist, tracks, releases } = data;
+
   return (
     <section className="card">
-      <div className="section-head">
-        <h2>{name}</h2>
-        <Link to={`/artist/${slug}`}>Public page →</Link>
+      <div className="studio-artist">
+        <Artwork url={artist.imageUrl} title={artist.name} size={72} round />
+        <div className="studio-artist__name">
+          <h2>{artist.name}</h2>
+          <Link to={`/artist/${slug}`}>Public page →</Link>
+        </div>
+        <ImagePicker
+          label={artist.imageUrl ? "Change photo" : "Add photo"}
+          onPick={async (file) => {
+            await api.setArtistImage(artist.id, file, file.name);
+            reload();
+            await refresh();
+          }}
+        />
       </div>
-      {error ? <ErrorNote message={error} /> : null}
-      {loading && !data ? <Loading /> : null}
-      {data?.tracks.length === 0 ? <p className="muted">No tracks yet.</p> : null}
-      {data?.tracks.length ? (
+
+      <h3>Releases</h3>
+      <CardGrid>
+        {releases.map((r) => (
+          <Link key={r.id} to={`/studio/release/${r.id}`} className="tile">
+            <Artwork url={r.artworkUrl} title={r.title} size="fill" />
+            <span className="tile__title">{r.title}</span>
+            <span className="tile__sub">
+              {TYPE_NAMES[r.type]} · {plural(r.trackCount, "track")}
+            </span>
+          </Link>
+        ))}
+        <NewRelease artistId={artist.id} />
+      </CardGrid>
+
+      <h3>Tracks</h3>
+      {tracks.length === 0 ? <p className="muted">No tracks yet.</p> : null}
+      {tracks.length ? (
         <table className="table">
           <thead>
             <tr>
               <th>Track</th>
+              <th>Release</th>
               <th>Label</th>
               <th className="num">Pay rate</th>
               <th>Status</th>
             </tr>
           </thead>
           <tbody>
-            {data.tracks.map((t) => (
+            {tracks.map((t) => (
               <tr key={t.id}>
                 <td>
                   <Link to={`/track/${t.id}`}>{t.title}</Link>
                 </td>
+                <td className="muted">{t.release?.title ?? "–"}</td>
                 <td>
                   <AiBadge score={t.aiScore} />
                 </td>
@@ -149,8 +187,64 @@ function ArtistTracks({ slug, name }: { slug: string; name: string }) {
           </tbody>
         </table>
       ) : null}
-      {data ? <p className="muted small">{plural(data.tracks.length, "track")} live</p> : null}
+      <p className="muted small">{plural(tracks.length, "track")} live</p>
     </section>
+  );
+}
+
+/** A tile that turns into a small form for starting a new release. */
+function NewRelease({ artistId }: { artistId: string }) {
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState("");
+  const [type, setType] = useState<ReleaseType>("album");
+  const [error, setError] = useState<string | null>(null);
+
+  if (!open) {
+    return (
+      <button className="tile tile--new" onClick={() => setOpen(true)}>
+        <span className="tile__plus" aria-hidden>
+          <Icon name="plus" size={36} />
+        </span>
+        <span className="tile__title">New release</span>
+        <span className="tile__sub">Album, EP or single</span>
+      </button>
+    );
+  }
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    try {
+      const release = await api.createRelease({ artistId, title: title.trim(), type });
+      navigate(`/studio/release/${release.id}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't create the release.");
+    }
+  };
+
+  return (
+    <form className="tile tile--form form" onSubmit={submit}>
+      <label>
+        Title
+        <input autoFocus required maxLength={200} value={title} onChange={(e) => setTitle(e.target.value)} />
+      </label>
+      <label>
+        Type
+        <select value={type} onChange={(e) => setType(e.target.value as ReleaseType)}>
+          <option value="album">Album</option>
+          <option value="ep">EP</option>
+          <option value="single">Single</option>
+        </select>
+      </label>
+      {error ? <span className="field-error">{error}</span> : null}
+      <div className="row">
+        <button className="button">Create</button>
+        <button type="button" className="button button--ghost" onClick={() => setOpen(false)}>
+          Cancel
+        </button>
+      </div>
+    </form>
   );
 }
 

@@ -68,18 +68,25 @@ export const artistRoutes =
       const [artist] = await db.select().from(artists).where(eq(artists.slug, request.params.slug)).limit(1);
       if (!artist) throw new HttpError(404, "Artist not found.");
       const viewer = await optionalUser(db, request);
-      const [rows, releaseList, [followers]] = await Promise.all([
+      const [rows, releaseList, [followers], viewerFollow] = await Promise.all([
         selectTrackSummaries(db)
           .where(and(eq(tracks.artistId, artist.id), eq(tracks.status, "live")))
           .orderBy(desc(tracks.createdAt)),
         loadReleaseSummaries(db, { artistId: artist.id }),
         db.select({ n: count() }).from(follows).where(eq(follows.artistId, artist.id)),
+        viewer
+          ? db
+              .select({ id: follows.artistId })
+              .from(follows)
+              .where(and(eq(follows.artistId, artist.id), eq(follows.userId, viewer.id)))
+          : Promise.resolve([]),
       ]);
       return {
         artist: toArtist(artist),
         tracks: rows.map(toTrackSummary),
         releases: releaseList,
         followers: followers?.n ?? 0,
+        isFollowing: viewerFollow.length > 0,
         isOwner: viewer?.id === artist.ownerUserId,
       } satisfies ArtistPage;
     });

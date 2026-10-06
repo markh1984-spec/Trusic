@@ -4,9 +4,12 @@ import { useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router";
 import { api } from "../api";
 import { AiBadge } from "../components/AiBadge";
+import { Artwork } from "../components/Artwork";
 import { ErrorNote, Loading } from "../components/Guards";
 import { Icon } from "../components/Icon";
+import { LikeButton } from "../components/LikeButton";
 import { ScoreBreakdown } from "../components/ScoreBreakdown";
+import { TrackMenu } from "../components/TrackMenu";
 import { duration } from "../format";
 import { useAsync } from "../hooks";
 import { usePlayer, usePlayTracks } from "../player";
@@ -42,14 +45,18 @@ export function TrackPage() {
   return (
     <>
       <section className="track-hero">
-        <div className={`track-hero__art track-hero__art--${track.aiLabel}`} aria-hidden>
-          {track.title.slice(0, 1)}
-        </div>
+        <Artwork url={track.artworkUrl} title={track.title} label={track.aiLabel} size={200} />
         <div>
           <p className="eyebrow">Track{track.genre ? ` · ${track.genre}` : ""}</p>
           <h1>{track.title}</h1>
           <p>
             <Link to={`/artist/${track.artist.slug}`}>{track.artist.name}</Link>
+            {track.release ? (
+              <>
+                <span className="muted"> · </span>
+                <Link to={`/release/${track.release.id}`}>{track.release.title}</Link>
+              </>
+            ) : null}
             <span className="muted"> · {duration(track.durationMs)}</span>
           </p>
           <div className="track-hero__actions">
@@ -61,6 +68,8 @@ export function TrackPage() {
               <Icon name={isCurrent && player.playing ? "pause" : "play"} size={26} />
             </button>
             <AiBadge score={track.aiScore} />
+            <LikeButton trackId={track.id} title={track.title} size={24} />
+            <TrackMenu track={track} />
           </div>
         </div>
       </section>

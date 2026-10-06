@@ -3,9 +3,13 @@ import { Link } from "react-router";
 import { duration } from "../format";
 import { usePlayer } from "../player";
 import { AiBadge } from "./AiBadge";
+import { Artwork } from "./Artwork";
 import { Icon } from "./Icon";
+import { LikeButton } from "./LikeButton";
 
-export function PlayerBar() {
+const REPEAT_LABELS = { off: "Repeat", all: "Repeat one", one: "Don't repeat" } as const;
+
+export function PlayerBar({ queueOpen, onToggleQueue }: { queueOpen: boolean; onToggleQueue(): void }) {
   const p = usePlayer();
   const track = p.current;
   const progress = p.durationMs ? Math.min(100, (p.positionMs / p.durationMs) * 100) : 0;
@@ -15,9 +19,7 @@ export function PlayerBar() {
       <div className="player__now">
         {track ? (
           <>
-            <div className="player__art" aria-hidden>
-              {track.title.slice(0, 1)}
-            </div>
+            <Artwork url={track.artworkUrl} title={track.title} label={track.aiLabel} size={54} />
             <div className="player__meta">
               <Link to={`/track/${track.id}`} className="player__title">
                 {track.title}
@@ -27,6 +29,7 @@ export function PlayerBar() {
               </Link>
             </div>
             <AiBadge score={track.aiScore} compact />
+            <LikeButton trackId={track.id} title={track.title} />
           </>
         ) : (
           <span className="muted">Pick something to play</span>
@@ -35,6 +38,15 @@ export function PlayerBar() {
 
       <div className="player__center">
         <div className="player__controls">
+          <button
+            className={`icon-button toggle${p.shuffle ? " toggle--on" : ""}`}
+            onClick={p.toggleShuffle}
+            aria-pressed={p.shuffle}
+            aria-label="Shuffle"
+            title="Shuffle"
+          >
+            <Icon name="shuffle" size={18} />
+          </button>
           <button className="icon-button" onClick={p.previous} disabled={!track} aria-label="Previous">
             <Icon name="previous" />
           </button>
@@ -48,6 +60,15 @@ export function PlayerBar() {
           </button>
           <button className="icon-button" onClick={p.next} disabled={!track} aria-label="Next">
             <Icon name="next" />
+          </button>
+          <button
+            className={`icon-button toggle${p.repeat !== "off" ? " toggle--on" : ""}`}
+            onClick={p.cycleRepeat}
+            aria-label={REPEAT_LABELS[p.repeat]}
+            title={REPEAT_LABELS[p.repeat]}
+          >
+            <Icon name="repeat" size={18} />
+            {p.repeat === "one" ? <span className="toggle__one">1</span> : null}
           </button>
         </div>
         <div className="player__progress">
@@ -69,6 +90,15 @@ export function PlayerBar() {
       </div>
 
       <div className="player__volume">
+        <button
+          className={`icon-button toggle${queueOpen ? " toggle--on" : ""}`}
+          onClick={onToggleQueue}
+          aria-pressed={queueOpen}
+          aria-label="Queue"
+          title="Queue"
+        >
+          <Icon name="queue" size={18} />
+        </button>
         <Icon name="volume" />
         <input
           type="range"

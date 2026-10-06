@@ -16,6 +16,7 @@ import type {
   PlaylistSummary,
   PlayRecorded,
   ReleaseDetail,
+  ReleaseSummary,
   ReleaseType,
   RubricInfo,
   Split,
@@ -127,6 +128,9 @@ export class TrusicClient {
   }
 
   // Releases
+  newReleases() {
+    return this.request<ReleaseSummary[]>("GET", "/releases");
+  }
   release(id: string) {
     return this.request<ReleaseDetail>("GET", `/releases/${id}`);
   }

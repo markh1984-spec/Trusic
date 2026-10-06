@@ -1,8 +1,11 @@
 import { useState, type FormEvent } from "react";
 import { Link, NavLink, Outlet, useNavigate, useSearchParams } from "react-router";
 import { useAuth } from "../auth";
+import { useLibrary } from "../library";
+import { useToast } from "../toast";
 import { Icon, type IconName } from "./Icon";
 import { PlayerBar } from "./PlayerBar";
+import { QueuePanel } from "./QueuePanel";
 
 function NavItem({ to, icon, children }: { to: string; icon: IconName; children: string }) {
   return (
@@ -18,6 +21,7 @@ export function Layout() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [query, setQuery] = useState(params.get("q") ?? "");
+  const [queueOpen, setQueueOpen] = useState(false);
 
   const onSearch = (e: FormEvent) => {
     e.preventDefault();
@@ -43,6 +47,9 @@ export function Layout() {
           </NavItem>
           {me ? (
             <>
+              <NavItem to="/library" icon="library">
+                Your library
+              </NavItem>
               <div className="nav__heading">You</div>
               <NavItem to="/money" icon="money">
                 Your money
@@ -61,10 +68,14 @@ export function Layout() {
             </>
           ) : null}
         </nav>
-        <div className="sidebar__promise">
-          <strong>80% to artists.</strong> Each listener's money only reaches artists they actually played, and
-          human-made music earns more.
-        </div>
+        {me ? (
+          <SidebarLibrary />
+        ) : (
+          <div className="sidebar__promise">
+            <strong>80% to artists.</strong> Each listener's money only reaches artists they actually played, and
+            human-made music earns more.
+          </div>
+        )}
       </aside>
 
       <div className="main">
@@ -109,7 +120,55 @@ export function Layout() {
         </main>
       </div>
 
-      <PlayerBar />
+      <PlayerBar queueOpen={queueOpen} onToggleQueue={() => setQueueOpen((o) => !o)} />
+      {queueOpen ? <QueuePanel onClose={() => setQueueOpen(false)} /> : null}
     </div>
+  );
+}
+
+/** Liked songs and the listener's playlists, always one click away. */
+function SidebarLibrary() {
+  const library = useLibrary();
+  const navigate = useNavigate();
+  const toast = useToast();
+
+  const newPlaylist = async () => {
+    try {
+      const id = await library.createPlaylist(`My playlist #${library.playlists.length + 1}`);
+      navigate(`/playlist/${id}`);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Couldn't create the playlist.");
+    }
+  };
+
+  return (
+    <section className="sidebar-library" aria-label="Your playlists">
+      <div className="sidebar-library__head">
+        <span className="nav__heading">Playlists</span>
+        <button
+          className="icon-button"
+          onClick={() => void newPlaylist()}
+          aria-label="New playlist"
+          title="New playlist"
+        >
+          <Icon name="plus" size={18} />
+        </button>
+      </div>
+      <NavLink to="/liked" className={({ isActive }) => `sidebar-library__item${isActive ? " is-active" : ""}`}>
+        <span className="liked-tile" aria-hidden>
+          <Icon name="heartFilled" size={14} />
+        </span>
+        Liked songs
+      </NavLink>
+      {library.playlists.map((p) => (
+        <NavLink
+          key={p.id}
+          to={`/playlist/${p.id}`}
+          className={({ isActive }) => `sidebar-library__item${isActive ? " is-active" : ""}`}
+        >
+          {p.name}
+        </NavLink>
+      ))}
+    </section>
   );
 }

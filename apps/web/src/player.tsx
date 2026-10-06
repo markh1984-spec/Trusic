@@ -1,23 +1,47 @@
 import type { TrackSummary } from "@trusic/client";
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { useLocation, useNavigate } from "react-router";
 import { api, API_BASE, tokenStore } from "./api";
 import { useAuth } from "./auth";
+import { hasNext, initialQueue, queueReducer, upcomingFromContext, type QueueState, type RepeatMode } from "./queue";
 
 interface PlayerState {
-  queue: TrackSummary[];
   current: TrackSummary | null;
   playing: boolean;
   positionMs: number;
   durationMs: number;
   volume: number;
   error: string | null;
-  playQueue(tracks: TrackSummary[], startIndex: number): void;
+  shuffle: boolean;
+  repeat: RepeatMode;
+  contextLabel: string | null;
+  /** Tracks the listener queued by hand. */
+  upNext: TrackSummary[];
+  /** The rest of the album, playlist or list that's playing. */
+  upcoming: { track: TrackSummary; orderIndex: number }[];
+  playQueue(tracks: TrackSummary[], startIndex: number, label?: string): void;
+  playNext(track: TrackSummary): void;
+  addToQueue(track: TrackSummary): void;
+  removeFromQueue(index: number): void;
+  jumpToQueued(index: number): void;
+  jumpToUpcoming(orderIndex: number): void;
   toggle(): void;
   next(): void;
   previous(): void;
   seek(ms: number): void;
   setVolume(volume: number): void;
+  toggleShuffle(): void;
+  cycleRepeat(): void;
 }
 
 const PlayerContext = createContext<PlayerState | null>(null);
@@ -31,8 +55,12 @@ const PlayerContext = createContext<PlayerState | null>(null);
  */
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [queue, setQueue] = useState<TrackSummary[]>([]);
-  const [index, setIndex] = useState(-1);
+  const [queue, dispatch] = useReducer(
+    (s: QueueState, a: Parameters<typeof queueReducer>[1]) => queueReducer(s, a),
+    initialQueue,
+  );
+  const queueRef = useRef(queue);
+  queueRef.current = queue;
   const [playing, setPlaying] = useState(false);
   const [positionMs, setPositionMs] = useState(0);
   const [durationMs, setDurationMs] = useState(0);
@@ -40,7 +68,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   const listened = useRef({ trackId: null as string | null, ms: 0, lastTime: 0 });
-  const current = index >= 0 ? (queue[index] ?? null) : null;
+  const current = queue.current;
 
   const report = useCallback((keepalive = false) => {
     const { trackId, ms } = listened.current;
@@ -84,7 +112,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const onDuration = () => setDurationMs(Number.isFinite(audio.duration) ? audio.duration * 1000 : 0);
     const onEnded = () => {
       report();
-      setIndex((i) => i + 1);
+      const q = queueRef.current;
+      if (q.repeat === "one") dispatch({ type: "replay" });
+      else if (hasNext(q)) dispatch({ type: "next" });
+      else audio.currentTime = 0;
     };
     const onError = () => setError("This track couldn't be played.");
     const onPageHide = () => report(true);
@@ -109,7 +140,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     };
   }, [report]);
 
-  // Load and play whenever the current track changes.
+  // Start the current track from the top whenever the queue says so.
   const currentId = current?.id;
   useEffect(() => {
     const audio = audioRef.current!;
@@ -134,37 +165,37 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [currentId]);
+  }, [currentId, queue.playId]);
 
   useEffect(() => {
     audioRef.current!.volume = volume;
   }, [volume]);
 
   const playQueue = useCallback(
-    (tracks: TrackSummary[], startIndex: number) => {
+    (tracks: TrackSummary[], startIndex: number, label?: string) => {
       const target = tracks[startIndex];
-      if (target && target.id === current?.id) {
+      if (target && target.id === queueRef.current.current?.id && audioRef.current!.paused) {
         void audioRef.current!.play();
         return;
       }
       report();
-      setQueue(tracks);
-      setIndex(startIndex);
+      dispatch({ type: "playContext", tracks, startIndex, label: label ?? null });
     },
-    [current?.id, report],
+    [report],
   );
 
   const toggle = useCallback(() => {
     const audio = audioRef.current!;
-    if (!current) return;
+    if (!queueRef.current.current) return;
     if (audio.paused) void audio.play();
     else audio.pause();
-  }, [current]);
+  }, []);
 
   const next = useCallback(() => {
+    if (!hasNext(queueRef.current)) return;
     report();
-    setIndex((i) => Math.min(i + 1, queue.length));
-  }, [queue.length, report]);
+    dispatch({ type: "next" });
+  }, [report]);
 
   const previous = useCallback(() => {
     const audio = audioRef.current!;
@@ -173,12 +204,28 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       return;
     }
     report();
-    setIndex((i) => Math.max(i - 1, 0));
+    dispatch({ type: "previous" });
   }, [report]);
 
   const seek = useCallback((ms: number) => {
     audioRef.current!.currentTime = ms / 1000;
   }, []);
+
+  const jumpToQueued = useCallback(
+    (index: number) => {
+      report();
+      dispatch({ type: "jumpToQueued", index });
+    },
+    [report],
+  );
+
+  const jumpToUpcoming = useCallback(
+    (orderIndex: number) => {
+      report();
+      dispatch({ type: "jumpToContext", orderIndex });
+    },
+    [report],
+  );
 
   // Lock screen, headphone buttons and media keys.
   useEffect(() => {
@@ -186,7 +233,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     navigator.mediaSession.metadata = new MediaMetadata({
       title: current.title,
       artist: current.artist.name,
-      album: "Trusic",
+      album: current.release?.title ?? "Trusic",
+      artwork: current.artworkUrl ? [{ src: current.artworkUrl, sizes: "512x512" }] : [],
     });
     navigator.mediaSession.setActionHandler("play", () => void audioRef.current!.play());
     navigator.mediaSession.setActionHandler("pause", () => audioRef.current!.pause());
@@ -196,21 +244,47 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<PlayerState>(
     () => ({
-      queue,
       current,
       playing,
       positionMs,
       durationMs: durationMs || current?.durationMs || 0,
       volume,
       error,
+      shuffle: queue.shuffle,
+      repeat: queue.repeat,
+      contextLabel: queue.contextLabel,
+      upNext: queue.upNext,
+      upcoming: upcomingFromContext(queue),
       playQueue,
+      playNext: (track) => dispatch({ type: "playNext", track }),
+      addToQueue: (track) => dispatch({ type: "addToQueue", track }),
+      removeFromQueue: (index) => dispatch({ type: "removeFromQueue", index }),
+      jumpToQueued,
+      jumpToUpcoming,
       toggle,
       next,
       previous,
       seek,
       setVolume: setVolumeState,
+      toggleShuffle: () => dispatch({ type: "toggleShuffle" }),
+      cycleRepeat: () => dispatch({ type: "cycleRepeat" }),
     }),
-    [queue, current, playing, positionMs, durationMs, volume, error, playQueue, toggle, next, previous, seek],
+    [
+      current,
+      playing,
+      positionMs,
+      durationMs,
+      volume,
+      error,
+      queue,
+      playQueue,
+      jumpToQueued,
+      jumpToUpcoming,
+      toggle,
+      next,
+      previous,
+      seek,
+    ],
   );
 
   return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;
@@ -229,12 +303,12 @@ export function usePlayTracks() {
   const navigate = useNavigate();
   const location = useLocation();
   return useCallback(
-    (tracks: TrackSummary[], startIndex: number) => {
+    (tracks: TrackSummary[], startIndex: number, label?: string) => {
       if (!me) {
         navigate(`/login?next=${encodeURIComponent(location.pathname + location.search)}`);
         return;
       }
-      player.playQueue(tracks, startIndex);
+      player.playQueue(tracks, startIndex, label);
     },
     [me, navigate, location, player],
   );

@@ -155,10 +155,16 @@ export function toArtist(a: typeof artists.$inferSelect): Artist {
 }
 
 /** Release summaries with live-track counts by AI label, newest release first. */
-export async function loadReleaseSummaries(db: Db, where: { artistId?: string; ids?: string[] }) {
+export async function loadReleaseSummaries(
+  db: Db,
+  where: { artistId?: string; ids?: string[]; withTracks?: boolean; limit?: number },
+) {
   const conditions = [
     where.artistId ? eq(releases.artistId, where.artistId) : undefined,
     where.ids ? inArray(releases.id, where.ids) : undefined,
+    where.withTracks
+      ? sql`exists (select 1 from ${tracks} where ${tracks.releaseId} = ${releases.id} and ${tracks.status} = 'live')`
+      : undefined,
   ].filter(Boolean);
   if (where.ids?.length === 0) return [];
   const rows = await db
@@ -166,7 +172,8 @@ export async function loadReleaseSummaries(db: Db, where: { artistId?: string; i
     .from(releases)
     .innerJoin(artists, eq(artists.id, releases.artistId))
     .where(and(...conditions))
-    .orderBy(sql`${releases.releaseDate} desc nulls last`, desc(releases.createdAt));
+    .orderBy(sql`${releases.releaseDate} desc nulls last`, desc(releases.createdAt))
+    .limit(where.limit ?? 1000);
   if (rows.length === 0) return [];
 
   const trackRows = await db

@@ -62,6 +62,9 @@ export const releaseRoutes =
       return row.release;
     }
 
+    /** The newest releases that have something to play. */
+    app.get("/releases", async () => loadReleaseSummaries(db, { withTracks: true, limit: 12 }));
+
     app.get<{ Params: { id: string } }>("/releases/:id", async (request) => {
       const viewer = await optionalUser(db, request);
       const detail = await loadReleaseDetail(db, z.uuid().parse(request.params.id), viewer);

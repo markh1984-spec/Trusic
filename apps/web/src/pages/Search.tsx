@@ -19,6 +19,7 @@ export function SearchPage() {
       ) : (
         <TrackList
           tracks={data?.tracks ?? []}
+          label={q ? `“${q}”` : "Search"}
           empty={q ? "Nothing matched. Try an artist, title or genre." : undefined}
         />
       )}

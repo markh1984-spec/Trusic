@@ -17,7 +17,9 @@ import { api } from "../api";
 import { useAuth } from "../auth";
 import { AiBadge } from "../components/AiBadge";
 import { ErrorNote, RequireAuth } from "../components/Guards";
+import { TYPE_NAMES } from "../components/Cards";
 import { ScoreBreakdown } from "../components/ScoreBreakdown";
+import { useAsync } from "../hooks";
 
 const LEVELS: { value: StageDeclaration; label: string; hint: string }[] = [
   { value: "none", label: "No AI", hint: "People did this" },
@@ -58,6 +60,12 @@ function UploadForm() {
   const [newArtist, setNewArtist] = useState("");
   const [title, setTitle] = useState("");
   const [genre, setGenre] = useState("");
+  const [releaseId, setReleaseId] = useState(new URLSearchParams(location.search).get("release") ?? "");
+  const artistSlug = artists.find((a) => a.id === artistId)?.slug;
+  const releases = useAsync(
+    () => (artistSlug ? api.artist(artistSlug).then((p) => p.releases) : Promise.resolve([])),
+    [artistSlug],
+  );
   const [file, setFile] = useState<File | null>(null);
   const [declaration, setDeclaration] = useState<AiDeclaration>(EMPTY);
   const [toolsText, setToolsText] = useState("");
@@ -100,6 +108,8 @@ function UploadForm() {
         artistId: targetArtist,
         title: title.trim(),
         genre: genre.trim() || undefined,
+        // Only a release of the chosen artist (a ?release= link may point elsewhere).
+        releaseId: releases.data?.some((r) => r.id === releaseId) ? releaseId : undefined,
         declaration: {
           ...declaration,
           toolsUsed: toolsText
@@ -131,7 +141,13 @@ function UploadForm() {
           {artists.length ? (
             <label>
               Artist or band
-              <select value={artistId} onChange={(e) => setArtistId(e.target.value)}>
+              <select
+                value={artistId}
+                onChange={(e) => {
+                  setArtistId(e.target.value);
+                  setReleaseId("");
+                }}
+              >
                 {artists.map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name}
@@ -155,6 +171,20 @@ function UploadForm() {
             Genre
             <input maxLength={60} value={genre} onChange={(e) => setGenre(e.target.value)} placeholder="Optional" />
           </label>
+          {releases.data?.length && !needsNewArtist ? (
+            <label>
+              Release
+              <select value={releaseId} onChange={(e) => setReleaseId(e.target.value)}>
+                <option value="">None (a standalone track)</option>
+                {releases.data.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.title} ({TYPE_NAMES[r.type]})
+                  </option>
+                ))}
+              </select>
+              <small className="muted">The track is added to the end of the release.</small>
+            </label>
+          ) : null}
           <label>
             Audio file
             <input

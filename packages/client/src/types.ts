@@ -210,6 +210,8 @@ export interface ArtistPage {
   tracks: TrackSummary[];
   releases: ReleaseSummary[];
   followers: number;
+  /** Whether the signed-in viewer follows this artist. */
+  isFollowing: boolean;
   isOwner: boolean;
 }
 

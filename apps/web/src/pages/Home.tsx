@@ -2,6 +2,7 @@ import type { AiLabel } from "@trusic/core";
 import { useState } from "react";
 import { Link } from "react-router";
 import { api } from "../api";
+import { CardGrid, ReleaseCard } from "../components/Cards";
 import { ErrorNote, Loading } from "../components/Guards";
 import { TrackList } from "../components/TrackList";
 import { useAsync } from "../hooks";
@@ -16,6 +17,7 @@ const FILTERS: { value: AiLabel | ""; label: string }[] = [
 export function HomePage() {
   const [label, setLabel] = useState<AiLabel | "">("");
   const { data, error, loading } = useAsync(() => api.tracks({ label, limit: 100 }), [label]);
+  const releases = useAsync(() => api.newReleases(), []);
 
   return (
     <>
@@ -51,9 +53,20 @@ export function HomePage() {
         </div>
       </section>
 
+      {releases.data?.length ? (
+        <section>
+          <h2>New releases</h2>
+          <CardGrid>
+            {releases.data.map((r) => (
+              <ReleaseCard key={r.id} release={r} showArtist />
+            ))}
+          </CardGrid>
+        </section>
+      ) : null}
+
       <section>
         <div className="section-head">
-          <h2>New on Trusic</h2>
+          <h2>New tracks</h2>
           <div className="chips" role="radiogroup" aria-label="Filter by AI label">
             {FILTERS.map((f) => (
               <button
@@ -73,7 +86,7 @@ export function HomePage() {
         ) : loading && !data ? (
           <Loading />
         ) : (
-          <TrackList tracks={data?.tracks ?? []} />
+          <TrackList tracks={data?.tracks ?? []} label="New tracks" />
         )}
       </section>
     </>

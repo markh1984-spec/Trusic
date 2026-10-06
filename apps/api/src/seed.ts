@@ -17,7 +17,7 @@ import { plays, revenueEntries, users } from "./db/schema";
 import { MetadataDetector } from "./detection";
 import { currentPeriod, periodBounds, previousPeriod, runPayouts } from "./payout-service";
 import { LocalMediaStorage } from "./storage";
-import { synthWav } from "./synth";
+import { synthPng, synthWav } from "./synth";
 
 const PASSWORD = "trusic-demo";
 const config = loadConfig();
@@ -53,7 +53,7 @@ async function call<T>(method: string, url: string, token: string | null, body?:
     ...(body !== undefined ? { payload: body as object } : {}),
   });
   if (res.statusCode >= 400) throw new Error(`${method} ${url} failed: ${res.statusCode} ${res.body}`);
-  return res.json() as T;
+  return (res.body ? res.json() : null) as T;
 }
 
 async function account(email: string, displayName: string) {
@@ -103,29 +103,49 @@ async function upload(
   comment?: string,
 ) {
   const audio = synthWav({ seconds: 48 + (seed % 4) * 6, sampleRate: 16_000, seed: seed++, comment });
-  const boundary = `----trusicseed${seed}`;
   const fields = { artistId, title, genre, declaration: JSON.stringify(declaration) };
+  const track = await sendFile<{ id: string; aiScore: number }>("POST", "/api/tracks", owner.token, fields, {
+    name: "audio",
+    filename: `${title}.wav`,
+    data: audio,
+  });
+  console.log(`  ${title.padEnd(26)} AI ${String(track.aiScore).padStart(3)}`);
+  scores[track.id] = track.aiScore;
+  return track.id;
+}
+
+/** Each track's AI score, recorded on the plays we simulate. */
+const scores: Record<string, number> = {};
+
+async function sendFile<T>(
+  method: "POST" | "PUT",
+  url: string,
+  token: string,
+  fields: Record<string, string>,
+  file: { name: string; filename: string; data: Buffer },
+): Promise<T> {
+  const boundary = `----trusicseed${Math.random().toString(16).slice(2)}`;
   const payload = Buffer.concat([
     ...Object.entries(fields).map(([k, v]) =>
       Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="${k}"\r\n\r\n${v}\r\n`),
     ),
     Buffer.from(
-      `--${boundary}\r\nContent-Disposition: form-data; name="audio"; filename="${title}.wav"\r\nContent-Type: audio/wav\r\n\r\n`,
+      `--${boundary}\r\nContent-Disposition: form-data; name="${file.name}"; filename="${file.filename}"\r\n\r\n`,
     ),
-    audio,
+    file.data,
     Buffer.from(`\r\n--${boundary}--\r\n`),
   ]);
   const res = await app.inject({
-    method: "POST",
-    url: "/api/tracks",
-    headers: { authorization: `Bearer ${owner.token}`, "content-type": `multipart/form-data; boundary=${boundary}` },
+    method,
+    url,
+    headers: { authorization: `Bearer ${token}`, "content-type": `multipart/form-data; boundary=${boundary}` },
     payload,
   });
-  if (res.statusCode !== 201) throw new Error(`upload ${title} failed: ${res.body}`);
-  const track = res.json() as { id: string; aiScore: number };
-  console.log(`  ${title.padEnd(26)} AI ${String(track.aiScore).padStart(3)}`);
-  return track.id;
+  if (res.statusCode >= 400) throw new Error(`${method} ${url} failed: ${res.statusCode} ${res.body}`);
+  return res.json() as T;
 }
+
+const image = (seedNumber: number) => ({ name: "image", filename: "image.png", data: synthPng({ seed: seedNumber }) });
 
 const artist = (owner: { token: string }, name: string, bio: string) =>
   call<{ id: string }>("POST", "/api/artists", owner.token, { name, bio }).then((a) => a.id);
@@ -226,6 +246,67 @@ await call("PUT", `/api/tracks/${t.pines1}/splits`, pines.token, {
   ],
 });
 
+console.log("Creating releases and libraries…");
+const releaseIds: Record<string, string> = {};
+async function release(
+  owner: { token: string },
+  artistId: string,
+  title: string,
+  type: "album" | "ep" | "single",
+  releaseDate: string,
+  trackKeys: string[],
+  art: number,
+) {
+  const created = await call<{ id: string }>("POST", "/api/releases", owner.token, {
+    artistId,
+    title,
+    type,
+    releaseDate,
+  });
+  await call("PUT", `/api/releases/${created.id}/tracks`, owner.token, { trackIds: trackKeys.map((k) => t[k]) });
+  await sendFile("PUT", `/api/releases/${created.id}/artwork`, owner.token, {}, image(art));
+  releaseIds[title] = created.id;
+}
+await release(pines, pinesId, "Chalk Paths", "ep", "2026-03-14", ["pines1", "pines2", "pines3"], 3);
+await release(mara, maraId, "Paper Boats", "ep", "2025-11-02", ["mara1", "mara2"], 7);
+await release(harbour, harbourId, "Low Tide", "ep", "2026-06-20", ["harbour2", "harbour1"], 4);
+await release(velvet, velvetId, "After Hours", "single", "2026-08-01", ["velvet1"], 2);
+await release(prompter, neonId, "Infinite Content Vol. 1", "album", "2026-09-28", ["neon1", "neon2", "neon3"], 9);
+
+for (const [owner, artistId, art] of [
+  [pines, pinesId, 11],
+  [mara, maraId, 12],
+  [harbour, harbourId, 13],
+  [velvet, velvetId, 14],
+  [prompter, neonId, 15],
+] as const) {
+  await sendFile("PUT", `/api/artists/${artistId}/image`, owner.token, {}, image(art));
+}
+
+{
+  const me = listeners[0]!;
+  for (const key of ["pines1", "mara1", "harbour1", "velvet1", "pines3"])
+    await call("PUT", `/api/me/likes/${t[key]}`, me.token);
+  for (const id of [pinesId, maraId, harbourId]) await call("PUT", `/api/me/follows/${id}`, me.token);
+  const playlists: [string, string, string[]][] = [
+    ["Sunday morning", "Slow, human, and warm.", ["mara1", "pines3", "harbour2", "mara2"]],
+    ["Road trip", "Windows down.", ["pines1", "pines2", "velvet1", "harbour1"]],
+  ];
+  for (const [name, description, keys] of playlists) {
+    const created = await call<{ id: string }>("POST", "/api/playlists", me.token, { name, description });
+    await call("POST", `/api/playlists/${created.id}/entries`, me.token, { trackIds: keys.map((k) => t[k]) });
+  }
+  // Other listeners follow a few artists too.
+  for (const [i, id] of [
+    [2, maraId],
+    [3, harbourId],
+    [4, pinesId],
+    [1, neonId],
+  ] as const) {
+    await call("PUT", `/api/me/follows/${id}`, listeners[i]!.token);
+  }
+}
+
 console.log("Simulating listening…");
 // Each listener's taste: track key → plays per month.
 const tastes: Record<string, number>[] = [
@@ -250,6 +331,7 @@ for (const period of [previous, currentPeriod()]) {
         rows.push({
           userId: listener.id,
           trackId: t[key]!,
+          aiScore: scores[t[key]!],
           msPlayed: skipped ? 8_000 : 45_000,
           playedAt: new Date(start.getTime() + (((n * 2_654_435_761 + i * 97) % 1000) / 1000) * span),
         });

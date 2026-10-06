@@ -7,6 +7,7 @@ import type {
   PlaylistDetail,
   PlaylistSummary,
   ReleaseDetail,
+  ReleaseSummary,
   TrackDetail,
   TrackList,
 } from "@trusic/client";
@@ -73,6 +74,17 @@ describe("releases", () => {
     ]);
     expect(set.body.aiLabels).toEqual({ human: 2, ai_assisted: 0, ai_generated: 0 });
     expect(set.body.isOwner).toBe(true);
+  });
+
+  it("lists new releases that have tracks", async () => {
+    const empty = await call<ReleaseDetail>(t, "POST", "/api/releases", band.token, {
+      artistId: artist.id,
+      title: "Nothing yet",
+      type: "single",
+    });
+    const latest = await call<ReleaseSummary[]>(t, "GET", "/api/releases");
+    expect(latest.body.map((r) => r.title)).toEqual(["Chalk Paths"]);
+    await call(t, "DELETE", `/api/releases/${empty.body.id}`, band.token);
   });
 
   it("appends uploads to a release", async () => {
@@ -181,7 +193,7 @@ describe("releases", () => {
     await call(t, "PUT", `/api/me/follows/${artist.id}`, fan.token);
     await call(t, "PUT", `/api/me/follows/${artist.id}`, fan.token);
     const page = await call<ArtistPage>(t, "GET", `/api/artists/${artist.slug}`, fan.token);
-    expect(page.body).toMatchObject({ followers: 1, isOwner: false });
+    expect(page.body).toMatchObject({ followers: 1, isFollowing: true, isOwner: false });
     expect(page.body.releases.map((r) => [r.title, r.type, r.trackCount])).toEqual([["Chalk Paths (Deluxe)", "ep", 3]]);
     expect((await call<ArtistPage>(t, "GET", `/api/artists/${artist.slug}`, band.token)).body.isOwner).toBe(true);
   });
