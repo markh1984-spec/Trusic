@@ -3,12 +3,20 @@ import type {
   AdminAppeal,
   Appeal,
   Artist,
+  ArtistPage,
   AuthResponse,
   EarningsPeriod,
+  HistoryItem,
+  LibraryIds,
+  LikedTrack,
   ListenerStatementView,
   Me,
   PayoutRunSummary,
+  PlaylistDetail,
+  PlaylistSummary,
   PlayRecorded,
+  ReleaseDetail,
+  ReleaseType,
   RubricInfo,
   Split,
   StreamUrl,
@@ -41,6 +49,8 @@ export interface UploadTrackInput {
   artistId: string;
   title: string;
   genre?: string;
+  /** Add the track to the end of this release. */
+  releaseId?: string;
   declaration: AiDeclaration;
   /** A browser File/Blob, or any Blob-like the platform's FormData accepts. */
   audio: Blob;
@@ -110,7 +120,30 @@ export class TrusicClient {
     return this.request<Artist>("PATCH", `/artists/${id}`, input);
   }
   artist(slug: string) {
-    return this.request<{ artist: Artist; tracks: TrackList["tracks"] }>("GET", `/artists/${encodeURIComponent(slug)}`);
+    return this.request<ArtistPage>("GET", `/artists/${encodeURIComponent(slug)}`);
+  }
+  setArtistImage(artistId: string, image: Blob, filename: string) {
+    return this.request<Artist>("PUT", `/artists/${artistId}/image`, imageForm(image, filename));
+  }
+
+  // Releases
+  release(id: string) {
+    return this.request<ReleaseDetail>("GET", `/releases/${id}`);
+  }
+  createRelease(input: { artistId: string; title: string; type: ReleaseType; releaseDate?: string | null }) {
+    return this.request<ReleaseDetail>("POST", "/releases", input);
+  }
+  updateRelease(id: string, input: { title?: string; type?: ReleaseType; releaseDate?: string | null }) {
+    return this.request<ReleaseDetail>("PATCH", `/releases/${id}`, input);
+  }
+  deleteRelease(id: string) {
+    return this.request<void>("DELETE", `/releases/${id}`);
+  }
+  setReleaseTracks(id: string, trackIds: string[]) {
+    return this.request<ReleaseDetail>("PUT", `/releases/${id}/tracks`, { trackIds });
+  }
+  setReleaseArtwork(id: string, image: Blob, filename: string) {
+    return this.request<ReleaseDetail>("PUT", `/releases/${id}/artwork`, imageForm(image, filename));
   }
 
   // Tracks
@@ -128,6 +161,7 @@ export class TrusicClient {
     form.set("artistId", input.artistId);
     form.set("title", input.title);
     if (input.genre) form.set("genre", input.genre);
+    if (input.releaseId) form.set("releaseId", input.releaseId);
     form.set("declaration", JSON.stringify(input.declaration));
     form.set("audio", input.audio, input.filename);
     return this.request<TrackDetail>("POST", "/tracks", form);
@@ -154,6 +188,58 @@ export class TrusicClient {
   }
   recordPlay(trackId: string, msPlayed: number) {
     return this.request<PlayRecorded>("POST", "/plays", { trackId, msPlayed });
+  }
+
+  // Library
+  library() {
+    return this.request<LibraryIds>("GET", "/me/library");
+  }
+  likes() {
+    return this.request<LikedTrack[]>("GET", "/me/likes");
+  }
+  like(trackId: string) {
+    return this.request<void>("PUT", `/me/likes/${trackId}`);
+  }
+  unlike(trackId: string) {
+    return this.request<void>("DELETE", `/me/likes/${trackId}`);
+  }
+  follows() {
+    return this.request<Artist[]>("GET", "/me/follows");
+  }
+  follow(artistId: string) {
+    return this.request<void>("PUT", `/me/follows/${artistId}`);
+  }
+  unfollow(artistId: string) {
+    return this.request<void>("DELETE", `/me/follows/${artistId}`);
+  }
+  history() {
+    return this.request<HistoryItem[]>("GET", "/me/history");
+  }
+
+  // Playlists
+  myPlaylists() {
+    return this.request<PlaylistSummary[]>("GET", "/me/playlists");
+  }
+  playlist(id: string) {
+    return this.request<PlaylistDetail>("GET", `/playlists/${id}`);
+  }
+  createPlaylist(input: { name: string; description?: string; isPublic?: boolean }) {
+    return this.request<PlaylistDetail>("POST", "/playlists", input);
+  }
+  updatePlaylist(id: string, input: { name?: string; description?: string; isPublic?: boolean }) {
+    return this.request<PlaylistDetail>("PATCH", `/playlists/${id}`, input);
+  }
+  deletePlaylist(id: string) {
+    return this.request<void>("DELETE", `/playlists/${id}`);
+  }
+  addToPlaylist(id: string, trackIds: string[]) {
+    return this.request<PlaylistDetail>("POST", `/playlists/${id}/entries`, { trackIds });
+  }
+  removeFromPlaylist(id: string, entryId: string) {
+    return this.request<PlaylistDetail>("DELETE", `/playlists/${id}/entries/${entryId}`);
+  }
+  reorderPlaylist(id: string, entryIds: string[]) {
+    return this.request<PlaylistDetail>("PUT", `/playlists/${id}/order`, { entryIds });
   }
 
   // Money
@@ -186,4 +272,10 @@ export class TrusicClient {
   runPayouts(period: string) {
     return this.request<PayoutRunSummary>("POST", "/admin/payouts/run", { period });
   }
+}
+
+function imageForm(image: Blob, filename: string): FormData {
+  const form = new FormData();
+  form.set("image", image, filename);
+  return form;
 }

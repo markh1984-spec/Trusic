@@ -16,7 +16,7 @@ import { openDatabase } from "./db/client";
 import { plays, revenueEntries, users } from "./db/schema";
 import { MetadataDetector } from "./detection";
 import { currentPeriod, periodBounds, previousPeriod, runPayouts } from "./payout-service";
-import { LocalAudioStorage } from "./storage";
+import { LocalMediaStorage } from "./storage";
 import { synthWav } from "./synth";
 
 const PASSWORD = "trusic-demo";
@@ -32,7 +32,7 @@ const database = await openDatabase({ url: config.databaseUrl, dataDir: path.joi
 const { db } = database;
 const app = await buildApp({
   db,
-  storage: new LocalAudioStorage(path.join(config.dataDir, "audio")),
+  storage: new LocalMediaStorage(path.join(config.dataDir, "media")),
   detector: new MetadataDetector(),
   config,
 });

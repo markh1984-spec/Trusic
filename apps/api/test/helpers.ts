@@ -7,8 +7,8 @@ import { buildApp } from "../src/app";
 import { loadConfig } from "../src/config";
 import { openDatabase, type Database } from "../src/db/client";
 import { MetadataDetector } from "../src/detection";
-import { LocalAudioStorage } from "../src/storage";
-import { synthWav } from "../src/synth";
+import { LocalMediaStorage } from "../src/storage";
+import { synthPng, synthWav } from "../src/synth";
 
 export const ADMIN_EMAIL = "admin@trusic.test";
 
@@ -24,7 +24,7 @@ export async function createTestApp(): Promise<TestApp> {
   const database = await openDatabase({});
   const app = await buildApp({
     db: database.db,
-    storage: new LocalAudioStorage(path.join(dir, "audio")),
+    storage: new LocalMediaStorage(path.join(dir, "media")),
     detector: new MetadataDetector(),
     config,
   });
@@ -57,7 +57,10 @@ export function declaration(
 }
 
 /** Build a multipart body by hand so tests don't need a form-data library. */
-export function multipart(fields: Record<string, string>, file?: { name: string; filename: string; data: Buffer }) {
+export function multipart(
+  fields: Record<string, string>,
+  file?: { name: string; filename: string; data: Buffer; contentType?: string },
+) {
   const boundary = `----trusic${Math.random().toString(16).slice(2)}`;
   const parts: Buffer[] = [];
   for (const [name, value] of Object.entries(fields)) {
@@ -66,7 +69,7 @@ export function multipart(fields: Record<string, string>, file?: { name: string;
   if (file) {
     parts.push(
       Buffer.from(
-        `--${boundary}\r\nContent-Disposition: form-data; name="${file.name}"; filename="${file.filename}"\r\nContent-Type: audio/wav\r\n\r\n`,
+        `--${boundary}\r\nContent-Disposition: form-data; name="${file.name}"; filename="${file.filename}"\r\nContent-Type: ${file.contentType ?? "audio/wav"}\r\n\r\n`,
       ),
       file.data,
       Buffer.from("\r\n"),
@@ -78,3 +81,50 @@ export function multipart(fields: Record<string, string>, file?: { name: string;
 
 export const wav = (options: { seconds?: number; seed?: number; comment?: string } = {}) =>
   synthWav({ seconds: options.seconds ?? 40, sampleRate: 8000, seed: options.seed, comment: options.comment });
+
+export const png = (seed = 1) => synthPng({ size: 32, seed });
+
+/** Call the API in tests. Throws on unexpected status codes so failures point at the call. */
+export async function call<T = unknown>(
+  t: TestApp,
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
+  url: string,
+  token?: string,
+  body?: unknown,
+) {
+  const res = await t.app.inject({
+    method,
+    url,
+    headers: token ? { authorization: `Bearer ${token}` } : {},
+    ...(body !== undefined ? { payload: body as object } : {}),
+  });
+  return { status: res.statusCode, body: (res.body ? res.json() : null) as T, headers: res.headers };
+}
+
+export async function register(t: TestApp, email: string) {
+  const res = await call<{ token: string; user: { id: string } }>(t, "POST", "/api/auth/register", undefined, {
+    email,
+    password: "correct horse battery",
+    displayName: email.split("@")[0],
+  });
+  if (res.status !== 201) throw new Error(`register ${email}: ${res.status}`);
+  return { token: res.body.token, id: res.body.user.id };
+}
+
+export async function sendFile(
+  t: TestApp,
+  method: "POST" | "PUT",
+  url: string,
+  token: string,
+  fields: Record<string, string>,
+  file: { name: string; filename: string; data: Buffer; contentType?: string },
+) {
+  const form = multipart(fields, file);
+  const res = await t.app.inject({
+    method,
+    url,
+    headers: { ...form.headers, authorization: `Bearer ${token}` },
+    payload: form.payload,
+  });
+  return { status: res.statusCode, body: res.json() as never };
+}

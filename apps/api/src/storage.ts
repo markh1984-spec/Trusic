@@ -5,10 +5,10 @@ import type { Readable } from "node:stream";
 import { randomUUID } from "node:crypto";
 
 /**
- * Where audio files live. Local disk for development; an S3-compatible bucket
- * behind a CDN is the production plan, behind this same interface.
+ * Where uploaded files (audio and images) live. Local disk for development; an
+ * S3-compatible bucket behind a CDN is the production plan, behind this same interface.
  */
-export interface AudioStorage {
+export interface MediaStorage {
   /** A fresh path to write an incoming upload to before it is validated. */
   tempPath(): Promise<string>;
   /** Move a validated temp file into storage under `key`. */
@@ -19,7 +19,7 @@ export interface AudioStorage {
   remove(key: string): Promise<void>;
 }
 
-export class LocalAudioStorage implements AudioStorage {
+export class LocalMediaStorage implements MediaStorage {
   constructor(private readonly root: string) {}
 
   private resolve(key: string): string {

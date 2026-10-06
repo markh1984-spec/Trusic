@@ -63,9 +63,31 @@ export const artists = pgTable(
     name: text("name").notNull(),
     slug: text("slug").notNull().unique(),
     bio: text("bio").notNull().default(""),
+    /** Storage key of the profile image, e.g. "images/<uuid>.jpg". */
+    imageKey: text("image_key"),
     createdAt: createdAt(),
   },
   (t) => [index("artists_owner_idx").on(t.ownerUserId)],
+);
+
+export type ReleaseType = "album" | "ep" | "single";
+
+/** An album, EP or single. Tracks belong to at most one release. */
+export const releases = pgTable(
+  "releases",
+  {
+    id: id(),
+    artistId: uuid("artist_id")
+      .notNull()
+      .references(() => artists.id),
+    title: text("title").notNull(),
+    type: text("type").$type<ReleaseType>().notNull(),
+    /** "2026-10-06". Optional until the artist sets it. */
+    releaseDate: text("release_date"),
+    artworkKey: text("artwork_key"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("releases_artist_idx").on(t.artistId)],
 );
 
 export const tracks = pgTable(
@@ -77,6 +99,9 @@ export const tracks = pgTable(
       .references(() => artists.id),
     title: text("title").notNull(),
     genre: text("genre"),
+    releaseId: uuid("release_id").references(() => releases.id, { onDelete: "set null" }),
+    /** Position within the release, starting at 1. */
+    trackNumber: integer("track_number"),
     durationMs: integer("duration_ms").notNull(),
     audioKey: text("audio_key").notNull(),
     audioMimeType: text("audio_mime_type").notNull(),
@@ -99,7 +124,11 @@ export const tracks = pgTable(
     status: text("status").$type<"live" | "removed">().notNull().default("live"),
     createdAt: createdAt(),
   },
-  (t) => [index("tracks_artist_idx").on(t.artistId), index("tracks_created_idx").on(t.createdAt)],
+  (t) => [
+    index("tracks_artist_idx").on(t.artistId),
+    index("tracks_created_idx").on(t.createdAt),
+    index("tracks_release_idx").on(t.releaseId),
+  ],
 );
 
 /** Who gets paid for a track. Shares are basis points and total 10000. */
@@ -151,9 +180,14 @@ export const plays = pgTable(
       .notNull()
       .references(() => tracks.id),
     msPlayed: integer("ms_played").notNull(),
+    /**
+     * The track's AI score when it was played. Payouts currently use the score at
+     * calculation time; this is kept so that can change (see docs/PRODUCT.md).
+     */
+    aiScore: integer("ai_score"),
     playedAt: timestamp("played_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("plays_played_at_idx").on(t.playedAt), index("plays_user_idx").on(t.userId)],
+  (t) => [index("plays_played_at_idx").on(t.playedAt), index("plays_user_idx").on(t.userId, t.playedAt)],
 );
 
 /**
@@ -241,4 +275,65 @@ export const payoutListenerStatements = pgTable(
     toHumanPot: jsonb("to_human_pot").$type<{ amount: number; reason: string } | null>(),
   },
   (t) => [primaryKey({ columns: [t.runId, t.userId] })],
+);
+
+export const likes = pgTable(
+  "likes",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    trackId: uuid("track_id")
+      .notNull()
+      .references(() => tracks.id, { onDelete: "cascade" }),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.trackId] })],
+);
+
+export const follows = pgTable(
+  "follows",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    artistId: uuid("artist_id")
+      .notNull()
+      .references(() => artists.id, { onDelete: "cascade" }),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.artistId] }), index("follows_artist_idx").on(t.artistId)],
+);
+
+export const playlists = pgTable(
+  "playlists",
+  {
+    id: id(),
+    ownerUserId: uuid("owner_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    description: text("description").notNull().default(""),
+    isPublic: boolean("is_public").notNull().default(true),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("playlists_owner_idx").on(t.ownerUserId)],
+);
+
+/** A track's place in a playlist. The same track can appear more than once. */
+export const playlistEntries = pgTable(
+  "playlist_entries",
+  {
+    id: id(),
+    playlistId: uuid("playlist_id")
+      .notNull()
+      .references(() => playlists.id, { onDelete: "cascade" }),
+    trackId: uuid("track_id")
+      .notNull()
+      .references(() => tracks.id, { onDelete: "cascade" }),
+    position: integer("position").notNull(),
+    addedAt: timestamp("added_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("playlist_entries_playlist_idx").on(t.playlistId, t.position)],
 );

@@ -1,13 +1,13 @@
-import type { Artist } from "@trusic/client";
-import { and, desc, eq, like } from "drizzle-orm";
+import type { Artist, ArtistPage } from "@trusic/client";
+import { and, count, desc, eq, like } from "drizzle-orm";
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import type { AppDeps } from "../app";
-import { requireUser } from "../auth";
+import { optionalUser, requireUser } from "../auth";
 import type { Db } from "../db/client";
-import { artists, tracks } from "../db/schema";
+import { artists, follows, tracks } from "../db/schema";
 import { HttpError } from "../errors";
-import { selectTrackSummaries, toArtist, toTrackSummary } from "../views";
+import { loadReleaseSummaries, selectTrackSummaries, toArtist, toTrackSummary } from "../views";
 
 const ArtistBody = z.object({
   name: z.string().trim().min(1).max(80),
@@ -67,9 +67,20 @@ export const artistRoutes =
     app.get<{ Params: { slug: string } }>("/artists/:slug", async (request) => {
       const [artist] = await db.select().from(artists).where(eq(artists.slug, request.params.slug)).limit(1);
       if (!artist) throw new HttpError(404, "Artist not found.");
-      const rows = await selectTrackSummaries(db)
-        .where(and(eq(tracks.artistId, artist.id), eq(tracks.status, "live")))
-        .orderBy(desc(tracks.createdAt));
-      return { artist: toArtist(artist), tracks: rows.map(toTrackSummary) };
+      const viewer = await optionalUser(db, request);
+      const [rows, releaseList, [followers]] = await Promise.all([
+        selectTrackSummaries(db)
+          .where(and(eq(tracks.artistId, artist.id), eq(tracks.status, "live")))
+          .orderBy(desc(tracks.createdAt)),
+        loadReleaseSummaries(db, { artistId: artist.id }),
+        db.select({ n: count() }).from(follows).where(eq(follows.artistId, artist.id)),
+      ]);
+      return {
+        artist: toArtist(artist),
+        tracks: rows.map(toTrackSummary),
+        releases: releaseList,
+        followers: followers?.n ?? 0,
+        isOwner: viewer?.id === artist.ownerUserId,
+      } satisfies ArtistPage;
     });
   };

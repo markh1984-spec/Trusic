@@ -1,3 +1,5 @@
+import { deflateSync } from "node:zlib";
+
 /**
  * A tiny WAV synthesiser for tests and demo data, so the repo needs no audio files.
  * Not used by the running service.
@@ -106,4 +108,75 @@ function encodeWav(samples: Int16Array, sampleRate: number, info: Record<string,
   dataHeader.write("data", 0, "ascii");
   dataHeader.writeUInt32LE(dataBytes, 4);
   return Buffer.concat([header, list, dataHeader, Buffer.from(samples.buffer, samples.byteOffset, dataBytes)]);
+}
+
+// ---------------------------------------------------------------------------
+// Cover art: simple generative PNGs for tests and demo data.
+
+const CRC_TABLE = Array.from({ length: 256 }, (_, n) => {
+  let c = n;
+  for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+  return c >>> 0;
+});
+
+function crc32(buf: Buffer): number {
+  let c = 0xffffffff;
+  for (const byte of buf) c = CRC_TABLE[(c ^ byte) & 0xff]! ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}
+
+function pngChunk(type: string, data: Buffer): Buffer {
+  const length = Buffer.alloc(4);
+  length.writeUInt32BE(data.length);
+  const body = Buffer.concat([Buffer.from(type, "ascii"), data]);
+  const crc = Buffer.alloc(4);
+  crc.writeUInt32BE(crc32(body));
+  return Buffer.concat([length, body, crc]);
+}
+
+const hsl = (h: number, s: number, l: number): [number, number, number] => {
+  const a = s * Math.min(l, 1 - l);
+  const f = (n: number) => {
+    const k = (n + h / 30) % 12;
+    return Math.round(255 * (l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1))));
+  };
+  return [f(0), f(8), f(4)];
+};
+
+/** A square cover: a two-colour gradient with soft rings, different for each seed. */
+export function synthPng(options: { size?: number; seed?: number } = {}): Buffer {
+  const size = options.size ?? 320;
+  const seed = options.seed ?? 1;
+  const hue = (seed * 137.508) % 360;
+  const from = hsl(hue, 0.55, 0.32);
+  const to = hsl((hue + 50) % 360, 0.65, 0.58);
+  const cx = size * (0.3 + ((seed * 7) % 5) / 10);
+  const cy = size * (0.3 + ((seed * 3) % 5) / 10);
+
+  const raw = Buffer.alloc((size * 3 + 1) * size);
+  for (let y = 0; y < size; y++) {
+    const row = y * (size * 3 + 1);
+    raw[row] = 0; // no filter
+    for (let x = 0; x < size; x++) {
+      const t = (x + y) / (2 * size);
+      const d = Math.hypot(x - cx, y - cy) / size;
+      const ring = 0.12 * Math.max(0, Math.cos(d * 28)) * Math.max(0, 1 - d * 1.6);
+      for (let c = 0; c < 3; c++) {
+        const v = from[c]! * (1 - t) + to[c]! * t + 255 * ring;
+        raw[row + 1 + x * 3 + c] = Math.max(0, Math.min(255, Math.round(v)));
+      }
+    }
+  }
+
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(size, 0);
+  header.writeUInt32BE(size, 4);
+  header[8] = 8; // bit depth
+  header[9] = 2; // truecolour RGB
+  return Buffer.concat([
+    Buffer.from("89504e470d0a1a0a", "hex"),
+    pngChunk("IHDR", header),
+    pngChunk("IDAT", deflateSync(raw)),
+    pngChunk("IEND", Buffer.alloc(0)),
+  ]);
 }

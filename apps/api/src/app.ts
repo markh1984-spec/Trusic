@@ -11,14 +11,17 @@ import { HttpError } from "./errors";
 import { accountRoutes } from "./routes/accounts";
 import { adminRoutes } from "./routes/admin";
 import { artistRoutes } from "./routes/artists";
+import { libraryRoutes } from "./routes/library";
 import { listeningRoutes } from "./routes/listening";
 import { moneyRoutes } from "./routes/money";
+import { playlistRoutes } from "./routes/playlists";
+import { releaseRoutes } from "./routes/releases";
 import { trackRoutes } from "./routes/tracks";
-import type { AudioStorage } from "./storage";
+import type { MediaStorage } from "./storage";
 
 export interface AppDeps {
   db: Db;
-  storage: AudioStorage;
+  storage: MediaStorage;
   detector: AiDetector;
   config: Config;
 }
@@ -57,7 +60,10 @@ export async function buildApp(deps: AppDeps, options: { logger?: boolean } = {}
       await api.register(accountRoutes(deps));
       await api.register(artistRoutes(deps));
       await api.register(trackRoutes(deps));
+      await api.register(releaseRoutes(deps));
       await api.register(listeningRoutes(deps));
+      await api.register(libraryRoutes(deps));
+      await api.register(playlistRoutes(deps));
       await api.register(moneyRoutes(deps));
       await api.register(adminRoutes(deps));
     },

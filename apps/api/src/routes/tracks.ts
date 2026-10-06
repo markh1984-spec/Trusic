@@ -1,7 +1,4 @@
 import { randomUUID } from "node:crypto";
-import { createWriteStream } from "node:fs";
-import { rm } from "node:fs/promises";
-import { pipeline } from "node:stream/promises";
 import type { RubricInfo, Split, TrackList } from "@trusic/client";
 import {
   AI_LABEL_RANGES,
@@ -14,20 +11,22 @@ import {
   resolveAiScore,
   scoreDeclaration,
 } from "@trusic/core";
-import { and, count, desc, eq, gte, ilike, inArray, lt, or, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, gte, ilike, inArray, lt, max, or, type SQL } from "drizzle-orm";
 import type { FastifyPluginAsync } from "fastify";
 import { parseFile, type IAudioMetadata } from "music-metadata";
 import { z } from "zod";
 import type { AppDeps } from "../app";
 import { optionalUser, requireUser } from "../auth";
-import { appeals, artists, trackSplits, tracks, users } from "../db/schema";
+import { appeals, artists, releases, trackSplits, tracks, users } from "../db/schema";
 import { HttpError } from "../errors";
+import { withUpload } from "../uploads";
 import { isArtistOwner, loadTrackDetail, selectTrackSummaries, toAppeal, toTrackSummary } from "../views";
 
 const UploadFields = z.object({
   artistId: z.uuid(),
   title: z.string().trim().min(1).max(200),
   genre: z.string().trim().max(60).optional(),
+  releaseId: z.uuid().optional(),
   declaration: z.string().min(2),
 });
 
@@ -79,16 +78,28 @@ export const trackRoutes =
       const filters: SQL[] = [eq(tracks.status, "live")];
       if (query.q) {
         const pattern = `%${query.q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
-        filters.push(or(ilike(tracks.title, pattern), ilike(artists.name, pattern), ilike(tracks.genre, pattern))!);
+        filters.push(
+          or(
+            ilike(tracks.title, pattern),
+            ilike(artists.name, pattern),
+            ilike(tracks.genre, pattern),
+            ilike(releases.title, pattern),
+          )!,
+        );
       }
       if (query.label) {
-        const { min, max } = AI_LABEL_RANGES[query.label];
-        filters.push(gte(tracks.aiScore, min), lt(tracks.aiScore, max));
+        const range = AI_LABEL_RANGES[query.label];
+        filters.push(gte(tracks.aiScore, range.min), lt(tracks.aiScore, range.max));
       }
       const where = and(...filters);
       const [rows, [total]] = await Promise.all([
         selectTrackSummaries(db).where(where).orderBy(desc(tracks.createdAt)).limit(query.limit).offset(query.offset),
-        db.select({ n: count() }).from(tracks).innerJoin(artists, eq(artists.id, tracks.artistId)).where(where),
+        db
+          .select({ n: count() })
+          .from(tracks)
+          .innerJoin(artists, eq(artists.id, tracks.artistId))
+          .leftJoin(releases, eq(releases.id, tracks.releaseId))
+          .where(where),
       ]);
       return { tracks: rows.map(toTrackSummary), total: total?.n ?? 0 } satisfies TrackList;
     });
@@ -103,28 +114,20 @@ export const trackRoutes =
 
     app.post("/tracks", async (request, reply) => {
       const user = await requireUser(db, request);
-      const fields: Record<string, string> = {};
-      let tempPath: string | null = null;
-
-      try {
-        for await (const part of request.parts()) {
-          if (part.type === "file") {
-            if (part.fieldname !== "audio" || tempPath) {
-              part.file.resume();
-              throw new HttpError(400, 'Send exactly one audio file, in a field named "audio".');
-            }
-            tempPath = await storage.tempPath();
-            await pipeline(part.file, createWriteStream(tempPath));
-            if (part.file.truncated) throw new HttpError(413, "That file is too large.");
-          } else {
-            fields[part.fieldname] = String(part.value);
-          }
-        }
-        if (!tempPath) throw new HttpError(400, 'Attach the audio file in a field named "audio".');
+      return withUpload(request, storage, "audio", async ({ fields, filePath }) => {
+        if (!filePath) throw new HttpError(400, 'Attach the audio file in a field named "audio".');
 
         const input = UploadFields.parse(fields);
         if (!(await isArtistOwner(db, input.artistId, user.id))) {
           throw new HttpError(403, "You can only upload to your own artist profiles.");
+        }
+        if (input.releaseId) {
+          const [release] = await db
+            .select({ id: releases.id })
+            .from(releases)
+            .where(and(eq(releases.id, input.releaseId), eq(releases.artistId, input.artistId)))
+            .limit(1);
+          if (!release) throw new HttpError(400, "That release doesn't belong to this artist.");
         }
 
         let declarationJson: unknown;
@@ -136,7 +139,7 @@ export const trackRoutes =
         const declaration = parseAiDeclaration(declarationJson);
         const breakdown = scoreDeclaration(declaration);
 
-        const metadata = await parseFile(tempPath, { duration: true }).catch(() => null);
+        const metadata = await parseFile(filePath, { duration: true }).catch(() => null);
         const format = metadata && audioFormat(metadata);
         const durationSec = metadata?.format.duration;
         if (!metadata || !format || !durationSec) {
@@ -146,13 +149,12 @@ export const trackRoutes =
           throw new HttpError(400, "Tracks must be between 5 seconds and 60 minutes long.");
         }
 
-        const detection = await detector.analyze({ filePath: tempPath, metadata });
+        const detection = await detector.analyze({ filePath, metadata });
         const resolution = resolveAiScore({ declaredScore: breakdown.score, detection });
 
         const trackId = randomUUID();
         const audioKey = `tracks/${trackId}${format.ext}`;
-        await storage.save(audioKey, tempPath);
-        tempPath = null;
+        await storage.save(audioKey, filePath);
         const row: typeof tracks.$inferInsert = {
           id: trackId,
           artistId: input.artistId,
@@ -173,6 +175,15 @@ export const trackRoutes =
 
         try {
           await db.transaction(async (tx) => {
+            if (input.releaseId) {
+              // New tracks go to the end of the release.
+              const [last] = await tx
+                .select({ n: max(tracks.trackNumber) })
+                .from(tracks)
+                .where(eq(tracks.releaseId, input.releaseId));
+              row.releaseId = input.releaseId;
+              row.trackNumber = (last?.n ?? 0) + 1;
+            }
             await tx.insert(tracks).values(row);
             // The uploader is paid 100% until they set up band splits.
             await tx.insert(trackSplits).values({ trackId, userId: user.id, shareBps: 10_000 });
@@ -182,9 +193,7 @@ export const trackRoutes =
           throw error;
         }
         return reply.code(201).send(await loadTrackDetail(db, trackId, user));
-      } finally {
-        if (tempPath) await rm(tempPath, { force: true });
-      }
+      });
     });
 
     app.delete<{ Params: { id: string } }>("/tracks/:id", async (request, reply) => {

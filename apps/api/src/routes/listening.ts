@@ -114,7 +114,7 @@ export const listeningRoutes =
       const user = await requireUser(db, request);
       const body = PlayBody.parse(request.body);
       const [track] = await db
-        .select({ durationMs: tracks.durationMs })
+        .select({ durationMs: tracks.durationMs, aiScore: tracks.aiScore })
         .from(tracks)
         .where(eq(tracks.id, body.trackId))
         .limit(1);
@@ -122,7 +122,7 @@ export const listeningRoutes =
 
       // A play can't be longer than the track (small slack for clock jitter).
       const msPlayed = Math.min(body.msPlayed, track.durationMs + 2_000);
-      await db.insert(plays).values({ userId: user.id, trackId: body.trackId, msPlayed });
+      await db.insert(plays).values({ userId: user.id, trackId: body.trackId, msPlayed, aiScore: track.aiScore });
       return reply.code(201).send({ counted: msPlayed >= DEFAULT_PAYOUT_CONFIG.minStreamMs } satisfies PlayRecorded);
     });
   };

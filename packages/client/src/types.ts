@@ -31,6 +31,7 @@ export interface ArtistRef {
 
 export interface Artist extends ArtistRef {
   bio: string;
+  imageUrl: string | null;
   createdAt: string;
 }
 
@@ -44,12 +45,22 @@ export interface AuthResponse {
   user: User;
 }
 
+export interface ReleaseRef {
+  id: string;
+  title: string;
+}
+
 export interface TrackSummary {
   id: string;
   title: string;
   genre: string | null;
   durationMs: number;
   artist: ArtistRef;
+  release: ReleaseRef | null;
+  /** Position on its release, from 1. */
+  trackNumber: number | null;
+  /** The release's artwork, if it has any. */
+  artworkUrl: string | null;
   aiScore: number;
   aiLabel: AiLabel;
   /** Share of the human per-stream rate this track earns, 0-100. */
@@ -173,4 +184,71 @@ export interface Subscription {
   user: User;
   priceMinor: number;
   currency: string;
+}
+
+export type ReleaseType = "album" | "ep" | "single";
+
+export interface ReleaseSummary extends ReleaseRef {
+  type: ReleaseType;
+  /** "2026-10-06", or null if not set. */
+  releaseDate: string | null;
+  artworkUrl: string | null;
+  artist: ArtistRef;
+  trackCount: number;
+  /** How many of its live tracks carry each AI label. */
+  aiLabels: Record<AiLabel, number>;
+}
+
+export interface ReleaseDetail extends ReleaseSummary {
+  tracks: TrackSummary[];
+  durationMs: number;
+  isOwner: boolean;
+}
+
+export interface ArtistPage {
+  artist: Artist;
+  tracks: TrackSummary[];
+  releases: ReleaseSummary[];
+  followers: number;
+  isOwner: boolean;
+}
+
+/** IDs the signed-in listener has liked or followed, for showing hearts and follow buttons. */
+export interface LibraryIds {
+  likedTrackIds: string[];
+  followedArtistIds: string[];
+}
+
+export interface LikedTrack {
+  track: TrackSummary;
+  likedAt: string;
+}
+
+export interface HistoryItem {
+  track: TrackSummary;
+  playedAt: string;
+}
+
+export interface PlaylistSummary {
+  id: string;
+  name: string;
+  description: string;
+  isPublic: boolean;
+  owner: { id: string; displayName: string };
+  trackCount: number;
+  /** Artwork from up to four of its tracks, for a cover mosaic. */
+  artworkUrls: string[];
+  updatedAt: string;
+}
+
+export interface PlaylistEntry {
+  entryId: string;
+  addedAt: string;
+  track: TrackSummary;
+}
+
+export interface PlaylistDetail extends PlaylistSummary {
+  entries: PlaylistEntry[];
+  durationMs: number;
+  isOwner: boolean;
 }

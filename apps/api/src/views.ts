@@ -1,8 +1,10 @@
 import { aiLabel, payoutRatePercent, scoreDeclaration } from "@trusic/core";
-import type { Appeal, Artist, TrackDetail, TrackSummary, User } from "@trusic/client";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import type { Appeal, Artist, ReleaseSummary, TrackDetail, TrackSummary, User } from "@trusic/client";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import type { SelectedFields } from "drizzle-orm/pg-core";
 import type { Db } from "./db/client";
-import { appeals, artists, tracks, users } from "./db/schema";
+import { appeals, artists, releases, tracks, users } from "./db/schema";
+import { imageUrl } from "./uploads";
 
 const trackSummaryColumns = {
   id: tracks.id,
@@ -16,11 +18,28 @@ const trackSummaryColumns = {
   artistId: artists.id,
   artistName: artists.name,
   artistSlug: artists.slug,
+  trackNumber: tracks.trackNumber,
+  releaseId: releases.id,
+  releaseTitle: releases.title,
+  releaseArtworkKey: releases.artworkKey,
 };
 
-/** Tracks joined to their artist, ready for `toTrackSummary`. Add your own where/order. */
+/** Tracks joined to their artist and release, ready for `toTrackSummary`. Add your own where/order. */
 export function selectTrackSummaries(db: Db) {
-  return db.select(trackSummaryColumns).from(tracks).innerJoin(artists, eq(artists.id, tracks.artistId));
+  return db
+    .select(trackSummaryColumns)
+    .from(tracks)
+    .innerJoin(artists, eq(artists.id, tracks.artistId))
+    .leftJoin(releases, eq(releases.id, tracks.releaseId));
+}
+
+/** `selectTrackSummaries` plus extra columns, for queries that need more than the summary. */
+export function selectTrackSummariesWith<T extends SelectedFields>(db: Db, extra: T) {
+  return db
+    .select({ ...trackSummaryColumns, ...extra })
+    .from(tracks)
+    .innerJoin(artists, eq(artists.id, tracks.artistId))
+    .leftJoin(releases, eq(releases.id, tracks.releaseId));
 }
 
 interface TrackSummaryRow {
@@ -35,6 +54,10 @@ interface TrackSummaryRow {
   artistId: string;
   artistName: string;
   artistSlug: string;
+  trackNumber: number | null;
+  releaseId: string | null;
+  releaseTitle: string | null;
+  releaseArtworkKey: string | null;
 }
 
 export function toTrackSummary(row: TrackSummaryRow): TrackSummary {
@@ -44,6 +67,9 @@ export function toTrackSummary(row: TrackSummaryRow): TrackSummary {
     genre: row.genre,
     durationMs: row.durationMs,
     artist: { id: row.artistId, name: row.artistName, slug: row.artistSlug },
+    release: row.releaseId ? { id: row.releaseId, title: row.releaseTitle! } : null,
+    trackNumber: row.releaseId ? row.trackNumber : null,
+    artworkUrl: imageUrl(row.releaseArtworkKey),
     aiScore: row.aiScore,
     aiLabel: aiLabel(row.aiScore),
     payoutRatePercent: payoutRatePercent(row.aiScore),
@@ -65,10 +91,7 @@ export async function loadTrackDetail(
   trackId: string,
   viewer: { id: string; isAdmin: boolean } | null,
 ): Promise<TrackDetail | null> {
-  const [row] = await db
-    .select({ ...trackSummaryColumns, track: tracks, ownerUserId: artists.ownerUserId })
-    .from(tracks)
-    .innerJoin(artists, eq(artists.id, tracks.artistId))
+  const [row] = await selectTrackSummariesWith(db, { track: tracks, ownerUserId: artists.ownerUserId })
     .where(eq(tracks.id, trackId))
     .limit(1);
   if (!row) return null;
@@ -121,7 +144,63 @@ export function toAppeal(a: typeof appeals.$inferSelect): Appeal {
 }
 
 export function toArtist(a: typeof artists.$inferSelect): Artist {
-  return { id: a.id, name: a.name, slug: a.slug, bio: a.bio, createdAt: a.createdAt.toISOString() };
+  return {
+    id: a.id,
+    name: a.name,
+    slug: a.slug,
+    bio: a.bio,
+    imageUrl: imageUrl(a.imageKey),
+    createdAt: a.createdAt.toISOString(),
+  };
+}
+
+/** Release summaries with live-track counts by AI label, newest release first. */
+export async function loadReleaseSummaries(db: Db, where: { artistId?: string; ids?: string[] }) {
+  const conditions = [
+    where.artistId ? eq(releases.artistId, where.artistId) : undefined,
+    where.ids ? inArray(releases.id, where.ids) : undefined,
+  ].filter(Boolean);
+  if (where.ids?.length === 0) return [];
+  const rows = await db
+    .select({ release: releases, artistName: artists.name, artistSlug: artists.slug })
+    .from(releases)
+    .innerJoin(artists, eq(artists.id, releases.artistId))
+    .where(and(...conditions))
+    .orderBy(sql`${releases.releaseDate} desc nulls last`, desc(releases.createdAt));
+  if (rows.length === 0) return [];
+
+  const trackRows = await db
+    .select({ releaseId: tracks.releaseId, aiScore: tracks.aiScore })
+    .from(tracks)
+    .where(
+      and(
+        inArray(
+          tracks.releaseId,
+          rows.map((r) => r.release.id),
+        ),
+        eq(tracks.status, "live"),
+      ),
+    );
+  const labels = new Map<string, ReleaseSummary["aiLabels"]>();
+  for (const t of trackRows) {
+    const counts = labels.get(t.releaseId!) ?? { human: 0, ai_assisted: 0, ai_generated: 0 };
+    counts[aiLabel(t.aiScore)] += 1;
+    labels.set(t.releaseId!, counts);
+  }
+
+  return rows.map(({ release: r, artistName, artistSlug }): ReleaseSummary => {
+    const counts = labels.get(r.id) ?? { human: 0, ai_assisted: 0, ai_generated: 0 };
+    return {
+      id: r.id,
+      title: r.title,
+      type: r.type,
+      releaseDate: r.releaseDate,
+      artworkUrl: imageUrl(r.artworkKey),
+      artist: { id: r.artistId, name: artistName, slug: artistSlug },
+      trackCount: counts.human + counts.ai_assisted + counts.ai_generated,
+      aiLabels: counts,
+    };
+  });
 }
 
 export function toUser(u: Pick<typeof users.$inferSelect, "id" | "email" | "displayName" | "isAdmin" | "plan">): User {
