@@ -1,0 +1,16 @@
+{
+  "name": "trusic",
+  "private": true,
+  "description": "Trusic: music streaming with AI transparency built into the payouts.",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter @trusic/api --filter @trusic/web dev",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "seed": "pnpm --filter @trusic/api seed"
+  }
+}
