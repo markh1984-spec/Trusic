@@ -48,6 +48,15 @@ accounts. Share it only with people you want to let in.
 
 Render rebuilds the site whenever new work is pushed to the branch you chose. You don't need to do anything.
 
+### Using it from the desktop and phone apps
+
+- **Desktop app:** open **Server…** (in the Trusic menu on a Mac, the File menu on Windows and Linux), paste your
+  site's address, e.g. `https://trusic-abcd.onrender.com`, and click **Save and reload**.
+- **Phone app (Expo Go):** put `EXPO_PUBLIC_API_URL=https://trusic-abcd.onrender.com/api` in `apps/mobile/.env`
+  and start it with `pnpm mobile`. See [apps/mobile/README.md](../apps/mobile/README.md).
+
+If the site is asleep, the first screen takes about a minute to load.
+
 ## Limits on the free plan
 
 - **5 GB of downloads a month.** A demo track is about 2 MB, so that's a couple of thousand plays. If the limit is
