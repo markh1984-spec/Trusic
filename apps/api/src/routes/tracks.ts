@@ -4,6 +4,7 @@ import { rm } from "node:fs/promises";
 import { pipeline } from "node:stream/promises";
 import type { RubricInfo, Split, TrackList } from "@trusic/client";
 import {
+  AI_LABEL_RANGES,
   AI_LABELS,
   ASSISTIVE_TOOLS,
   DEFAULT_RUBRIC,
@@ -44,9 +45,6 @@ const SplitsBody = z.object({
     .max(20),
 });
 
-/** Score ranges behind each listener-facing label (see aiLabel in @trusic/core). */
-const LABEL_RANGES = { human: [0, 10], ai_assisted: [10, 70], ai_generated: [70, 101] } as const;
-
 /** Containers we accept, and how we serve them. */
 const AUDIO_FORMATS: Record<string, { mime: string; ext: string }> = {
   MPEG: { mime: "audio/mpeg", ext: ".mp3" },
@@ -84,7 +82,7 @@ export const trackRoutes =
         filters.push(or(ilike(tracks.title, pattern), ilike(artists.name, pattern), ilike(tracks.genre, pattern))!);
       }
       if (query.label) {
-        const [min, max] = LABEL_RANGES[query.label];
+        const { min, max } = AI_LABEL_RANGES[query.label];
         filters.push(gte(tracks.aiScore, min), lt(tracks.aiScore, max));
       }
       const where = and(...filters);
@@ -225,9 +223,13 @@ export const trackRoutes =
 
       await db.transaction(async (tx) => {
         await tx.delete(trackSplits).where(eq(trackSplits.trackId, track.id));
-        await tx
-          .insert(trackSplits)
-          .values(splits.map((s) => ({ trackId: track.id, userId: idByEmail.get(s.email.toLowerCase())!, shareBps: s.shareBps })));
+        await tx.insert(trackSplits).values(
+          splits.map((s) => ({
+            trackId: track.id,
+            userId: idByEmail.get(s.email.toLowerCase())!,
+            shareBps: s.shareBps,
+          })),
+        );
       });
       return loadSplits(track.id);
     });
@@ -264,7 +266,12 @@ export const trackRoutes =
 
     async function loadSplits(trackId: string): Promise<Split[]> {
       const rows = await db
-        .select({ userId: users.id, email: users.email, displayName: users.displayName, shareBps: trackSplits.shareBps })
+        .select({
+          userId: users.id,
+          email: users.email,
+          displayName: users.displayName,
+          shareBps: trackSplits.shareBps,
+        })
         .from(trackSplits)
         .innerJoin(users, eq(users.id, trackSplits.userId))
         .where(eq(trackSplits.trackId, trackId))

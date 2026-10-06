@@ -9,8 +9,14 @@
   "scripts": {
     "dev": "pnpm --parallel --filter @trusic/api --filter @trusic/web dev",
     "build": "pnpm -r build",
+    "start": "pnpm --filter @trusic/api start",
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "seed": "pnpm --filter @trusic/api seed"
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2"
   }
 }

@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { calculatePayouts, countStreams, PayoutInputError, type PayoutInput, type PayoutResult } from "./payouts";
 
-const solo = (id: string, aiScore: number) => ({ id, aiScore, splits: [{ payeeId: `${id}-artist`, shareBps: 10_000 }] });
+const solo = (id: string, aiScore: number) => ({
+  id,
+  aiScore,
+  splits: [{ payeeId: `${id}-artist`, shareBps: 10_000 }],
+});
 
 function expectBalanced(result: PayoutResult) {
   const { revenue, platform, paidToArtists, carriedIn, carriedForward } = result.totals;
@@ -243,9 +247,9 @@ describe("calculatePayouts", () => {
     expect(() =>
       calculatePayouts({ ...base, tracks: [{ id: "t", aiScore: 0, splits: [{ payeeId: "x", shareBps: 9000 }] }] }),
     ).toThrow(PayoutInputError);
-    expect(() =>
-      calculatePayouts({ ...base, streams: [{ listenerId: "l", trackId: "missing", streams: 1 }] }),
-    ).toThrow(PayoutInputError);
+    expect(() => calculatePayouts({ ...base, streams: [{ listenerId: "l", trackId: "missing", streams: 1 }] })).toThrow(
+      PayoutInputError,
+    );
     expect(() => calculatePayouts({ ...base, config: { platformShareBps: 12_000 } })).toThrow(PayoutInputError);
     expect(() => calculatePayouts({ ...base, listenerRevenue: [{ listenerId: "l", amount: 1.5 }] })).toThrow(
       RangeError,

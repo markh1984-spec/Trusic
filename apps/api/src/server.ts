@@ -1,4 +1,7 @@
+import { existsSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
+import fastifyStatic from "@fastify/static";
 import { buildApp } from "./app";
 import { loadConfig } from "./config";
 import { openDatabase } from "./db/client";
@@ -16,6 +19,19 @@ const app = await buildApp(
   },
   { logger: true },
 );
+
+// In production, serve the built web app from the same origin as the API.
+const webDist = process.env.WEB_DIST ?? fileURLToPath(new URL("../../web/dist", import.meta.url));
+if (existsSync(path.join(webDist, "index.html"))) {
+  await app.register(fastifyStatic, { root: webDist });
+  app.setNotFoundHandler((request, reply) => {
+    if (request.method !== "GET" || request.url.startsWith("/api/")) {
+      return reply.code(404).send({ error: "Not found." });
+    }
+    return reply.sendFile("index.html");
+  });
+  app.log.info(`Serving the web app from ${webDist}`);
+}
 
 const shutdown = async () => {
   await app.close();

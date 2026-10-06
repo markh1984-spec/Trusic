@@ -1,4 +1,11 @@
-import type { AiDeclaration, DetectionResult, ListenerAllocation, PayoutConfig, PayoutResult, ScoreSource } from "@trusic/core";
+import type {
+  AiDeclaration,
+  DetectionResult,
+  ListenerAllocation,
+  PayoutConfig,
+  PayoutResult,
+  ScoreSource,
+} from "@trusic/core";
 import {
   bigint,
   boolean,

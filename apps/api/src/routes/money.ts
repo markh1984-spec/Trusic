@@ -83,7 +83,12 @@ export const moneyRoutes =
         artistShare: s.artistShare,
         allocations: s.allocations
           .filter((a) => summaries.has(a.trackId))
-          .map((a) => ({ track: summaries.get(a.trackId)!, streams: a.streams, baseAmount: a.baseAmount, amount: a.amount }))
+          .map((a) => ({
+            track: summaries.get(a.trackId)!,
+            streams: a.streams,
+            baseAmount: a.baseAmount,
+            amount: a.amount,
+          }))
           .sort((a, b) => b.amount - a.amount || b.streams - a.streams),
         toHumanPot: s.toHumanPot as { amount: number; reason: HumanPotReason } | null,
       })) satisfies ListenerStatementView[];
@@ -105,13 +110,22 @@ export const moneyRoutes =
         .from(payoutTrackLines)
         .where(
           and(
-            inArray(payoutTrackLines.runId, rows.map((r) => r.line.runId)),
-            inArray(payoutTrackLines.trackId, rows.flatMap((r) => r.line.tracks.map((t) => t.trackId))),
+            inArray(
+              payoutTrackLines.runId,
+              rows.map((r) => r.line.runId),
+            ),
+            inArray(
+              payoutTrackLines.trackId,
+              rows.flatMap((r) => r.line.tracks.map((t) => t.trackId)),
+            ),
           ),
         );
       const lineKey = (runId: string, trackId: string) => `${runId}:${trackId}`;
       const linesByKey = new Map(trackLines.map((l) => [lineKey(l.runId, l.trackId), l]));
-      const summaries = await loadTrackSummaries(db, trackLines.map((l) => l.trackId));
+      const summaries = await loadTrackSummaries(
+        db,
+        trackLines.map((l) => l.trackId),
+      );
 
       return rows.map(({ line, period, currency }) => ({
         period,

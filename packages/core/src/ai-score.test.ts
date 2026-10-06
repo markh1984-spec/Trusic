@@ -61,7 +61,12 @@ describe("scoreDeclaration", () => {
 
   it("scores a human-written song performed by AI as mostly AI", () => {
     // You wrote the words, the AI did everything else.
-    const d = declaration({ composition: "generated", vocals: "generated", instrumentation: "generated", production: "generated" });
+    const d = declaration({
+      composition: "generated",
+      vocals: "generated",
+      instrumentation: "generated",
+      production: "generated",
+    });
     expect(scoreDeclaration(d).score).toBe(85);
     expect(aiLabel(85)).toBe("ai_generated");
   });
@@ -97,9 +102,9 @@ describe("parseAiDeclaration", () => {
 
   it("rejects missing or unknown stage values", () => {
     expect(() => parseAiDeclaration({ stages: { composition: "none" } })).toThrow(InvalidDeclarationError);
-    expect(() =>
-      parseAiDeclaration({ stages: { ...declaration().stages, vocals: "a-bit" } }),
-    ).toThrow(InvalidDeclarationError);
+    expect(() => parseAiDeclaration({ stages: { ...declaration().stages, vocals: "a-bit" } })).toThrow(
+      InvalidDeclarationError,
+    );
     expect(() => parseAiDeclaration(null)).toThrow(InvalidDeclarationError);
   });
 
@@ -126,9 +131,10 @@ describe("resolveAiScore", () => {
 
   it("uses the declaration when detection agrees or is unsure", () => {
     expect(resolveAiScore({ declaredScore: 0 })).toMatchObject({ score: 0, source: "declared", flagged: false });
-    expect(
-      resolveAiScore({ declaredScore: 0, detection: { ...confidentAi, verdict: "inconclusive" } }),
-    ).toMatchObject({ score: 0, source: "declared" });
+    expect(resolveAiScore({ declaredScore: 0, detection: { ...confidentAi, verdict: "inconclusive" } })).toMatchObject({
+      score: 0,
+      source: "declared",
+    });
   });
 
   it("raises the score when detection confidently finds undeclared AI", () => {

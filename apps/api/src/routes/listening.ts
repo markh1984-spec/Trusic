@@ -123,8 +123,6 @@ export const listeningRoutes =
       // A play can't be longer than the track (small slack for clock jitter).
       const msPlayed = Math.min(body.msPlayed, track.durationMs + 2_000);
       await db.insert(plays).values({ userId: user.id, trackId: body.trackId, msPlayed });
-      return reply
-        .code(201)
-        .send({ counted: msPlayed >= DEFAULT_PAYOUT_CONFIG.minStreamMs } satisfies PlayRecorded);
+      return reply.code(201).send({ counted: msPlayed >= DEFAULT_PAYOUT_CONFIG.minStreamMs } satisfies PlayRecorded);
     });
   };

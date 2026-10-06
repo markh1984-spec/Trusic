@@ -28,7 +28,12 @@ export function slugify(name: string): string {
 async function uniqueSlug(db: Db, name: string): Promise<string> {
   const base = slugify(name);
   const taken = new Set(
-    (await db.select({ slug: artists.slug }).from(artists).where(like(artists.slug, `${base}%`))).map((r) => r.slug),
+    (
+      await db
+        .select({ slug: artists.slug })
+        .from(artists)
+        .where(like(artists.slug, `${base}%`))
+    ).map((r) => r.slug),
   );
   if (!taken.has(base)) return base;
   for (let n = 2; ; n++) if (!taken.has(`${base}-${n}`)) return `${base}-${n}`;

@@ -36,13 +36,41 @@ const GENERATOR_NAMES = [
 const CREATIVE_TAG_IDS = new Set(
   [
     // ID3
-    "TIT1", "TIT2", "TIT3", "TPE1", "TPE2", "TPE3", "TPE4", "TALB", "TCON", "USLT", "SYLT", "TCOM", "TEXT",
+    "TIT1",
+    "TIT2",
+    "TIT3",
+    "TPE1",
+    "TPE2",
+    "TPE3",
+    "TPE4",
+    "TALB",
+    "TCON",
+    "USLT",
+    "SYLT",
+    "TCOM",
+    "TEXT",
     // Vorbis / FLAC
-    "TITLE", "ARTIST", "ALBUM", "ALBUMARTIST", "GENRE", "LYRICS", "COMPOSER", "PERFORMER",
+    "TITLE",
+    "ARTIST",
+    "ALBUM",
+    "ALBUMARTIST",
+    "GENRE",
+    "LYRICS",
+    "COMPOSER",
+    "PERFORMER",
     // iTunes / MP4
-    "©nam", "©ART", "aART", "©alb", "©gen", "©lyr", "©wrt",
+    "©nam",
+    "©ART",
+    "aART",
+    "©alb",
+    "©gen",
+    "©lyr",
+    "©wrt",
     // RIFF INFO
-    "INAM", "IART", "IPRD", "IGNR",
+    "INAM",
+    "IART",
+    "IPRD",
+    "IGNR",
   ].map((id) => id.toUpperCase()),
 );
 

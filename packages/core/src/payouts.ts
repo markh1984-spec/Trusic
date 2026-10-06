@@ -209,7 +209,12 @@ export function calculatePayouts(input: PayoutInput): PayoutResult {
   const add = (m: Map<string, Minor>, k: string, v: Minor) => m.set(k, (m.get(k) ?? 0) + v);
 
   let platformTotal = 0;
-  const humanPot = { fromCarriedIn: carriedIn, fromUnattributed: 0, fromListenersWithNoStreams: 0, fromAiOnlyListening: 0 };
+  const humanPot = {
+    fromCarriedIn: carriedIn,
+    fromUnattributed: 0,
+    fromListenersWithNoStreams: 0,
+    fromAiOnlyListening: 0,
+  };
 
   // 1. Each listener's money goes to what they played.
   const listeners: ListenerStatement[] = [];
@@ -234,7 +239,13 @@ export function calculatePayouts(input: PayoutInput): PayoutResult {
       humanPot.fromListenersWithNoStreams += artistShare;
       if (artistShare > 0) statement.toHumanPot = { amount: artistShare, reason: "no_streams" };
     } else {
-      const base = artistShare > 0 ? allocate(artistShare, played.map(([, n]) => n)) : played.map(() => 0);
+      const base =
+        artistShare > 0
+          ? allocate(
+              artistShare,
+              played.map(([, n]) => n),
+            )
+          : played.map(() => 0);
       const weights = played.map(([trackId, n]) => humanUnits(n, scoreOf(trackId)));
       const hasHuman = weights.some((w) => w > 0);
       const final = hasHuman && artistShare > 0 ? allocate(artistShare, weights) : played.map(() => 0);
@@ -280,9 +291,10 @@ export function calculatePayouts(input: PayoutInput): PayoutResult {
     }
   }
   if (basePotAmount > 0 && potTracks.length > 0) {
-    allocate(basePotAmount, potTracks.map((id) => totalStreams.get(id)!)).forEach((amt, i) =>
-      add(baseByTrack, potTracks[i]!, amt),
-    );
+    allocate(
+      basePotAmount,
+      potTracks.map((id) => totalStreams.get(id)!),
+    ).forEach((amt, i) => add(baseByTrack, potTracks[i]!, amt));
   }
 
   // 4. Per-track results.
@@ -311,7 +323,10 @@ export function calculatePayouts(input: PayoutInput): PayoutResult {
   for (const tp of trackPayouts) {
     if (tp.amount === 0) continue;
     const { splits } = tracks.get(tp.trackId)!;
-    const shares = allocate(tp.amount, splits.map((s) => s.shareBps));
+    const shares = allocate(
+      tp.amount,
+      splits.map((s) => s.shareBps),
+    );
     splits.forEach((s, i) => {
       if (shares[i] === 0) return;
       const payee = payeeMap.get(s.payeeId) ?? { payeeId: s.payeeId, amount: 0, tracks: [] };

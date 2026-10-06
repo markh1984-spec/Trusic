@@ -39,7 +39,9 @@ export async function createTestApp(): Promise<TestApp> {
   };
 }
 
-export function declaration(stages: Partial<Record<keyof AiDeclaration["stages"], StageDeclaration>> = {}): AiDeclaration {
+export function declaration(
+  stages: Partial<Record<keyof AiDeclaration["stages"], StageDeclaration>> = {},
+): AiDeclaration {
   return {
     stages: {
       composition: "none",

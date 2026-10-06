@@ -75,8 +75,18 @@ describe("Trusic API", () => {
     tokens.drummer = await register("drummer@trusic.test");
     tokens.admin = await register(ADMIN_EMAIL);
 
-    expect((await call("POST", "/api/auth/register", undefined, { email: "band@trusic.test", password: "whatever123", displayName: "x" })).status).toBe(409);
-    expect((await call("POST", "/api/auth/login", undefined, { email: "band@trusic.test", password: "nope" })).status).toBe(401);
+    expect(
+      (
+        await call("POST", "/api/auth/register", undefined, {
+          email: "band@trusic.test",
+          password: "whatever123",
+          displayName: "x",
+        })
+      ).status,
+    ).toBe(409);
+    expect(
+      (await call("POST", "/api/auth/login", undefined, { email: "band@trusic.test", password: "nope" })).status,
+    ).toBe(401);
     const login = await call<AuthResponse>("POST", "/api/auth/login", undefined, {
       email: "BAND@trusic.test",
       password: "correct horse battery",
@@ -89,12 +99,16 @@ describe("Trusic API", () => {
   });
 
   it("creates artist profiles with unique slugs", async () => {
-    const band = await call<{ id: string; slug: string }>("POST", "/api/artists", tokens.band, { name: "The Real Band" });
+    const band = await call<{ id: string; slug: string }>("POST", "/api/artists", tokens.band, {
+      name: "The Real Band",
+    });
     expect(band.status).toBe(201);
     expect(band.body.slug).toBe("the-real-band");
     ids.band = band.body.id;
 
-    const prompter = await call<{ id: string; slug: string }>("POST", "/api/artists", tokens.prompter, { name: "The Real Band" });
+    const prompter = await call<{ id: string; slug: string }>("POST", "/api/artists", tokens.prompter, {
+      name: "The Real Band",
+    });
     expect(prompter.body.slug).toBe("the-real-band-2");
     ids.prompter = prompter.body.id;
   });
@@ -106,7 +120,13 @@ describe("Trusic API", () => {
       toolsUsed: ["LANDR"],
     });
     expect(res.status).toBe(201);
-    expect(res.body).toMatchObject({ aiScore: 0, aiLabel: "human", payoutRatePercent: 100, scoreSource: "declared", flagged: false });
+    expect(res.body).toMatchObject({
+      aiScore: 0,
+      aiLabel: "human",
+      payoutRatePercent: 100,
+      scoreSource: "declared",
+      flagged: false,
+    });
     expect(res.body.durationMs).toBe(40_000);
     ids.human = res.body.id;
   });
@@ -125,7 +145,13 @@ describe("Trusic API", () => {
   });
 
   it("flags an upload whose file says it came from Suno, even if declared human", async () => {
-    const res = await upload(tokens.prompter!, ids.prompter!, "Totally Human", declaration(), wav({ seed: 3, comment: "made with suno.com" }));
+    const res = await upload(
+      tokens.prompter!,
+      ids.prompter!,
+      "Totally Human",
+      declaration(),
+      wav({ seed: 3, comment: "made with suno.com" }),
+    );
     expect(res.status).toBe(201);
     expect(res.body).toMatchObject({ declaredScore: 0, aiScore: 100, scoreSource: "detected", flagged: true });
     expect(res.body.detection?.evidence[0]).toContain("suno");
@@ -134,7 +160,9 @@ describe("Trusic API", () => {
 
   it("rejects bad uploads", async () => {
     expect((await upload(tokens.fan!, ids.band!, "Not mine")).status).toBe(403);
-    expect((await upload(tokens.band!, ids.band!, "Junk", declaration(), Buffer.from("not audio at all"))).status).toBe(415);
+    expect((await upload(tokens.band!, ids.band!, "Junk", declaration(), Buffer.from("not audio at all"))).status).toBe(
+      415,
+    );
     const badDecl = await upload(tokens.band!, ids.band!, "Bad", { stages: { composition: "lots" } } as never);
     expect(badDecl.status).toBe(400);
   });
@@ -168,19 +196,27 @@ describe("Trusic API", () => {
   });
 
   it("lets an artist appeal a flagged track, and an admin uphold it", async () => {
-    expect((await call("POST", `/api/tracks/${ids.flagged}/appeals`, tokens.fan, { message: "Not my track but whatever" })).status).toBe(404);
+    expect(
+      (await call("POST", `/api/tracks/${ids.flagged}/appeals`, tokens.fan, { message: "Not my track but whatever" }))
+        .status,
+    ).toBe(404);
     const appeal = await call<{ id: string }>("POST", `/api/tracks/${ids.flagged}/appeals`, tokens.prompter, {
       message: "We played every note of this ourselves; the tag came from a template.",
     });
     expect(appeal.status).toBe(201);
-    expect((await call("POST", `/api/tracks/${ids.flagged}/appeals`, tokens.prompter, { message: "And again, please look" })).status).toBe(409);
+    expect(
+      (await call("POST", `/api/tracks/${ids.flagged}/appeals`, tokens.prompter, { message: "And again, please look" }))
+        .status,
+    ).toBe(409);
 
     expect((await call("GET", "/api/admin/appeals", tokens.band)).status).toBe(403);
     const queue = await call<AdminAppeal[]>("GET", "/api/admin/appeals", tokens.admin);
     expect(queue.body).toHaveLength(1);
     expect(queue.body[0]!.track).toMatchObject({ declaredScore: 0, aiScore: 100 });
 
-    const resolved = await call("POST", `/api/admin/appeals/${appeal.body.id}/resolve`, tokens.admin, { decision: "upheld" });
+    const resolved = await call("POST", `/api/admin/appeals/${appeal.body.id}/resolve`, tokens.admin, {
+      decision: "upheld",
+    });
     expect(resolved.status).toBe(200);
     const track = await call<TrackDetail>("GET", `/api/tracks/${ids.flagged}`, tokens.prompter);
     expect(track.body).toMatchObject({ aiScore: 0, scoreSource: "review", flagged: false, reviewScore: 0 });
@@ -196,12 +232,17 @@ describe("Trusic API", () => {
       splits: [{ email: "band@trusic.test", shareBps: 5000 }],
     });
     expect(bad.status).toBe(400);
-    const ok = await call<{ email: string; shareBps: number }[]>("PUT", `/api/tracks/${ids.human}/splits`, tokens.band, {
-      splits: [
-        { email: "band@trusic.test", shareBps: 7500 },
-        { email: "drummer@trusic.test", shareBps: 2500 },
-      ],
-    });
+    const ok = await call<{ email: string; shareBps: number }[]>(
+      "PUT",
+      `/api/tracks/${ids.human}/splits`,
+      tokens.band,
+      {
+        splits: [
+          { email: "band@trusic.test", shareBps: 7500 },
+          { email: "drummer@trusic.test", shareBps: 2500 },
+        ],
+      },
+    );
     expect(ok.status).toBe(200);
     expect(ok.body.map((s) => [s.email, s.shareBps])).toEqual([
       ["band@trusic.test", 7500],
@@ -228,7 +269,12 @@ describe("Trusic API", () => {
     expect(run.status).toBe(200);
 
     const platform = Math.round(price * 0.2);
-    expect(run.body.totals).toMatchObject({ revenue: price, platform, paidToArtists: price - platform, carriedForward: 0 });
+    expect(run.body.totals).toMatchObject({
+      revenue: price,
+      platform,
+      paidToArtists: price - platform,
+      carriedForward: 0,
+    });
     expect(run.body.byLabel.ai_generated.amount).toBe(0);
     expect(run.body.byLabel.human.amount).toBe(price - platform);
     expect(run.body.totals.forfeitedByAi).toBeGreaterThan(0);

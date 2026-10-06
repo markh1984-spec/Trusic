@@ -155,7 +155,12 @@ export async function runSummaries(db: Db, period?: string): Promise<PayoutRunSu
       forfeited: payoutTrackLines.forfeited,
     })
     .from(payoutTrackLines)
-    .where(inArray(payoutTrackLines.runId, runs.map((r) => r.id)));
+    .where(
+      inArray(
+        payoutTrackLines.runId,
+        runs.map((r) => r.id),
+      ),
+    );
 
   const empty = () => ({ tracks: 0, streams: 0, amount: 0, forfeited: 0 });
   const byRun = new Map<string, Record<AiLabel, ReturnType<typeof empty>>>();
