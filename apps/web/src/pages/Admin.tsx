@@ -24,6 +24,7 @@ function Payouts() {
   const [period, setPeriod] = useState(new Date().toISOString().slice(0, 7));
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [payResult, setPayResult] = useState<string | null>(null);
   const runs = useAsync(() => api.transparency().then((t) => t.runs), []);
   const toast = useToast();
 
@@ -59,7 +60,27 @@ function Payouts() {
         <button className="button" disabled={busy}>
           {busy ? "Working…" : "Calculate"}
         </button>
+        <button
+          type="button"
+          className="button button--ghost"
+          disabled={busy}
+          onClick={() =>
+            void act(async () => {
+              const r = await api.payArtists();
+              const total = r.paid.reduce((acc, p) => acc + p.amount, 0);
+              setPayResult(
+                `Paid ${r.paid.length} artist${r.paid.length === 1 ? "" : "s"} ${money(total, r.currency)}.` +
+                  (r.skipped.length
+                    ? ` Skipped ${r.skipped.length}: ${r.skipped.map((s) => `${s.displayName} (${s.reason})`).join("; ")}`
+                    : ""),
+              );
+            }, "Payout run complete")
+          }
+        >
+          Pay artists
+        </button>
       </form>
+      {payResult ? <p className="note note--ok small">{payResult}</p> : null}
       {error ? <ErrorNote message={error} /> : null}
       {runs.data?.length ? (
         <table className="table">

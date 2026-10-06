@@ -290,9 +290,10 @@ describe("Trusic API", () => {
   });
 
   it("runs user-centric, human-weighted payouts end to end", async () => {
-    const sub = await call<{ priceMinor: number }>("POST", "/api/billing/subscribe", tokens.fan);
-    expect(sub.status).toBe(200);
-    const price = sub.body.priceMinor;
+    const sub = await call<{ mode: string }>("POST", "/api/billing/subscribe", tokens.fan);
+    expect(sub.body.mode).toBe("demo");
+    // Demo billing books £10.99 less 20% VAT.
+    const price = 916;
 
     // The fan mostly plays AI music, plus a few human tracks. Short plays don't count.
     await listen(tokens.fan!, ids.ai!, 6);

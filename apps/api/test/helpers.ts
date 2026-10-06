@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import type { AiDeclaration, StageDeclaration } from "@trusic/core";
 import type { FastifyInstance } from "fastify";
+import type Stripe from "stripe";
 import { buildApp } from "../src/app";
 import { loadConfig } from "../src/config";
 import { openDatabase, type Database } from "../src/db/client";
@@ -18,15 +19,18 @@ export interface TestApp {
   close(): Promise<void>;
 }
 
-export async function createTestApp(): Promise<TestApp> {
+export async function createTestApp(
+  options: { env?: Record<string, string>; stripe?: Stripe | null } = {},
+): Promise<TestApp> {
   const dir = await mkdtemp(path.join(tmpdir(), "trusic-test-"));
-  const config = loadConfig({ ADMIN_EMAILS: ADMIN_EMAIL, TRUSIC_DATA_DIR: dir });
+  const config = loadConfig({ ADMIN_EMAILS: ADMIN_EMAIL, TRUSIC_DATA_DIR: dir, ...options.env });
   const database = await openDatabase({});
   const app = await buildApp({
     db: database.db,
     storage: new LocalMediaStorage(path.join(dir, "media")),
     detector: new MetadataDetector(),
     config,
+    stripe: options.stripe ?? null,
   });
   return {
     app,

@@ -196,10 +196,36 @@ export interface EarningsPeriod {
   }[];
 }
 
-export interface Subscription {
-  user: User;
+/** How payments work on this server. "demo" takes no real money. */
+export interface BillingConfig {
+  provider: "demo" | "stripe";
+  /** Monthly price including VAT, in minor units. */
   priceMinor: number;
   currency: string;
+  /** Artists are paid once their available balance reaches this. */
+  payoutMinimumMinor: number;
+}
+
+/** Demo billing subscribes immediately; Stripe sends the listener to a checkout page. */
+export type SubscribeResult = { mode: "demo"; user: User } | { mode: "stripe"; checkoutUrl: string };
+
+export interface CancelResult {
+  user: User;
+  /** With Stripe, Premium lasts until the end of the paid month. */
+  endsAt: string | null;
+}
+
+export interface PayoutAccountStatus {
+  provider: "demo" | "stripe";
+  /** Has the artist set up where to be paid? Always true for demo billing. */
+  connected: boolean;
+  payoutsEnabled: boolean;
+}
+
+export interface PayArtistsResult {
+  currency: string;
+  paid: { userId: string; displayName: string; amount: number; transferId: string | null }[];
+  skipped: { userId: string; displayName: string; available: number; reason: string }[];
 }
 
 export type ReleaseType = "album" | "ep" | "single";

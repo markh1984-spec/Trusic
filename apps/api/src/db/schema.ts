@@ -37,6 +37,11 @@ export const users = pgTable("users", {
   plan: text("plan").notNull().default("free"),
   /** Set when an artist reaches three strikes. Uploads are blocked and their tracks hidden. */
   suspendedAt: timestamp("suspended_at", { withTimezone: true }),
+  /** Stripe billing: the listener's customer and subscription. */
+  stripeCustomerId: text("stripe_customer_id").unique(),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  /** Stripe Connect: the account artist payouts are sent to. */
+  stripeAccountId: text("stripe_account_id"),
   createdAt: createdAt(),
 });
 
@@ -206,8 +211,10 @@ export const revenueEntries = pgTable(
     id: id(),
     userId: uuid("user_id").references(() => users.id),
     period: text("period").notNull(),
-    source: text("source").$type<"subscription" | "ads" | "other">().notNull(),
+    source: text("source").$type<"subscription" | "other">().notNull(),
     amount: money("amount"),
+    /** e.g. the Stripe invoice id, so a webhook delivered twice is only counted once. */
+    externalRef: text("external_ref").unique(),
     createdAt: createdAt(),
   },
   (t) => [index("revenue_period_idx").on(t.period)],

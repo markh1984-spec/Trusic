@@ -15,6 +15,7 @@ import { loadConfig } from "./config";
 import { openDatabase } from "./db/client";
 import { plays, revenueEntries, users } from "./db/schema";
 import { MetadataDetector } from "./detection";
+import { createStripeClient } from "./routes/billing";
 import { currentPeriod, finalizeRun, periodBounds, previousPeriod, runPayouts } from "./payout-service";
 import { LocalMediaStorage } from "./storage";
 import { synthPng, synthWav } from "./synth";
@@ -35,6 +36,7 @@ const app = await buildApp({
   storage: new LocalMediaStorage(path.join(config.dataDir, "media")),
   detector: new MetadataDetector(),
   config,
+  stripe: createStripeClient(config),
 });
 
 const [existing] = await db.select({ id: users.id }).from(users).limit(1);

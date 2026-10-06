@@ -29,6 +29,13 @@
       "when": 1791324437432,
       "tag": "0003_track_credits",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791324692139,
+      "tag": "0004_stripe",
+      "breakpoints": true
     }
   ]
 }

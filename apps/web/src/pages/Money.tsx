@@ -1,6 +1,6 @@
 import type { ListenerStatementView } from "@trusic/client";
-import { useState } from "react";
-import { Link } from "react-router";
+import { useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router";
 import { api } from "../api";
 import { useAuth } from "../auth";
 import { AiBadge } from "../components/AiBadge";
@@ -19,16 +19,41 @@ export function MoneyPage() {
 function Money() {
   const { me, refresh } = useAuth();
   const { data, error, loading } = useAsync(() => api.statements(), []);
+  const billing = useAsync(() => api.billingConfig(), []);
+  const [params, setParams] = useSearchParams();
   const [busy, setBusy] = useState(false);
   const [planError, setPlanError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const premium = me!.user.plan === "premium";
+  const returnedFromCheckout = params.get("subscribed") === "1";
+
+  // Back from Stripe Checkout: Premium starts when Stripe's webhook arrives, usually within seconds.
+  useEffect(() => {
+    if (!returnedFromCheckout || premium) return;
+    const timer = setInterval(() => void refresh(), 2000);
+    return () => clearInterval(timer);
+  }, [returnedFromCheckout, premium, refresh]);
+  useEffect(() => {
+    if (returnedFromCheckout && premium) setParams({}, { replace: true });
+  }, [returnedFromCheckout, premium, setParams]);
 
   const changePlan = async () => {
     setBusy(true);
     setPlanError(null);
+    setNotice(null);
     try {
-      if (premium) await api.cancelSubscription();
-      else await api.subscribe();
+      if (premium) {
+        const result = await api.cancelSubscription();
+        if (result.endsAt) {
+          setNotice(`Cancelled. Premium continues until ${new Date(result.endsAt).toLocaleDateString("en-GB")}.`);
+        }
+      } else {
+        const result = await api.subscribe();
+        if (result.mode === "stripe") {
+          window.location.href = result.checkoutUrl;
+          return;
+        }
+      }
       await refresh();
     } catch (err) {
       setPlanError(err instanceof Error ? err.message : "Couldn't change your plan.");
@@ -36,6 +61,7 @@ function Money() {
       setBusy(false);
     }
   };
+  const price = billing.data ? money(billing.data.priceMinor, billing.data.currency) : null;
 
   return (
     <>
@@ -48,10 +74,19 @@ function Money() {
               ? "Your subscription is split between the tracks you play, weighted towards human-made music."
               : "You can hear 30-second previews. Subscribe to hear everything in full, with your money going straight to the artists you actually listen to. No ads, ever."}
           </p>
-          <p className="muted small">Demo billing: no card needed. Real payments come later.</p>
+          {billing.data?.provider === "stripe" ? (
+            <p className="muted small">
+              {price}/month. Payments are handled by Stripe. In test mode, use card 4242 4242 4242 4242 with any future
+              date and CVC.
+            </p>
+          ) : (
+            <p className="muted small">{price ? `${price}/month. ` : ""}Demo billing: no card needed, no real money.</p>
+          )}
+          {returnedFromCheckout && !premium ? <p className="note small">Payment received. Starting Premium…</p> : null}
+          {notice ? <p className="note small">{notice}</p> : null}
         </div>
         <button className={premium ? "button button--ghost" : "button"} onClick={changePlan} disabled={busy}>
-          {premium ? "Cancel Premium" : "Go Premium"}
+          {premium ? "Cancel Premium" : `Subscribe${price ? ` for ${price}/month` : ""}`}
         </button>
         {planError ? <ErrorNote message={planError} /> : null}
       </section>

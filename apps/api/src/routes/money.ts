@@ -1,4 +1,4 @@
-import type { Balance, EarningsPeriod, ListenerStatementView, Subscription, Transparency } from "@trusic/client";
+import type { Balance, EarningsPeriod, ListenerStatementView, Transparency } from "@trusic/client";
 import { aiLabel, DEFAULT_PAYOUT_CONFIG, type AiLabel, type HumanPotReason } from "@trusic/core";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import type { FastifyPluginAsync } from "fastify";
@@ -21,48 +21,6 @@ import { loadTrackSummaries, toUser } from "../views";
 export const moneyRoutes =
   ({ db, config }: AppDeps): FastifyPluginAsync =>
   async (app) => {
-    /**
-     * Stand-in for real billing. It upgrades the account and books this month's
-     * subscription revenue. Stripe (web) and the app stores (mobile) replace this.
-     */
-    app.post("/billing/subscribe", async (request) => {
-      const user = await requireUser(db, request);
-      const period = currentPeriod();
-      await db.transaction(async (tx) => {
-        await tx.update(users).set({ plan: "premium" }).where(eq(users.id, user.id));
-        const [already] = await tx
-          .select({ id: revenueEntries.id })
-          .from(revenueEntries)
-          .where(
-            and(
-              eq(revenueEntries.userId, user.id),
-              eq(revenueEntries.period, period),
-              eq(revenueEntries.source, "subscription"),
-            ),
-          )
-          .limit(1);
-        if (!already) {
-          await tx.insert(revenueEntries).values({
-            userId: user.id,
-            period,
-            source: "subscription",
-            amount: config.premiumMonthlyNetMinor,
-          });
-        }
-      });
-      return {
-        user: toUser({ ...user, plan: "premium" }),
-        priceMinor: config.premiumMonthlyNetMinor,
-        currency: config.currency,
-      } satisfies Subscription;
-    });
-
-    app.post("/billing/cancel", async (request) => {
-      const user = await requireUser(db, request);
-      await db.update(users).set({ plan: "free" }).where(eq(users.id, user.id));
-      return { user: toUser({ ...user, plan: "free" }) };
-    });
-
     /** "Where did my money go?" One statement per month the listener paid for. */
     app.get("/me/statements", async (request) => {
       const user = await requireUser(db, request);

@@ -7,12 +7,16 @@ import type {
   ArtistPage,
   AuthResponse,
   Balance,
+  BillingConfig,
+  CancelResult,
   EarningsPeriod,
   HistoryItem,
   LibraryIds,
   LikedTrack,
   ListenerStatementView,
   Me,
+  PayArtistsResult,
+  PayoutAccountStatus,
   PayoutRunSummary,
   PlaylistDetail,
   PlaylistSummary,
@@ -25,13 +29,12 @@ import type {
   Split,
   StreamUrl,
   StrikeResult,
-  Subscription,
+  SubscribeResult,
   SuspendedAccount,
   TrackCredits,
   TrackDetail,
   TrackList,
   Transparency,
-  User,
 } from "./types";
 
 export class ApiError extends Error {
@@ -258,11 +261,22 @@ export class TrusicClient {
   }
 
   // Money
+  billingConfig() {
+    return this.request<BillingConfig>("GET", "/billing/config");
+  }
+  /** Demo billing subscribes at once; with Stripe, send the listener to `checkoutUrl`. */
   subscribe() {
-    return this.request<Subscription>("POST", "/billing/subscribe");
+    return this.request<SubscribeResult>("POST", "/billing/subscribe");
   }
   cancelSubscription() {
-    return this.request<{ user: User }>("POST", "/billing/cancel");
+    return this.request<CancelResult>("POST", "/billing/cancel");
+  }
+  payoutStatus() {
+    return this.request<PayoutAccountStatus>("GET", "/me/payouts/status");
+  }
+  /** Returns a Stripe page where the artist sets up where to be paid. */
+  connectPayouts() {
+    return this.request<{ url: string }>("POST", "/me/payouts/connect");
   }
   statements() {
     return this.request<ListenerStatementView[]>("GET", "/me/statements");
@@ -292,6 +306,9 @@ export class TrusicClient {
   }
   runPayouts(period: string) {
     return this.request<PayoutRunSummary>("POST", "/admin/payouts/run", { period });
+  }
+  payArtists() {
+    return this.request<PayArtistsResult>("POST", "/admin/payouts/pay");
   }
   finalizePayouts(period: string) {
     return this.request<PayoutRunSummary>("POST", `/admin/payouts/${period}/finalize`);

@@ -52,8 +52,20 @@ const ENTRY_NAMES = {
 /** What the artist is owed, what's been clawed back, and any strikes. */
 function BalanceCard() {
   const { data, error } = useAsync(() => api.balance(), []);
+  const status = useAsync(() => api.payoutStatus(), []);
+  const billing = useAsync(() => api.billingConfig(), []);
+  const [connectError, setConnectError] = useState<string | null>(null);
   if (error) return <ErrorNote message={error} />;
   if (!data) return null;
+
+  const connect = async () => {
+    setConnectError(null);
+    try {
+      window.location.href = (await api.connectPayouts()).url;
+    } catch (err) {
+      setConnectError(err instanceof Error ? err.message : "Couldn't start Stripe setup.");
+    }
+  };
   return (
     <section className="card">
       {data.suspended ? (
@@ -72,6 +84,24 @@ function BalanceCard() {
           <strong>{money(data.pending, data.currency)}</strong>
         </div>
       </div>
+      {billing.data ? (
+        <p className="muted small">
+          Trusic pays out once your available balance reaches {money(billing.data.payoutMinimumMinor, data.currency)}.
+          {status.data?.provider === "demo" ? " Payouts are in demo mode: no real money moves." : null}
+        </p>
+      ) : null}
+      {status.data?.provider === "stripe" && !status.data.payoutsEnabled ? (
+        <div className="row">
+          <button className="button" onClick={() => void connect()}>
+            {status.data.connected ? "Finish Stripe setup" : "Set up payouts with Stripe"}
+          </button>
+          <span className="muted small">Stripe checks your identity and bank details, then pays you directly.</span>
+        </div>
+      ) : null}
+      {status.data?.provider === "stripe" && status.data.payoutsEnabled ? (
+        <p className="status status--ok">Payouts set up with Stripe.</p>
+      ) : null}
+      {connectError ? <ErrorNote message={connectError} /> : null}
       {data.strikes.length ? (
         <>
           <h3>Strikes ({data.strikes.length} of 3)</h3>

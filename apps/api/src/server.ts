@@ -6,6 +6,7 @@ import { buildApp } from "./app";
 import { loadConfig } from "./config";
 import { openDatabase } from "./db/client";
 import { MetadataDetector } from "./detection";
+import { createStripeClient } from "./routes/billing";
 import { LocalMediaStorage } from "./storage";
 
 const config = loadConfig();
@@ -16,6 +17,7 @@ const app = await buildApp(
     storage: new LocalMediaStorage(path.join(config.dataDir, "media")),
     detector: new MetadataDetector(),
     config,
+    stripe: createStripeClient(config),
   },
   { logger: true },
 );

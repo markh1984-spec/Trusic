@@ -3,6 +3,7 @@ import multipart from "@fastify/multipart";
 import rateLimit from "@fastify/rate-limit";
 import { InvalidDeclarationError, PayoutInputError } from "@trusic/core";
 import Fastify, { type FastifyInstance } from "fastify";
+import type Stripe from "stripe";
 import { ZodError } from "zod";
 import type { Config } from "./config";
 import type { Db } from "./db/client";
@@ -11,6 +12,7 @@ import { HttpError } from "./errors";
 import { accountRoutes } from "./routes/accounts";
 import { adminRoutes } from "./routes/admin";
 import { artistRoutes } from "./routes/artists";
+import { billingRoutes } from "./routes/billing";
 import { libraryRoutes } from "./routes/library";
 import { listeningRoutes } from "./routes/listening";
 import { moneyRoutes } from "./routes/money";
@@ -24,6 +26,8 @@ export interface AppDeps {
   storage: MediaStorage;
   detector: AiDetector;
   config: Config;
+  /** Real payments when configured; null means demo billing. */
+  stripe: Stripe | null;
 }
 
 export async function buildApp(deps: AppDeps, options: { logger?: boolean } = {}): Promise<FastifyInstance> {
@@ -65,6 +69,7 @@ export async function buildApp(deps: AppDeps, options: { logger?: boolean } = {}
       await api.register(libraryRoutes(deps));
       await api.register(playlistRoutes(deps));
       await api.register(moneyRoutes(deps));
+      await api.register(billingRoutes(deps));
       await api.register(adminRoutes(deps));
     },
     { prefix: "/api" },
