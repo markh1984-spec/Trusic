@@ -1,0 +1,22 @@
+# Render Blueprint: a free, public demo of Trusic. See docs/HOSTING.md.
+services:
+  - type: web
+    name: trusic
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      # Signs short-lived audio links.
+      - key: STREAM_SIGNING_SECRET
+        generateValue: true
+      # Password for every demo account (listener@, pines@, prompter@, admin@trusic.local).
+      # Find it under Environment in the Render dashboard.
+      - key: DEMO_PASSWORD
+        generateValue: true
+      # Fill the database with demo artists, tracks and listeners.
+      - key: DEMO_SEED
+        value: "true"
+      # Only people you give the demo password to can log in; anyone can browse and hear previews.
+      - key: REGISTRATION
+        value: closed

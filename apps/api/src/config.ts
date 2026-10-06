@@ -29,6 +29,10 @@ export interface Config {
   /** Browser origins allowed to call the API directly. Empty = same-origin only. */
   corsOrigins: string[];
   maxUploadBytes: number;
+  /** Whether anyone can create an account. Closed on public demos. */
+  registrationOpen: boolean;
+  /** Password for the demo accounts the seed script creates. */
+  demoPassword: string;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -54,6 +58,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     adminEmails: list(env.ADMIN_EMAILS),
     corsOrigins: list(env.CORS_ORIGINS),
     maxUploadBytes: Number(env.MAX_UPLOAD_MB ?? 200) * 1024 * 1024,
+    registrationOpen: env.REGISTRATION !== "closed",
+    demoPassword: env.DEMO_PASSWORD || "trusic-demo",
   };
 }
 

@@ -20,8 +20,10 @@ import { currentPeriod, finalizeRun, periodBounds, previousPeriod, runPayouts } 
 import { LocalMediaStorage } from "./storage";
 import { synthPng, synthWav } from "./synth";
 
-const PASSWORD = "trusic-demo";
-const config = loadConfig();
+// The seed creates accounts through the API, so it needs sign-ups open even where the live site has them closed.
+const config = { ...loadConfig(), registrationOpen: true };
+const PASSWORD = config.demoPassword;
+if (PASSWORD.length < 8) throw new Error("DEMO_PASSWORD must be at least 8 characters.");
 
 if (process.argv.includes("--reset")) {
   if (config.databaseUrl) throw new Error("--reset only works with the embedded database. Reset Postgres yourself.");
@@ -387,7 +389,7 @@ await app.close();
 await database.close();
 
 console.log(`
-Done. Log in with any of these (password "${PASSWORD}"):
+Done. Log in with any of these (password ${process.env.DEMO_PASSWORD ? "from the DEMO_PASSWORD setting" : `"${PASSWORD}"`}):
   listener@trusic.local   a Premium listener: see "Your money"
   pines@trusic.local      The Hollow Pines: see "Studio" for earnings and band splits
   prompter@trusic.local   Neon Prompt: an AI act with a flagged track under appeal

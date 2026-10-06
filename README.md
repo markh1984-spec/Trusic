@@ -60,9 +60,14 @@ mobile apps can never disagree about them.
 | `pnpm test`      | Run all tests                                             |
 | `pnpm typecheck` | Type-check every package                                  |
 | `pnpm format`    | Format with Prettier                                      |
-| `pnpm build`     | Build the web app                                         |
+| `pnpm build`     | Build the web app and the production server               |
 | `pnpm seed`      | Load demo data                                            |
 | `pnpm start`     | Run the API in production mode, serving the built web app |
+
+## Put it online (free)
+
+[docs/HOSTING.md](docs/HOSTING.md) puts a public demo on Render's free plan in about 10 minutes, with no card needed.
+Anyone with the link can browse and hear previews; only people you give the demo password to can log in.
 
 ## Running in production
 
@@ -72,5 +77,6 @@ pnpm build
 NODE_ENV=production DATABASE_URL=postgres://… STREAM_SIGNING_SECRET=$(openssl rand -hex 32) pnpm start
 ```
 
-The API serves the built web app from the same origin. See [apps/api/.env.example](apps/api/.env.example) for all
-settings. Before real money or real users, read the "Before launch" section of the roadmap.
+The API serves the built web app from the same origin. There's also a `Dockerfile` that does all of this. See
+[apps/api/.env.example](apps/api/.env.example) for all settings. Before real money or real users, read the "Before
+launch" section of the roadmap.

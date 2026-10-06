@@ -25,6 +25,7 @@ export const accountRoutes =
   ({ db, config }: AppDeps): FastifyPluginAsync =>
   async (app) => {
     app.post("/auth/register", { config: authRateLimit }, async (request, reply) => {
+      if (!config.registrationOpen) throw new HttpError(403, "Sign-ups aren't open yet.");
       const body = RegisterBody.parse(request.body);
       const email = body.email.toLowerCase();
       const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);

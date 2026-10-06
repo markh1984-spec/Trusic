@@ -1,12 +1,12 @@
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle as drizzlePg } from "drizzle-orm/node-postgres";
 import { migrate as migratePg } from "drizzle-orm/node-postgres/migrator";
 import { drizzle as drizzlePglite, type PgliteDatabase } from "drizzle-orm/pglite";
 import { migrate as migratePglite } from "drizzle-orm/pglite/migrator";
 import pg from "pg";
+import { migrationsDir as migrationsFolder } from "../paths";
 import * as schema from "./schema";
 
 /**
@@ -21,8 +21,6 @@ export interface Database {
   db: Db;
   close(): Promise<void>;
 }
-
-const migrationsFolder = fileURLToPath(new URL("../../drizzle", import.meta.url));
 
 /**
  * With a DATABASE_URL, connect to real Postgres (production).
