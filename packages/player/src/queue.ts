@@ -1,6 +1,7 @@
 /**
- * What plays next. Pure state and transitions, kept apart from the <audio>
- * element so the rules (shuffle, repeat, "play next") are easy to test.
+ * What plays next. Pure state and transitions, kept apart from any audio
+ * player so the rules (shuffle, repeat, "play next") are easy to test and the
+ * web and mobile apps behave the same.
  *
  * - The context is the list playback started from (an album, a playlist, search
  *   results). `order` is the order its tracks play in, shuffled or not.

@@ -38,8 +38,10 @@
 
 - **Desktop (Mac/Windows/Linux):** wrap the web app with Tauri (small, native) or Electron. The web app is a
   single-page app with one shared player, so most of the work is packaging, auto-update and media keys.
-- **iPhone and Android:** React Native (Expo), reusing `@trusic/core` and `@trusic/client` so the rules and API
-  types are shared. Needs background audio, lock-screen controls and offline storage.
+- **iPhone and Android:** first version in `apps/mobile` (Expo), reusing `@trusic/core`, `@trusic/client` and the
+  shared queue in `@trusic/player`. It has browse, search, AI labels, the player with background audio, library,
+  "your money" and accounts, and can be tried on a phone with Expo Go. Next: test builds with EAS Build, offline
+  downloads, and the app-store decisions below.
 - **App-store billing:** Apple and Google take 15–30% of in-app subscriptions. Revenue in the payout engine is
   _net_ revenue, so this is handled, but it changes what each subscriber is worth. Note that PRS calculates its fee
   on revenue before those fees. Many services send sign-ups to the web instead; that's a business decision.

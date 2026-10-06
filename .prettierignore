@@ -3,3 +3,5 @@ apps/api/drizzle/
 dist/
 .data/
 .claude/
+.expo/
+expo-env.d.ts

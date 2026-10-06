@@ -51,7 +51,11 @@ export async function buildApp(deps: AppDeps, options: { logger?: boolean } = {}
   });
 
   if (deps.config.corsOrigins.length > 0) {
-    await app.register(cors, { origin: deps.config.corsOrigins });
+    // The plugin only allows GET, HEAD and POST by default; likes, follows and playlist edits need the rest.
+    await app.register(cors, {
+      origin: deps.config.corsOrigins,
+      methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"],
+    });
   }
   await app.register(rateLimit, { global: false });
   await app.register(multipart, {

@@ -11,7 +11,14 @@ import {
   type ReactNode,
 } from "react";
 import { api, API_BASE, tokenStore } from "./api";
-import { hasNext, initialQueue, queueReducer, upcomingFromContext, type QueueState, type RepeatMode } from "./queue";
+import {
+  hasNext,
+  initialQueue,
+  queueReducer,
+  upcomingFromContext,
+  type QueueState,
+  type RepeatMode,
+} from "@trusic/player";
 
 interface PlayerState {
   current: TrackSummary | null;
