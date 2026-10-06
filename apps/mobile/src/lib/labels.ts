@@ -31,5 +31,5 @@ export function releaseAiSummary(r: LabelCounts): string {
 export function releaseLabel(r: LabelCounts): { label: AiLabel | null; text: string } | null {
   if (r.trackCount === 0) return null;
   const only = LABEL_ORDER.find((l) => r.aiLabels[l] === r.trackCount);
-  return only ? { label: only, text: labelName(only) } : { label: null, text: "Mixed" };
+  return only ? { label: only, text: labelName(only) } : { label: null, text: "Some AI" };
 }
