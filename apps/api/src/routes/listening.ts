@@ -63,6 +63,8 @@ export const listeningRoutes =
       return {
         url: `/api/stream/${track.id}?expires=${expires}&sig=${sig}`,
         expiresAt: new Date(expires * 1000).toISOString(),
+        preview: false,
+        previewMs: null,
       } satisfies StreamUrl;
     });
 

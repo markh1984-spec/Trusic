@@ -112,6 +112,12 @@ export interface AdminAppeal extends Appeal {
 export interface StreamUrl {
   url: string;
   expiresAt: string;
+  /**
+   * True when the listener isn't subscribed: they get a preview of the first
+   * `previewMs` milliseconds only. Previews never count as plays.
+   */
+  preview: boolean;
+  previewMs: number | null;
 }
 
 export interface PlayRecorded {
