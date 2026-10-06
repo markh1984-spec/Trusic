@@ -79,6 +79,11 @@ export interface TrackDetail extends TrackSummary {
   breakdown: ScoreBreakdown;
   detection: { detector: string; verdict: DetectionVerdict; confidence: number; evidence: string[] } | null;
   reviewScore: number | null;
+  /**
+   * Songwriting credits. Everyone sees the writers and whether it's a cover;
+   * society membership and ISRC are only shown to the owner and admins.
+   */
+  credits: TrackCredits | null;
   /** The most recent appeal, if any. Only shown to the track's owner and admins. */
   appeal: Appeal | null;
   isOwner: boolean;
@@ -325,4 +330,26 @@ export interface Balance {
   entries: LedgerEntry[];
   strikes: Strike[];
   suspended: boolean;
+}
+
+/** Who wrote a track, and whether a collecting society licenses the song. */
+export interface TrackCredits {
+  songwriters: string[];
+  /**
+   * Is any songwriter a member of PRS for Music or another collecting society?
+   * Omitted when shown to the public.
+   */
+  societyMember?: "yes" | "no" | "unsure";
+  isCover: boolean;
+  /** For covers: who the song is by. */
+  originalArtist?: string;
+  /** The recording's ISRC code, if it has one. */
+  isrc?: string;
+}
+
+/** How many tracks involve society members, for the PRS licensing decision. */
+export interface RightsSummary {
+  totalTracks: number;
+  societyMember: { yes: number; no: number; unsure: number; notGiven: number };
+  covers: number;
 }

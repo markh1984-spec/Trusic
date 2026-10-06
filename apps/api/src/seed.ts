@@ -246,6 +246,30 @@ await call("PUT", `/api/tracks/${t.pines1}/splits`, pines.token, {
   ],
 });
 
+// Songwriting details, so the admin rights summary has something to show.
+const credit = (
+  songwriters: string[],
+  societyMember: "yes" | "no" | "unsure",
+  isCover = false,
+  originalArtist?: string,
+) => ({
+  songwriters,
+  societyMember,
+  isCover,
+  ...(originalArtist ? { originalArtist } : {}),
+});
+for (const [owner, key, credits] of [
+  [pines, "pines1", credit(["Ellie Marsh", "Tom Reid"], "yes")],
+  [pines, "pines2", credit(["Ellie Marsh"], "yes")],
+  [pines, "pines3", credit(["Sam Okafor"], "no")],
+  [mara, "mara1", credit(["Mara Quinn"], "no")],
+  [mara, "mara2", credit(["Mara Quinn"], "no")],
+  [harbour, "harbour2", credit(["Jo Hart", "Lee Hart"], "unsure")],
+  [velvet, "velvet1", credit(["Dee Lawson"], "yes")],
+] as const) {
+  await call("PUT", `/api/tracks/${t[key]}/credits`, owner.token, credits);
+}
+
 console.log("Creating releases and libraries…");
 const releaseIds: Record<string, string> = {};
 async function release(

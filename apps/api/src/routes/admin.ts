@@ -1,4 +1,4 @@
-import type { AdminAppeal, AdminStrike, StrikeResult, SuspendedAccount } from "@trusic/client";
+import type { AdminAppeal, AdminStrike, RightsSummary, StrikeResult, SuspendedAccount } from "@trusic/client";
 import { and, count, desc, eq, inArray, isNotNull } from "drizzle-orm";
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
@@ -139,6 +139,23 @@ export const adminRoutes =
         strikeCount: outcome.strikeCount,
         suspended: outcome.suspended,
       } satisfies StrikeResult;
+    });
+
+    /** How many live tracks involve collecting-society songwriters: the key number for a PRS licence. */
+    app.get("/admin/rights-summary", async (request) => {
+      await requireAdmin(db, request);
+      const rows = await db.select({ credits: tracks.credits }).from(tracks).where(eq(tracks.status, "live"));
+      const summary: RightsSummary = {
+        totalTracks: rows.length,
+        societyMember: { yes: 0, no: 0, unsure: 0, notGiven: 0 },
+        covers: 0,
+      };
+      for (const { credits } of rows) {
+        if (credits?.societyMember) summary.societyMember[credits.societyMember] += 1;
+        else summary.societyMember.notGiven += 1;
+        if (credits?.isCover) summary.covers += 1;
+      }
+      return summary;
     });
 
     app.get("/admin/strikes", async (request) => {

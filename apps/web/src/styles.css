@@ -1851,3 +1851,7 @@ details summary {
   cursor: pointer;
   margin: 8px 0;
 }
+
+.segmented--3 {
+  grid-template-columns: repeat(3, 1fr);
+}

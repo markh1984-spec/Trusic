@@ -20,12 +20,14 @@ import type {
   ReleaseDetail,
   ReleaseSummary,
   ReleaseType,
+  RightsSummary,
   RubricInfo,
   Split,
   StreamUrl,
   StrikeResult,
   Subscription,
   SuspendedAccount,
+  TrackCredits,
   TrackDetail,
   TrackList,
   Transparency,
@@ -56,6 +58,7 @@ export interface UploadTrackInput {
   genre?: string;
   /** Add the track to the end of this release. */
   releaseId?: string;
+  credits?: TrackCredits;
   declaration: AiDeclaration;
   /** A browser File/Blob, or any Blob-like the platform's FormData accepts. */
   audio: Blob;
@@ -170,12 +173,16 @@ export class TrusicClient {
     form.set("title", input.title);
     if (input.genre) form.set("genre", input.genre);
     if (input.releaseId) form.set("releaseId", input.releaseId);
+    if (input.credits) form.set("credits", JSON.stringify(input.credits));
     form.set("declaration", JSON.stringify(input.declaration));
     form.set("audio", input.audio, input.filename);
     return this.request<TrackDetail>("POST", "/tracks", form);
   }
   removeTrack(id: string) {
     return this.request<void>("DELETE", `/tracks/${id}`);
+  }
+  setCredits(trackId: string, credits: TrackCredits) {
+    return this.request<TrackDetail>("PUT", `/tracks/${trackId}/credits`, credits);
   }
   splits(trackId: string) {
     return this.request<Split[]>("GET", `/tracks/${trackId}/splits`);
@@ -291,6 +298,9 @@ export class TrusicClient {
   }
   strikeTrack(trackId: string, input: { score: number; reason: string }) {
     return this.request<StrikeResult>("POST", `/admin/tracks/${trackId}/strike`, input);
+  }
+  rightsSummary() {
+    return this.request<RightsSummary>("GET", "/admin/rights-summary");
   }
   adminStrikes() {
     return this.request<AdminStrike[]>("GET", "/admin/strikes");

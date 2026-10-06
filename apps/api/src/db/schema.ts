@@ -1,3 +1,4 @@
+import type { TrackCredits } from "@trusic/client";
 import type {
   AiDeclaration,
   DetectionResult,
@@ -102,6 +103,8 @@ export const tracks = pgTable(
     title: text("title").notNull(),
     genre: text("genre"),
     releaseId: uuid("release_id").references(() => releases.id, { onDelete: "set null" }),
+    /** Songwriting credits and rights details, so PRS licensing can be decided later. */
+    credits: jsonb("credits").$type<TrackCredits>(),
     /** Position within the release, starting at 1. */
     trackNumber: integer("track_number"),
     durationMs: integer("duration_ms").notNull(),

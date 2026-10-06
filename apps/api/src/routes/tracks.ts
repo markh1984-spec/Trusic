@@ -19,6 +19,7 @@ import type { AppDeps } from "../app";
 import { optionalUser, requireUser } from "../auth";
 import { appeals, artists, releases, trackSplits, tracks, users } from "../db/schema";
 import { HttpError } from "../errors";
+import { CreditsSchema } from "../credits";
 import { withUpload } from "../uploads";
 import { isArtistOwner, loadTrackDetail, selectTrackSummaries, toAppeal, toTrackSummary } from "../views";
 
@@ -28,6 +29,8 @@ const UploadFields = z.object({
   genre: z.string().trim().max(60).optional(),
   releaseId: z.uuid().optional(),
   declaration: z.string().min(2),
+  /** JSON, see CreditsSchema. Optional for now. */
+  credits: z.string().optional(),
 });
 
 const ListQuery = z.object({
@@ -141,6 +144,7 @@ export const trackRoutes =
         }
         const declaration = parseAiDeclaration(declarationJson);
         const breakdown = scoreDeclaration(declaration);
+        const credits = input.credits ? CreditsSchema.parse(parseJson(input.credits, "credits")) : null;
 
         const metadata = await parseFile(filePath, { duration: true }).catch(() => null);
         const format = metadata && audioFormat(metadata);
@@ -163,6 +167,7 @@ export const trackRoutes =
           artistId: input.artistId,
           title: input.title,
           genre: input.genre || null,
+          credits,
           durationMs: Math.round(durationSec * 1000),
           audioKey,
           audioMimeType: format.mime,
@@ -205,6 +210,14 @@ export const trackRoutes =
       // Keep the row: past statements and payouts still refer to it.
       await db.update(tracks).set({ status: "removed" }).where(eq(tracks.id, track.id));
       return reply.code(204).send();
+    });
+
+    app.put<{ Params: { id: string } }>("/tracks/:id/credits", async (request) => {
+      const user = await requireUser(db, request);
+      const track = await ownedTrack(z.uuid().parse(request.params.id), user.id);
+      const credits = CreditsSchema.parse(request.body);
+      await db.update(tracks).set({ credits }).where(eq(tracks.id, track.id));
+      return loadTrackDetail(db, track.id, user);
     });
 
     app.get<{ Params: { id: string } }>("/tracks/:id/splits", async (request) => {
@@ -291,3 +304,11 @@ export const trackRoutes =
       return rows;
     }
   };
+
+function parseJson(text: string, field: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new HttpError(400, `${field} must be JSON`);
+  }
+}

@@ -8,6 +8,7 @@ import { Artwork } from "../components/Artwork";
 import { ErrorNote, Loading } from "../components/Guards";
 import { Icon } from "../components/Icon";
 import { LikeButton } from "../components/LikeButton";
+import { CreditsFields, fromDraft, toDraft, type CreditsDraft } from "../components/CreditsFields";
 import { ScoreBreakdown } from "../components/ScoreBreakdown";
 import { TrackMenu } from "../components/TrackMenu";
 import { duration, money } from "../format";
@@ -61,6 +62,14 @@ export function TrackPage() {
             ) : null}
             <span className="muted"> · {duration(track.durationMs)}</span>
           </p>
+          {track.credits?.songwriters.length || track.credits?.isCover ? (
+            <p className="muted small">
+              {track.credits.songwriters.length ? `Written by ${track.credits.songwriters.join(", ")}` : null}
+              {track.credits.isCover
+                ? `${track.credits.songwriters.length ? " · " : ""}Cover${track.credits.originalArtist ? ` of a song by ${track.credits.originalArtist}` : ""}`
+                : null}
+            </p>
+          ) : null}
           <div className="track-hero__actions">
             <button
               className="play-button play-button--large"
@@ -225,6 +234,69 @@ function OwnerPanel({ track, onChange }: { track: TrackDetail; onChange(): void 
     <div className="stack">
       <AppealCard track={track} onChange={onChange} />
       <SplitsCard trackId={track.id} />
+      <CreditsCard track={track} onChange={onChange} />
+    </div>
+  );
+}
+
+function CreditsCard({ track, onChange }: { track: TrackDetail; onChange(): void }) {
+  const [draft, setDraft] = useState<CreditsDraft | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const c = track.credits;
+
+  const save = async (e: FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    try {
+      await api.setCredits(track.id, fromDraft(draft!));
+      setDraft(null);
+      onChange();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't save the credits.");
+    }
+  };
+
+  return (
+    <div className="card">
+      <h2>Songwriting</h2>
+      {draft ? (
+        <form className="form" onSubmit={save}>
+          {error ? <ErrorNote message={error} /> : null}
+          <CreditsFields value={draft} onChange={setDraft} />
+          <div className="row">
+            <button className="button">Save</button>
+            <button type="button" className="button button--ghost" onClick={() => setDraft(null)}>
+              Cancel
+            </button>
+          </div>
+        </form>
+      ) : (
+        <>
+          {c ? (
+            <ul className="plain-list">
+              <li>
+                <span>Songwriters</span> <strong>{c.songwriters.join(", ") || "–"}</strong>
+              </li>
+              <li>
+                <span>Collecting society member</span>{" "}
+                <strong>{{ yes: "Yes", no: "No", unsure: "Not sure" }[c.societyMember ?? "unsure"]}</strong>
+              </li>
+              <li>
+                <span>Cover</span>{" "}
+                <strong>{c.isCover ? `Yes${c.originalArtist ? `, of ${c.originalArtist}` : ""}` : "No"}</strong>
+              </li>
+              <li>
+                <span>ISRC</span> <strong>{c.isrc ?? "–"}</strong>
+              </li>
+            </ul>
+          ) : (
+            <p className="muted small">No songwriting details yet.</p>
+          )}
+          <button className="button button--ghost" onClick={() => setDraft(toDraft(c))}>
+            {c ? "Edit" : "Add"} songwriting details
+          </button>
+        </>
+      )}
     </div>
   );
 }

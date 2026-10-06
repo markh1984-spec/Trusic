@@ -15,6 +15,7 @@ export function AdminPage() {
       <Payouts />
       <Appeals />
       <Strikes />
+      <Rights />
     </RequireAuth>
   );
 }
@@ -270,6 +271,52 @@ function Strikes() {
           </button>
         </div>
       ))}
+    </section>
+  );
+}
+
+/** How much of the catalogue involves collecting-society songwriters: the key number for a PRS licence. */
+function Rights() {
+  const { data, error } = useAsync(() => api.rightsSummary(), []);
+  if (error) return <ErrorNote message={error} />;
+  if (!data) return null;
+  const pct = (n: number) => (data.totalTracks ? `${Math.round((n / data.totalTracks) * 100)}%` : "–");
+  return (
+    <section className="card">
+      <h2>Songwriting rights</h2>
+      <p className="muted small">
+        Songs by PRS (or other society) members, and covers, need a licence from PRS for Music. These numbers are what
+        PRS will ask about.
+      </p>
+      <table className="table">
+        <tbody>
+          <tr>
+            <td>Live tracks</td>
+            <td className="num">{data.totalTracks}</td>
+            <td />
+          </tr>
+          <tr>
+            <td>A songwriter is a society member</td>
+            <td className="num">{data.societyMember.yes}</td>
+            <td className="num muted">{pct(data.societyMember.yes)}</td>
+          </tr>
+          <tr>
+            <td>No society members</td>
+            <td className="num">{data.societyMember.no}</td>
+            <td className="num muted">{pct(data.societyMember.no)}</td>
+          </tr>
+          <tr>
+            <td>Not sure, or not given</td>
+            <td className="num">{data.societyMember.unsure + data.societyMember.notGiven}</td>
+            <td className="num muted">{pct(data.societyMember.unsure + data.societyMember.notGiven)}</td>
+          </tr>
+          <tr>
+            <td>Covers</td>
+            <td className="num">{data.covers}</td>
+            <td className="num muted">{pct(data.covers)}</td>
+          </tr>
+        </tbody>
+      </table>
     </section>
   );
 }

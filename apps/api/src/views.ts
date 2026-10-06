@@ -4,6 +4,7 @@ import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import type { SelectedFields } from "drizzle-orm/pg-core";
 import type { Db } from "./db/client";
 import { appeals, artists, releases, tracks, users } from "./db/schema";
+import { publicCredits } from "./credits";
 import { imageUrl } from "./uploads";
 
 const trackSummaryColumns = {
@@ -125,6 +126,7 @@ export async function loadTrackDetail(
         }
       : null,
     reviewScore: t.reviewScore,
+    credits: isOwner || viewer?.isAdmin ? t.credits : publicCredits(t.credits),
     appeal,
     isOwner,
   };

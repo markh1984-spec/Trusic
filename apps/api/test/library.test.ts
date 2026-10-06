@@ -8,13 +8,14 @@ import type {
   PlaylistSummary,
   ReleaseDetail,
   ReleaseSummary,
+  RightsSummary,
   TrackDetail,
   TrackList,
 } from "@trusic/client";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { plays } from "../src/db/schema";
-import { call, createTestApp, declaration, png, register, sendFile, wav, type TestApp } from "./helpers";
+import { ADMIN_EMAIL, call, createTestApp, declaration, png, register, sendFile, wav, type TestApp } from "./helpers";
 
 let t: TestApp;
 let band: { token: string; id: string };
@@ -203,6 +204,40 @@ describe("releases", () => {
     expect((await call(t, "GET", `/api/releases/${releaseId}`)).status).toBe(404);
     const track = await call<TrackDetail>(t, "GET", `/api/tracks/${trackIds[0]}`);
     expect(track.body).toMatchObject({ release: null, trackNumber: null, artworkUrl: null });
+  });
+});
+
+describe("songwriting credits", () => {
+  it("stores credits, shows the private parts only to the owner, and summarises them for admins", async () => {
+    const credits = {
+      songwriters: ["Ellie Marsh", "Tom Reid"],
+      societyMember: "yes",
+      isCover: false,
+      isrc: "gb-abc-26-00001",
+    };
+    const track = await upload("Credited", { credits: JSON.stringify(credits) });
+    expect(track.credits).toEqual({ ...credits, isrc: "GBABC2600001" });
+
+    const publicView = await call<TrackDetail>(t, "GET", `/api/tracks/${track.id}`, fan.token);
+    expect(publicView.body.credits).toEqual({ songwriters: ["Ellie Marsh", "Tom Reid"], isCover: false });
+
+    const bad = await call(t, "PUT", `/api/tracks/${track.id}/credits`, band.token, { ...credits, isrc: "nope" });
+    expect(bad.status).toBe(400);
+    const cover = await call<TrackDetail>(t, "PUT", `/api/tracks/${track.id}/credits`, band.token, {
+      songwriters: ["Someone Else"],
+      societyMember: "unsure",
+      isCover: true,
+      originalArtist: "The Originals",
+    });
+    expect(cover.body.credits).toMatchObject({ isCover: true, originalArtist: "The Originals" });
+    expect((await call(t, "PUT", `/api/tracks/${track.id}/credits`, fan.token, credits)).status).toBe(404);
+
+    const admin = await register(t, ADMIN_EMAIL);
+    const summary = await call<RightsSummary>(t, "GET", "/api/admin/rights-summary", admin.token);
+    expect(summary.body).toMatchObject({ covers: 1, societyMember: { unsure: 1 } });
+    expect(summary.body.societyMember.notGiven).toBe(summary.body.totalTracks - 1);
+    expect((await call(t, "GET", "/api/admin/rights-summary", fan.token)).status).toBe(403);
+    await call(t, "DELETE", `/api/tracks/${track.id}`, band.token);
   });
 });
 

@@ -18,6 +18,7 @@ import { useAuth } from "../auth";
 import { AiBadge } from "../components/AiBadge";
 import { ErrorNote, RequireAuth } from "../components/Guards";
 import { TYPE_NAMES } from "../components/Cards";
+import { CreditsFields, emptyCredits, fromDraft, type CreditsDraft } from "../components/CreditsFields";
 import { ScoreBreakdown } from "../components/ScoreBreakdown";
 import { useAsync } from "../hooks";
 
@@ -70,6 +71,7 @@ function UploadForm() {
   const [declaration, setDeclaration] = useState<AiDeclaration>(EMPTY);
   const [toolsText, setToolsText] = useState("");
   const [notes, setNotes] = useState("");
+  const [credits, setCredits] = useState<CreditsDraft>(emptyCredits);
   const [honest, setHonest] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -118,6 +120,7 @@ function UploadForm() {
             .filter(Boolean),
           ...(notes.trim() ? { notes: notes.trim() } : {}),
         },
+        credits: fromDraft(credits),
         audio: file,
         filename: file.name,
       });
@@ -258,6 +261,14 @@ function UploadForm() {
             Anything else listeners should know?
             <textarea rows={2} maxLength={2000} value={notes} onChange={(e) => setNotes(e.target.value)} />
           </label>
+        </div>
+
+        <div className="card form">
+          <h2>Songwriting</h2>
+          <p className="muted">
+            Who wrote it? Songwriters are credited on the track. Trusic needs the rest to licence songs properly.
+          </p>
+          <CreditsFields value={credits} onChange={setCredits} />
         </div>
       </div>
 
