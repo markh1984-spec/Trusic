@@ -15,6 +15,7 @@ import { loadConfig } from "./config";
 import { openDatabase } from "./db/client";
 import { plays, revenueEntries, subscriptionPeriods, users } from "./db/schema";
 import { MetadataDetector } from "./detection";
+import { MemoryMailer } from "./mailer";
 import { createStripeClient } from "./routes/billing";
 import { currentPeriod, finalizeRun, periodBounds, previousPeriod, runPayouts } from "./payout-service";
 import { LocalMediaStorage } from "./storage";
@@ -39,6 +40,8 @@ const app = await buildApp({
   detector: new MetadataDetector(),
   config,
   stripe: createStripeClient(config),
+  // Demo accounts aren't real addresses, so nothing is sent.
+  mailer: new MemoryMailer(),
 });
 
 const [existing] = await db.select({ id: users.id }).from(users).limit(1);
@@ -66,6 +69,8 @@ async function account(email: string, displayName: string) {
     password: PASSWORD,
     displayName,
   });
+  // Demo accounts count as confirmed, so they can upload and be paid straight away.
+  await db.update(users).set({ emailVerifiedAt: new Date() }).where(eq(users.id, res.user.id));
   return { token: res.token, id: res.user.id, email };
 }
 
@@ -381,6 +386,33 @@ for (const i of premium) await db.update(users).set({ plan: "premium" }).where(e
 await db
   .insert(subscriptionPeriods)
   .values(premium.map((i) => ({ userId: listeners[i]!.id, startedAt: periodBounds(previous)[0] })));
+
+console.log("Adding reports for the admin queue…");
+// A made-up copyright notice and a listener's wrong-label report, so the takedown queue and score review have
+// something in them.
+await call("POST", "/api/reports", null, {
+  targetType: "track",
+  targetId: t.neon2,
+  reason: "copyright",
+  details: 'The chorus melody and lyrics are copied from "Paper Hearts", a song our client released in 2019.',
+  reporterEmail: "rights@example.com",
+  copyright: {
+    role: "agent",
+    claimantName: "Sam Rivers",
+    organisation: "Example Publishing Ltd (demo)",
+    address: "1 Example Street, Brighton BN1 1AA",
+    work: '"Paper Hearts" by The Example Band, released in 2019 on Example Records.',
+    goodFaith: true,
+    accurate: true,
+    signature: "Sam Rivers",
+  },
+});
+await call("POST", "/api/reports", listeners[1]!.token, {
+  targetType: "track",
+  targetId: t.velvet1,
+  reason: "ai_label",
+  details: "It says only the voice is AI, but the backing band sounds generated too.",
+});
 
 console.log(`Running payouts for ${previous}…`);
 const run = await runPayouts(db, previous, config.currency);

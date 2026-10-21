@@ -12,6 +12,7 @@ import type { AppDeps } from "../app";
 import { requireAdmin, requireUser } from "../auth";
 import type { Db } from "../db/client";
 import { ledgerEntries, payoutRuns, revenueEntries, users } from "../db/schema";
+import { requireVerifiedEmail } from "../email-tokens";
 import { HttpError } from "../errors";
 import { currentPeriod } from "../payout-service";
 import { recordPlanChange } from "../subscriptions";
@@ -105,6 +106,7 @@ export const billingRoutes =
     /** Artists connect a Stripe account to be paid into. */
     app.post("/me/payouts/connect", async (request) => {
       const user = await requireUser(db, request);
+      requireVerifiedEmail(user, "set up payouts");
       if (!stripe) throw new HttpError(400, "Payouts are in demo mode, so there's nothing to connect.");
       const [row] = await db.select().from(users).where(eq(users.id, user.id)).limit(1);
       let accountId = row?.stripeAccountId;
@@ -154,6 +156,14 @@ export const billingRoutes =
       for (const b of balances) {
         if (b.available < config.payoutMinimumMinor) {
           if (b.available > 0) result.skipped.push({ ...b, reason: "Below the payout minimum; it rolls over." });
+          continue;
+        }
+        if (b.deletedAt) {
+          result.skipped.push({ ...b, reason: "Account deleted: the money is held, not paid." });
+          continue;
+        }
+        if (!b.emailVerifiedAt) {
+          result.skipped.push({ ...b, reason: "Hasn't confirmed their email address yet." });
           continue;
         }
         if (stripe && !b.stripeAccountId) {
@@ -214,12 +224,14 @@ async function availableBalances(db: Db) {
       available: sum(ledgerEntries.amount),
       displayName: users.displayName,
       stripeAccountId: users.stripeAccountId,
+      emailVerifiedAt: users.emailVerifiedAt,
+      deletedAt: users.deletedAt,
     })
     .from(ledgerEntries)
     .innerJoin(users, eq(users.id, ledgerEntries.userId))
     .leftJoin(payoutRuns, eq(payoutRuns.id, ledgerEntries.runId))
     .where(or(sql`${ledgerEntries.type} <> 'earnings'`, isNotNull(payoutRuns.finalizedAt)))
-    .groupBy(ledgerEntries.userId, users.displayName, users.stripeAccountId);
+    .groupBy(ledgerEntries.userId, users.displayName, users.stripeAccountId, users.emailVerifiedAt, users.deletedAt);
   return rows.map((r) => ({ ...r, available: Number(r.available ?? 0) }));
 }
 

@@ -1,15 +1,17 @@
+import { randomUUID } from "node:crypto";
 import type {
   DownloadAuthorization,
   OfflineCollectionRef,
   OfflineSync,
   OfflineSyncRequest,
+  PlayBatchResult,
   PlaylistDetail,
   ReleaseDetail,
   TrackDetail,
 } from "@trusic/client";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { tracks } from "../src/db/schema";
+import { offlineDevices, subscriptionPeriods, tracks } from "../src/db/schema";
 import { call, createTestApp, declaration, register, sendFile, wav, type TestApp } from "./helpers";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -123,19 +125,29 @@ describe("checking a device's downloads", () => {
   });
 
   it("removes taken-down and suspended tracks at the next check", async () => {
+    // Removed by the band, suspended after three strikes, and taken down after a report.
     await call(t, "DELETE", `/api/tracks/${track.B}`, band.token);
     await t.database.db.update(tracks).set({ status: "suspended" }).where(eq(tracks.id, track.C!));
+    await t.database.db.update(tracks).set({ status: "taken_down" }).where(eq(tracks.id, track.D!));
 
     const res = await sync(fan, {
       device: device(1),
       collections,
       trackIds: [track.A!, track.B!, track.C!, track.D!],
     });
-    expect(res.body.removedTrackIds.sort()).toEqual([track.B, track.C].sort());
-    expect(res.body.collections.map((c) => c.trackIds)).toEqual([[track.A], [track.A], [track.D]]);
-    expect(res.body.tracks.map((x) => x.title).sort()).toEqual(["A", "D"]);
-    expect((await authorize(fan, device(1).id, [track.B!, track.D!])).body.refusedTrackIds).toEqual([track.B]);
-    await t.database.db.update(tracks).set({ status: "live" }).where(eq(tracks.id, track.C!));
+    expect(res.body.removedTrackIds.sort()).toEqual([track.B, track.C, track.D].sort());
+    expect(res.body.collections.map((c) => c.trackIds)).toEqual([[track.A], [track.A], []]);
+    expect(res.body.tracks.map((x) => x.title)).toEqual(["A"]);
+    expect((await authorize(fan, device(1).id, [track.B!, track.D!])).body.refusedTrackIds).toEqual([track.B, track.D]);
+    // Plays of a taken-down track that reach us afterwards don't count either.
+    const late = { id: randomUUID(), trackId: track.D!, playedAt: new Date().toISOString(), msPlayed: 40_000 };
+    expect((await call<PlayBatchResult>(t, "POST", "/api/plays/batch", fan.token, { plays: [late] })).body).toEqual({
+      results: [{ id: late.id, status: "rejected", reason: "unavailable" }],
+    });
+    await t.database.db
+      .update(tracks)
+      .set({ status: "live" })
+      .where(inArray(tracks.id, [track.C!, track.D!]));
   });
 
   it("drops collections that have gone or can no longer be seen", async () => {
@@ -174,6 +186,27 @@ describe("checking a device's downloads", () => {
     const res = await sync(fan, { device: device(1), collections, trackIds: [track.A!, track.D!] });
     expect(res.body).toMatchObject({ status: "not_subscribed", removedTrackIds: [track.A, track.D] });
     expect((await authorize(fan, device(1).id, [track.A!])).status).toBe(403);
+  });
+
+  it("includes download devices and subscription history in 'Your data', and deletes them with the account", async () => {
+    const leaver = await register(t, "leaver@trusic.test");
+    await call(t, "POST", "/api/billing/subscribe", leaver.token);
+    await sync(leaver, { device: device(7), collections: [{ type: "liked" }] });
+    const data = (
+      await t.app.inject({ method: "GET", url: "/api/me/export", headers: { authorization: `Bearer ${leaver.token}` } })
+    ).json();
+    expect(data.downloadDevices).toMatchObject([{ name: "Phone 7", platform: "ios" }]);
+    expect(data.subscriptionHistory).toHaveLength(1);
+    expect(data.subscriptionHistory[0].endedAt).toBeNull();
+
+    const gone = await call(t, "POST", "/api/me/delete", leaver.token, {
+      password: "correct horse battery",
+      confirm: "DELETE",
+    });
+    expect(gone.status).toBe(204);
+    const { db } = t.database;
+    expect(await db.select().from(offlineDevices).where(eq(offlineDevices.userId, leaver.id))).toEqual([]);
+    expect(await db.select().from(subscriptionPeriods).where(eq(subscriptionPeriods.userId, leaver.id))).toEqual([]);
   });
 
   it("needs a login", async () => {

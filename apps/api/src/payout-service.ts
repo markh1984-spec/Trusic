@@ -59,11 +59,17 @@ interface GatherOptions {
 async function gatherPayoutInput(db: Db, period: string, options: GatherOptions = {}): Promise<PayoutInput> {
   const config = DEFAULT_PAYOUT_CONFIG;
 
-  const streams = await db
-    .select({ listenerId: plays.userId, trackId: plays.trackId, streams: count() })
+  const streamRows = await db
+    .select({ listenerId: plays.userId, trackId: plays.trackId, status: tracks.status, streams: count() })
     .from(plays)
+    .innerJoin(tracks, eq(tracks.id, plays.trackId))
     .where(and(playsCountedIn(period, periodBounds(period)), gte(plays.msPlayed, config.minStreamMs)))
-    .groupBy(plays.userId, plays.trackId);
+    .groupBy(plays.userId, plays.trackId, tracks.status);
+  // A taken-down track earns nothing in a month still being calculated: its listeners' money goes to whatever else
+  // they played, as if they'd never played it. A past month is recalculated with exactly the tracks it paid then.
+  const streams = streamRows
+    .filter((s) => (options.scores ? options.scores.has(s.trackId) : s.status !== "taken_down"))
+    .map(({ listenerId, trackId, streams }) => ({ listenerId, trackId, streams }));
 
   const trackIds = [...new Set(streams.map((s) => s.trackId))];
   const trackRows = trackIds.length
@@ -205,6 +211,16 @@ export async function finalizeRun(db: Db, period: string): Promise<PayoutRunSumm
   if (updated.length === 0) throw new HttpError(404, `There's no unfinalised payout run for ${period}.`);
   const [summary] = await runSummaries(db, period);
   return summary!;
+}
+
+/** Every month that has been calculated but not finalised, oldest first. */
+export async function openPeriods(db: Db): Promise<string[]> {
+  const rows = await db
+    .select({ period: payoutRuns.period })
+    .from(payoutRuns)
+    .where(isNull(payoutRuns.finalizedAt))
+    .orderBy(payoutRuns.period);
+  return rows.map((r) => r.period);
 }
 
 /** Months the track was paid in that are still open, oldest first. */

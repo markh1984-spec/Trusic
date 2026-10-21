@@ -5,6 +5,7 @@ import { api } from "../api";
 import { PlaylistCover } from "../components/Artwork";
 import { ErrorNote, Loading } from "../components/Guards";
 import { Icon } from "../components/Icon";
+import { MoreMenu } from "../components/MoreMenu";
 import { TrackList } from "../components/TrackList";
 import { duration, plural } from "../format";
 import { useAsync } from "../hooks";
@@ -114,6 +115,10 @@ export function PlaylistPage() {
             artworkUrl: playlist.artworkUrls[0] ?? null,
             trackIds: [...new Set(tracks.map((t) => t.id))],
           }}
+        />
+        <MoreMenu
+          label={playlist.name}
+          items={playlist.isOwner ? [] : [{ label: "Report…", to: `/report/playlist/${playlist.id}` }]}
         />
       </div>
 

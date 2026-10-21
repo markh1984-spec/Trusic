@@ -40,8 +40,15 @@
     {
       "idx": 5,
       "version": "7",
-      "when": 1792607795618,
-      "tag": "0005_offline_downloads",
+      "when": 1792608510703,
+      "tag": "0005_accounts_and_takedowns",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792610283350,
+      "tag": "0006_offline_downloads",
       "breakpoints": true
     }
   ]

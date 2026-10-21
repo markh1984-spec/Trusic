@@ -5,7 +5,7 @@ import { z } from "zod";
 import type { AppDeps } from "../app";
 import { optionalUser, requireUser } from "../auth";
 import type { Db } from "../db/client";
-import { artists, follows, tracks } from "../db/schema";
+import { artists, follows, tracks, users } from "../db/schema";
 import { HttpError } from "../errors";
 import { loadReleaseSummaries, selectTrackSummaries, toArtist, toTrackSummary } from "../views";
 
@@ -65,9 +65,19 @@ export const artistRoutes =
     });
 
     app.get<{ Params: { slug: string } }>("/artists/:slug", async (request) => {
-      const [artist] = await db.select().from(artists).where(eq(artists.slug, request.params.slug)).limit(1);
-      if (!artist) throw new HttpError(404, "Artist not found.");
+      const [found] = await db
+        .select({ artist: artists, ownerDeletedAt: users.deletedAt })
+        .from(artists)
+        .innerJoin(users, eq(users.id, artists.ownerUserId))
+        .where(eq(artists.slug, request.params.slug))
+        .limit(1);
       const viewer = await optionalUser(db, request);
+      // Taken down after a report (its owner and admins can still see it), or its owner deleted their account.
+      const hidden =
+        found?.ownerDeletedAt ||
+        (found?.artist.takenDownAt && viewer?.id !== found.artist.ownerUserId && !viewer?.isAdmin);
+      if (!found || hidden) throw new HttpError(404, "Artist not found.");
+      const artist = found.artist;
       const [rows, releaseList, [followers], viewerFollow] = await Promise.all([
         selectTrackSummaries(db)
           .where(and(eq(tracks.artistId, artist.id), eq(tracks.status, "live")))

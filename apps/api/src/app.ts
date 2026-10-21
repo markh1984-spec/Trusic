@@ -9,6 +9,8 @@ import type { Config } from "./config";
 import type { Db } from "./db/client";
 import type { AiDetector } from "./detection";
 import { HttpError } from "./errors";
+import { createMailer, type Mailer } from "./mailer";
+import { accountSettingsRoutes } from "./routes/account-settings";
 import { accountRoutes } from "./routes/accounts";
 import { adminRoutes } from "./routes/admin";
 import { artistRoutes } from "./routes/artists";
@@ -19,6 +21,7 @@ import { moneyRoutes } from "./routes/money";
 import { offlineRoutes } from "./routes/offline";
 import { playlistRoutes } from "./routes/playlists";
 import { releaseRoutes } from "./routes/releases";
+import { reportRoutes } from "./routes/reports";
 import { trackRoutes } from "./routes/tracks";
 import type { MediaStorage } from "./storage";
 
@@ -29,7 +32,12 @@ export interface AppDeps {
   config: Config;
   /** Real payments when configured; null means demo billing. */
   stripe: Stripe | null;
+  /** Sends email. Defaults to SMTP if configured, otherwise printing emails to the log. */
+  mailer?: Mailer;
 }
+
+/** AppDeps with every optional part filled in. */
+export type FullAppDeps = AppDeps & { mailer: Mailer };
 
 export async function buildApp(deps: AppDeps, options: { logger?: boolean } = {}): Promise<FastifyInstance> {
   const app = Fastify({ logger: options.logger ?? false, trustProxy: true });
@@ -63,10 +71,11 @@ export async function buildApp(deps: AppDeps, options: { logger?: boolean } = {}
     limits: { fileSize: deps.config.maxUploadBytes, files: 1, fields: 10, fieldSize: 64 * 1024 },
   });
 
+  const full: FullAppDeps = { ...deps, mailer: deps.mailer ?? createMailer(deps.config) };
   await app.register(
     async (api) => {
       api.get("/health", async () => ({ ok: true }));
-      await api.register(accountRoutes(deps));
+      await api.register(accountRoutes(full));
       await api.register(artistRoutes(deps));
       await api.register(trackRoutes(deps));
       await api.register(releaseRoutes(deps));
@@ -76,6 +85,10 @@ export async function buildApp(deps: AppDeps, options: { logger?: boolean } = {}
       await api.register(moneyRoutes(deps));
       await api.register(billingRoutes(deps));
       await api.register(adminRoutes(deps));
+      // Account settings, password resets, email confirmation, and reports and takedowns.
+      await api.register(accountSettingsRoutes(full));
+      await api.register(reportRoutes(full));
+      // Offline listening: play batches, download checks and download links.
       await api.register(offlineRoutes(deps));
     },
     { prefix: "/api" },
