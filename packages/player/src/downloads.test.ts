@@ -41,7 +41,7 @@ function fakeServer() {
   const server = {
     online: true,
     subscribed: true,
-    deviceRemoved: false,
+    deviceRemoved: false as false | "listener" | "limit" | true,
     collections: new Map<string, { title: string; trackIds: string[] }>([
       ["release:r1", { title: "The EP", trackIds: ["a", "b"] }],
       ["playlist:p1", { title: "Mix", trackIds: ["b", "c"] }],
@@ -60,6 +60,7 @@ function fakeServer() {
         if (status !== "ok") {
           return {
             status,
+            ...(typeof server.deviceRemoved === "string" ? { removedBy: server.deviceRemoved } : {}),
             checkedAt,
             validUntil: null,
             collections: [],
@@ -231,6 +232,26 @@ describe("DownloadManager", () => {
     server.deviceRemoved = true;
     await manager.sync();
     expect(device.disk.size).toBe(0);
+    expect(manager.snapshot.notice).toBe(NOTICES.device_removed);
+  });
+
+  it("says so when the listener removed this device in Settings", async () => {
+    const { server, device, manager } = setup();
+    await manager.open("user-1");
+    await manager.setCollection(liked, true);
+    expect(device.disk.size).toBe(1);
+    server.deviceRemoved = "listener";
+    await manager.sync();
+    expect(device.disk.size).toBe(0);
+    expect(manager.snapshot.notice).toBe(NOTICES.removed_in_settings);
+    expect(manager.snapshot.notice).toMatch(/removed from your account in Settings/);
+
+    // Turned back on, then pushed out by the five-device limit: it says that instead.
+    server.deviceRemoved = false;
+    await manager.setCollection(liked, true);
+    expect(device.disk.size).toBe(1);
+    server.deviceRemoved = "limit";
+    await manager.sync();
     expect(manager.snapshot.notice).toBe(NOTICES.device_removed);
   });
 

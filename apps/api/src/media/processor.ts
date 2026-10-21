@@ -49,6 +49,16 @@ export async function removeMediaFiles(db: Db | Tx, storage: MediaStorage, keys:
 }
 
 const HEARTBEAT_MS = 20_000;
+
+/** A job tried again: waiting to run now, with all its tries. */
+const FRESH_START = {
+  status: "pending" as const,
+  attempts: 0,
+  error: null,
+  heartbeatAt: null,
+  finishedAt: null,
+  runAfter: sql`now()`,
+};
 const MB = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 
 /**
@@ -189,6 +199,39 @@ export class MediaProcessor {
     if (!this.images) return;
     await this.options.db.insert(mediaJobs).values({ kind: "image", sourceKey }).onConflictDoNothing();
     this.wake();
+  }
+
+  /**
+   * Convert a failed upload again, from the file as it was uploaded, with a fresh set of tries. The track goes back
+   * to "processing" and goes live when it's done. False if the track isn't one that failed.
+   */
+  async retryAudio(trackId: string, sourceKey: string): Promise<boolean> {
+    const retried = await this.options.db.transaction(async (tx) => {
+      const [track] = await tx
+        .update(tracks)
+        .set({ status: "processing" })
+        .where(and(eq(tracks.id, trackId), eq(tracks.status, "failed")))
+        .returning({ id: tracks.id });
+      if (!track) return false;
+      await tx
+        .insert(mediaJobs)
+        .values({ kind: "audio", sourceKey, trackId })
+        .onConflictDoUpdate({ target: mediaJobs.sourceKey, set: { trackId, ...FRESH_START } });
+      return true;
+    });
+    if (retried) this.wake();
+    return retried;
+  }
+
+  /** Resize a failed image again. False if that job hasn't failed. */
+  async retryImage(jobId: string): Promise<boolean> {
+    const [job] = await this.options.db
+      .update(mediaJobs)
+      .set(FRESH_START)
+      .where(and(eq(mediaJobs.id, jobId), eq(mediaJobs.kind, "image"), eq(mediaJobs.status, "failed")))
+      .returning({ id: mediaJobs.id });
+    if (job) this.wake();
+    return Boolean(job);
   }
 
   /** Delete an image and its resized copies. */
@@ -339,7 +382,7 @@ export class MediaProcessor {
         .update(mediaJobs)
         .set({ status: "failed", error: error.message, finishedAt: sql`now()` })
         .where(eq(mediaJobs.id, job.id));
-      // The artist sees this in Studio and can upload the track again. (A failed image just stays as uploaded.)
+      // The artist sees this in Studio, with "Try again" (retryAudio). A failed image just stays as uploaded.
       if (job.trackId) {
         await tx
           .update(tracks)

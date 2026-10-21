@@ -9,6 +9,7 @@ import { artists, releases, tracks } from "../db/schema";
 import { requireVerifiedEmail } from "../email-tokens";
 import { HttpError } from "../errors";
 import { resolveHumanOnly } from "../human-only";
+import { refuseIfArtistTakenDown } from "../takedowns";
 import { storeImage, withUpload } from "../uploads";
 import { loadReleaseSummaries, selectTrackSummaries, toArtist, toTrackSummary } from "../views";
 
@@ -90,6 +91,7 @@ export const releaseRoutes =
         .where(and(eq(artists.id, body.artistId), eq(artists.ownerUserId, user.id)))
         .limit(1);
       if (!artist) throw new HttpError(403, "You can only create releases for your own artist profiles.");
+      await refuseIfArtistTakenDown(db, artist.id);
       const [release] = await db
         .insert(releases)
         .values({ artistId: body.artistId, title: body.title, type: body.type, releaseDate: body.releaseDate ?? null })

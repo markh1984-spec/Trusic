@@ -9,13 +9,14 @@
 import { rm } from "node:fs/promises";
 import path from "node:path";
 import type { AiDeclaration, StageDeclaration } from "@trusic/core";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { buildApp } from "./app";
 import { createSession, hashPassword } from "./auth";
 import { loadConfig } from "./config";
 import { openDatabase } from "./db/client";
 import { follows, likes, plays, revenueEntries, subscriptionPeriods, users } from "./db/schema";
 import { MetadataDetector } from "./detection";
+import { recordFollowChanges } from "./follow-history";
 import { MemoryMailer } from "./mailer";
 import { createStripeClient } from "./routes/billing";
 import { currentPeriod, finalizeRun, periodBounds, previousPeriod, runPayouts } from "./payout-service";
@@ -504,7 +505,7 @@ const sometimeAfter = (month: number) => {
   const start = periodBounds(months[month]!)[0].getTime();
   return new Date(start + random() * (Date.now() - start));
 };
-for (const l of extraListeners) {
+for (const [i, l] of extraListeners.entries()) {
   const favourites = Object.entries(l.taste)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 1 + Math.floor(random() * 3))
@@ -514,10 +515,19 @@ for (const l of extraListeners) {
     .values(favourites.map((key) => ({ userId: l.id, trackId: t[key]!, createdAt: sometimeAfter(l.firstMonth) })))
     .onConflictDoNothing();
   const artistIds = [...new Set(favourites.map((key) => artistOfKey[key.replace(/\d+$/, "")]!))].slice(0, 2);
-  await db
+  const followed = await db
     .insert(follows)
     .values(artistIds.map((artistId) => ({ userId: l.id, artistId, createdAt: sometimeAfter(l.firstMonth) })))
-    .onConflictDoNothing();
+    .onConflictDoNothing()
+    .returning();
+  for (const f of followed) await recordFollowChanges(db, "follow", [f.artistId], f.createdAt);
+  // Every fourth one later unfollows, so artists' stats show followers lost as well as gained.
+  const leaving = i % 4 === 0 ? followed[0] : undefined;
+  if (leaving) {
+    const at = new Date(leaving.createdAt.getTime() + random() * (Date.now() - leaving.createdAt.getTime()));
+    await db.delete(follows).where(and(eq(follows.userId, l.id), eq(follows.artistId, leaving.artistId)));
+    await recordFollowChanges(db, "unfollow", [leaving.artistId], at);
+  }
 }
 console.log(
   `  ${rows.length} plays by ${demoListeners.length} subscribers (${Object.keys(TASTE_GROUPS).length} tastes)`,

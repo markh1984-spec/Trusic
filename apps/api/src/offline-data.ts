@@ -15,7 +15,9 @@ export async function offlineAccountData(db: Db, userId: string) {
         name: offlineDevices.name,
         platform: offlineDevices.platform,
         lastChecked: offlineDevices.lastSyncAt,
+        tracksDownloaded: offlineDevices.trackCount,
         removedAt: offlineDevices.removedAt,
+        removedBy: offlineDevices.removedReason,
         createdAt: offlineDevices.createdAt,
       })
       .from(offlineDevices)

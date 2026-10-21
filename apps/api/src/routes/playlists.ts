@@ -93,6 +93,7 @@ export async function loadPlaylistDetail(
     entries,
     durationMs: entries.reduce((acc, e) => acc + e.track.durationMs, 0),
     isOwner,
+    takenDown: Boolean(state?.takenDownAt),
   };
 }
 

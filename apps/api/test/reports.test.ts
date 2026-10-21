@@ -370,9 +370,10 @@ describe("takedowns", () => {
     expect(mail.text).toContain("You now have 3 of 3");
     expect(mail.text).toContain("your account is suspended");
 
-    // Suspended through the usual mechanism: remaining tracks hidden, no uploads.
-    const fourth = await call(t, "GET", `/api/tracks/${ids.Fourth}`, fan.token);
-    expect(fourth.status).toBe(200);
+    // Suspended through the usual mechanism: remaining tracks hidden (their uploader is told why), no uploads.
+    expect((await call(t, "GET", `/api/tracks/${ids.Fourth}`, fan.token)).status).toBe(404);
+    const own = await call<TrackDetail>(t, "GET", `/api/tracks/${ids.Fourth}`, uploader.token);
+    expect(own.body.unavailable).toMatchObject({ status: "suspended", takedown: null });
     expect((await call(t, "GET", `/api/tracks/${ids.Fourth}/stream`, fan.token)).status).toBe(404);
     const refused = await sendFile(
       t,

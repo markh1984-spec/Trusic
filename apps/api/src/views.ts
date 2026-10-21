@@ -5,6 +5,7 @@ import type { SelectedFields } from "drizzle-orm/pg-core";
 import type { Db } from "./db/client";
 import { appeals, artists, releases, tracks, users } from "./db/schema";
 import { publicCredits } from "./credits";
+import { trackAvailability } from "./track-availability";
 import { imageUrl } from "./uploads";
 
 const trackSummaryColumns = {
@@ -100,8 +101,8 @@ export async function loadTrackDetail(
   const isOwner = viewer?.id === row.ownerUserId;
   const status = row.track.status;
   const processing = status === "processing" || status === "failed" ? status : null;
-  const hidden = status === "removed" || status === "taken_down" || processing !== null;
-  if (hidden && !isOwner && !viewer?.isAdmin) return null;
+  // Only live tracks are public. Their uploader and admins can still open the rest, to see why.
+  if (status !== "live" && !isOwner && !viewer?.isAdmin) return null;
 
   let appeal: Appeal | null = null;
   if (isOwner || viewer?.isAdmin) {
@@ -133,6 +134,7 @@ export async function loadTrackDetail(
     appeal,
     isOwner,
     processing,
+    unavailable: viewer && status !== "live" ? await trackAvailability(db, t, viewer) : null,
   };
 }
 
@@ -166,8 +168,9 @@ export async function loadReleaseSummaries(
   where: { artistId?: string; ids?: string[]; withTracks?: boolean; limit?: number },
 ) {
   const conditions = [
-    // Taken down after a report: hidden everywhere.
+    // Taken down after a report (itself, or its artist): hidden everywhere.
     isNull(releases.takenDownAt),
+    isNull(artists.takenDownAt),
     where.artistId ? eq(releases.artistId, where.artistId) : undefined,
     where.ids ? inArray(releases.id, where.ids) : undefined,
     where.withTracks
