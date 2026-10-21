@@ -161,13 +161,20 @@ function ScrollingLyrics({ view }: { view: Extract<LyricsView, { kind: "lines" }
   const height = useRef(0);
   const linesTop = useRef(0);
   const touchedAt = useRef(0);
-  const [onActive] = useState(() => (index: number) => {
+  const active = useRef(-1);
+  const [follow] = useState(() => (index: number) => {
     const y = lineY.current[index];
     if (index < 0 || y === undefined || Date.now() - touchedAt.current < FOLLOW_PAUSE_MS) return;
     scroller.current?.scrollTo({ y: followOffset(linesTop.current + y, height.current), animated: true });
   });
+  const [onActive] = useState(() => (index: number) => {
+    active.current = index;
+    follow(index);
+  });
+  // Opened mid-song, the line being sung may be laid out after it became the one being sung.
   const [onLineLayout] = useState(() => (index: number, y: number) => {
     lineY.current[index] = y;
+    if (index === active.current) follow(index);
   });
 
   return (
