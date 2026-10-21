@@ -1,8 +1,11 @@
+import { ApiError } from "@trusic/client";
 import { useCallback, useEffect, useState } from "react";
 
 export interface AsyncState<T> {
   data: T | null;
   error: string | null;
+  /** The server's status code when loading failed (404: not found, or not something you can see). */
+  errorStatus: number | null;
   loading: boolean;
   reload(): void;
 }
@@ -10,7 +13,7 @@ export interface AsyncState<T> {
 /** Load data for a page, re-running whenever `deps` change. */
 export function useAsync<T>(load: () => Promise<T>, deps: unknown[]): AsyncState<T> {
   const [data, setData] = useState<T | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ message: string; status: number | null } | null>(null);
   const [loading, setLoading] = useState(true);
   const [version, setVersion] = useState(0);
 
@@ -20,7 +23,14 @@ export function useAsync<T>(load: () => Promise<T>, deps: unknown[]): AsyncState
     setError(null);
     load()
       .then((d) => !cancelled && setData(d))
-      .catch((e: unknown) => !cancelled && setError(e instanceof Error ? e.message : "Something went wrong."))
+      .catch(
+        (e: unknown) =>
+          !cancelled &&
+          setError({
+            message: e instanceof Error ? e.message : "Something went wrong.",
+            status: e instanceof ApiError ? e.status : null,
+          }),
+      )
       .finally(() => !cancelled && setLoading(false));
     return () => {
       cancelled = true;
@@ -28,5 +38,5 @@ export function useAsync<T>(load: () => Promise<T>, deps: unknown[]): AsyncState
   }, [...deps, version]);
 
   const reload = useCallback(() => setVersion((v) => v + 1), []);
-  return { data, error, loading, reload };
+  return { data, error: error?.message ?? null, errorStatus: error?.status ?? null, loading, reload };
 }

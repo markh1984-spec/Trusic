@@ -371,7 +371,8 @@ describe.skipIf(!hasFfmpeg)("recovering interrupted work", () => {
     } finally {
       await t.close();
     }
-  });
+    // Its own database, four failed tries and two real conversions, at the lowest CPU priority.
+  }, 90_000);
 
   it("can't try again once the uploaded file has gone", async () => {
     const broken = path.join(scratch, "always-broken-ffmpeg");

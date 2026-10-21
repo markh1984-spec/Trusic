@@ -1,7 +1,8 @@
-import type { TrackDetail, UploadInProgress, UploadStatus } from "@trusic/client";
+import type { TrackDetail, UploadInProgress } from "@trusic/client";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { api } from "../api";
+import { useToast } from "../toast";
 
 /** How often to check on uploads that are being prepared for streaming. */
 const POLL_MS = 4000;
@@ -11,6 +12,7 @@ const POLL_MS = 4000;
  * `onLive` when one is done so the page can show it with the artist's other tracks.
  */
 export function UploadsInProgress({ onLive }: { onLive(): void }) {
+  const toast = useToast();
   const [uploads, setUploads] = useState<UploadInProgress[]>([]);
   const [version, setVersion] = useState(0);
   const onLiveRef = useRef(onLive);
@@ -47,6 +49,15 @@ export function UploadsInProgress({ onLive }: { onLive(): void }) {
     await api.removeTrack(id).catch(() => undefined);
     setVersion((v) => v + 1);
   };
+  /** Convert it again from the file that was uploaded. The list then shows it processing, and checks on it. */
+  const retry = async (id: string) => {
+    try {
+      await api.retryUpload(id);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "That didn't work. Please try again.");
+    }
+    setVersion((v) => v + 1);
+  };
 
   return (
     <section className="card">
@@ -68,7 +79,12 @@ export function UploadsInProgress({ onLive }: { onLive(): void }) {
             ) : (
               <span className="row">
                 <span className="status status--warn">Failed</span>
-                <button className="button button--ghost" onClick={() => void remove(u.track.id)}>
+                {u.canRetry ? (
+                  <button className="button button--small" onClick={() => void retry(u.track.id)}>
+                    Try again
+                  </button>
+                ) : null}
+                <button className="button button--ghost button--small" onClick={() => void remove(u.track.id)}>
                   Remove
                 </button>
               </span>
@@ -84,26 +100,6 @@ export function UploadsInProgress({ onLive }: { onLive(): void }) {
       ) : null}
     </section>
   );
-}
-
-const NOTES: Record<UploadStatus, { className: string; text: string }> = {
-  processing: {
-    className: "note",
-    text:
-      "Getting this track ready: we're converting it for streaming and evening out its volume. It usually takes a " +
-      "minute or two, and this page updates by itself. Until then, only you can see it.",
-  },
-  failed: {
-    className: "note note--error",
-    text:
-      "We couldn't prepare this file for streaming. Try exporting it again as WAV, FLAC or MP3, then upload it " +
-      "again. Only you can see this track.",
-  },
-};
-
-/** For a track page: says the track isn't live yet. */
-export function ProcessingNote({ status }: { status: UploadStatus }) {
-  return <p className={NOTES[status].className}>{NOTES[status].text}</p>;
 }
 
 /** While `track` is processing, check on it every few seconds and call `reload` once it's done. */

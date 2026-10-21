@@ -217,6 +217,8 @@ describe("nothing new on a taken-down artist", () => {
       type: "album",
     });
     expect(release.status).toBe(403);
+    // Nor can anyone start following it.
+    expect((await call(t, "PUT", `/api/me/follows/${own.id}`, fan.token)).status).toBe(404);
     // The owner can still see it, and is told it's down.
     expect((await call<ArtistPage>(t, "GET", "/api/artists/downed", owner.token)).body.takenDown).toBe(true);
 

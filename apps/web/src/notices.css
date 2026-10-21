@@ -1,0 +1,90 @@
+/* Things that aren't available: the friendly page, notices for uploaders, devices and failed uploads. */
+
+.unavailable {
+  max-width: 520px;
+  margin: 56px auto;
+  text-align: center;
+}
+.unavailable__icon {
+  display: inline-grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 16px;
+  border-radius: 50%;
+  background: var(--card);
+  color: var(--muted);
+}
+.unavailable__actions {
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.status-notice {
+  margin: 0 0 24px;
+  padding: 16px 20px;
+  border-radius: var(--radius);
+  background: var(--card);
+  border-left: 4px solid var(--muted);
+}
+.status-notice h2 {
+  font-size: 1.05rem;
+  margin-bottom: 6px;
+}
+.status-notice p {
+  margin: 0 0 10px;
+}
+.status-notice > :last-child {
+  margin-bottom: 0;
+}
+.status-notice blockquote {
+  margin: 0 0 10px;
+}
+.status-notice .row {
+  margin-bottom: 10px;
+}
+.status-notice p a,
+.unavailable p a {
+  text-decoration: underline;
+}
+.status-notice--warn {
+  border-left-color: var(--assisted);
+}
+.status-notice--error {
+  border-left-color: var(--danger);
+}
+
+.device-list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+}
+.device-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.device-list li:last-child {
+  border-bottom: 0;
+}
+.device-list__about {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+.device-list__about strong {
+  display: block;
+}
+
+.failed-uploads td {
+  vertical-align: top;
+}
+.failed-uploads details {
+  margin-top: 4px;
+}
+.failed-uploads code {
+  font-size: 0.8rem;
+  word-break: break-word;
+}
