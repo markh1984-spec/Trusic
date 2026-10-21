@@ -5,7 +5,7 @@ import { api } from "../api";
 import { useAuth } from "../auth";
 import { AiBadge } from "../components/AiBadge";
 import { ErrorNote, Loading, RequireAuth } from "../components/Guards";
-import { money, periodName } from "../format";
+import { money, periodName, plural } from "../format";
 import { useAsync } from "../hooks";
 
 export function MoneyPage() {
@@ -134,6 +134,12 @@ function Statement({ statement: s }: { statement: ListenerStatementView }) {
             : "Everything you played was fully AI-generated, so"}{" "}
           your {money(s.toHumanPot.amount, s.currency)} went to the shared pot for human-made music, split by listening
           across Trusic.
+        </p>
+      ) : null}
+      {s.lateStreams ? (
+        <p className="note">
+          Includes {plural(s.lateStreams, "stream")} from earlier months that reached us after those months were closed,
+          such as music you played offline.
         </p>
       ) : null}
 

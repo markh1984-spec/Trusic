@@ -1,4 +1,4 @@
-import type { Me } from "@trusic/client";
+import { ApiError, type Me } from "@trusic/client";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { api, tokenStore } from "./api";
 
@@ -13,6 +13,25 @@ interface AuthState {
 
 const AuthContext = createContext<AuthState | null>(null);
 
+/** The account as last seen, for when the server can't be reached. */
+const lastMe = {
+  get(): Me | null {
+    try {
+      return JSON.parse(localStorage.getItem("trusic.me") ?? "null") as Me | null;
+    } catch {
+      return null;
+    }
+  },
+  set(me: Me | null) {
+    try {
+      if (me) localStorage.setItem("trusic.me", JSON.stringify(me));
+      else localStorage.removeItem("trusic.me");
+    } catch {
+      // Private browsing: nothing to remember.
+    }
+  },
+};
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [me, setMe] = useState<Me | null>(null);
   const [loading, setLoading] = useState(true);
@@ -23,10 +42,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     try {
-      setMe(await api.me());
-    } catch {
-      tokenStore.set(null);
-      setMe(null);
+      const fresh = await api.me();
+      lastMe.set(fresh);
+      setMe(fresh);
+    } catch (e) {
+      // Only a rejected token signs you out. When the server can't be reached (the desktop app offline),
+      // stay signed in as before, so downloads keep playing.
+      if (e instanceof ApiError && e.status === 401) {
+        tokenStore.set(null);
+        lastMe.set(null);
+        setMe(null);
+      } else {
+        setMe(lastMe.get());
+      }
     }
   }, []);
 
@@ -52,6 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       async logout() {
         await api.logout().catch(() => undefined);
         tokenStore.set(null);
+        lastMe.set(null);
         setMe(null);
       },
     }),

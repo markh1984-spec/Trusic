@@ -9,6 +9,7 @@ import { MoreMenuWithShare, ShareButton } from "../components/Share";
 import { TrackList } from "../components/TrackList";
 import { duration, plural } from "../format";
 import { useAsync } from "../hooks";
+import { DownloadButton } from "../offline/DownloadButton";
 import { usePlayTracks } from "../player";
 import { usePageTitle } from "../share";
 
@@ -63,6 +64,16 @@ export function ReleasePage() {
             Edit release
           </Link>
         ) : null}
+        <DownloadButton
+          collection={{
+            type: "release",
+            id: release.id,
+            title: release.title,
+            subtitle: release.artist.name,
+            artworkUrl: release.artworkUrl,
+            trackIds: release.tracks.map((t) => t.id),
+          }}
+        />
         <MoreMenuWithShare
           target={{ kind: "release", key: release.id, title: `${release.title} · ${release.artist.name}` }}
           label={release.title}

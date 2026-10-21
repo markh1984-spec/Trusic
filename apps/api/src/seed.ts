@@ -14,7 +14,7 @@ import { buildApp } from "./app";
 import { createSession, hashPassword } from "./auth";
 import { loadConfig } from "./config";
 import { openDatabase } from "./db/client";
-import { follows, likes, plays, revenueEntries, users } from "./db/schema";
+import { follows, likes, plays, revenueEntries, subscriptionPeriods, users } from "./db/schema";
 import { MetadataDetector } from "./detection";
 import { MemoryMailer } from "./mailer";
 import { createStripeClient } from "./routes/billing";
@@ -471,6 +471,10 @@ await db.insert(revenueEntries).values(
   ),
 );
 for (const i of premium) await db.update(users).set({ plan: "premium" }).where(eq(users.id, listeners[i]!.id));
+// Subscription history, so plays from offline listening are checked against when each listener subscribed.
+await db
+  .insert(subscriptionPeriods)
+  .values(demoListeners.map((l) => ({ userId: l.id, startedAt: periodBounds(months[l.firstMonth]!)[0] })));
 
 // The newer listeners' likes and follows, on the days they happened, so artists can see them grow.
 const artistOfKey: Record<string, string> = {
@@ -549,7 +553,7 @@ console.log(`
 Done. Log in with any of these (password ${process.env.DEMO_PASSWORD ? "from the DEMO_PASSWORD setting" : `"${PASSWORD}"`}):
   listener@trusic.local   a Premium listener: see "Home" and "Your money"
   pines@trusic.local      The Hollow Pines: see "Studio" for stats, earnings and band splits
-  pines-bass@trusic.local a band member: sees the band's stats, and only his own money
+  pines-bass@trusic.local a band member: sees the band's stats, and only their own money
   prompter@trusic.local   Neon Prompt: an AI act with a flagged track under appeal
   admin@trusic.local      review appeals and run payouts
 `);

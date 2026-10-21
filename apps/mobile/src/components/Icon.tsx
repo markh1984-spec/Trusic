@@ -31,6 +31,8 @@ const STROKES = {
   back: "M15 6l-6 6 6 6",
   chevronRight: "M9 6l6 6-6 6",
   external: "M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5",
+  download: "M12 4v11M7 10.5l5 5 5-5M5 20h14",
+  check: "M5 12.5l4.5 4.5L19 7.5",
 } as const;
 
 export type IconName = keyof typeof PATHS | keyof typeof STROKES;

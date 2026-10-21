@@ -253,6 +253,18 @@ describe("oEmbed and share links", () => {
     expect((await call(t, "GET", "/api/share/site")).body).toEqual({ url: "https://trusic.test" });
   });
 
+  it("gives embedded players previews that can never count as plays", async () => {
+    // Embeds never send a login, so the server always hands out a preview…
+    const stream = await call<{ preview: boolean; previewMs: number }>(t, "GET", `/api/tracks/${track.id}/stream`);
+    expect(stream.body).toMatchObject({ preview: true, previewMs: 6000 });
+    // …and plays without a login are refused, one at a time or in a batch.
+    expect((await call(t, "POST", "/api/plays", undefined, { trackId: track.id, msPlayed: 40_000 })).status).toBe(401);
+    const batch = {
+      plays: [{ id: crypto.randomUUID(), trackId: track.id, playedAt: new Date().toISOString(), msPlayed: 40_000 }],
+    };
+    expect((await call(t, "POST", "/api/plays/batch", undefined, batch)).status).toBe(401);
+  });
+
   it("only replaces the head it's given", () => {
     expect(injectHead(INDEX, '<meta name="robots" content="noindex" />')).toContain("<title>Trusic</title>");
   });

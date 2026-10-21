@@ -2,6 +2,7 @@ import type { Me } from "@trusic/client";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { AppState } from "react-native";
 import { api, errorMessage, isAuthError } from "../lib/api";
+import { jsonDocument } from "../lib/offline-storage";
 import { tokenStore } from "../lib/token";
 
 interface AuthState {
@@ -20,6 +21,9 @@ interface AuthState {
 
 const AuthContext = createContext<AuthState | null>(null);
 
+/** The account as last seen, for opening the app without signal. */
+const lastMe = jsonDocument<Me>("account");
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [me, setMe] = useState<Me | null>(null);
   const [loading, setLoading] = useState(true);
@@ -31,15 +35,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     try {
-      setMe(await api.me());
+      const fresh = await api.me();
+      setMe(fresh);
       setConnectionError(null);
+      void lastMe.save(fresh);
     } catch (e) {
       // Only a rejected token signs you out. A phone that's offline keeps its sign-in.
       if (isAuthError(e)) {
         await tokenStore.set(null);
+        await lastMe.save(null);
         setMe(null);
       } else {
         setConnectionError(errorMessage(e));
+        // Opened without signal: carry on as the account last seen, so downloads still play.
+        const known = await lastMe.load();
+        setMe((current) => current ?? known);
       }
     }
   }, []);
@@ -79,6 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       async logout() {
         await api.logout().catch(() => undefined);
         await tokenStore.set(null);
+        await lastMe.save(null);
         setMe(null);
       },
     }),

@@ -140,7 +140,11 @@ export function LyricsPanel({ onClose }: { onClose(): void }) {
       ) : (
         <p className="muted small">Nothing playing.</p>
       )}
-      {error ? <p className="muted small">Couldn't load the lyrics.</p> : null}
+      {error ? (
+        <p className="muted small">
+          Couldn't load the lyrics. They need an internet connection, even for downloaded tracks.
+        </p>
+      ) : null}
       {track && lyrics && !lyrics.format ? (
         <p className="muted">{lyrics.hidden === "cover" ? COVER_LYRICS_NOTE : "No lyrics for this track yet."}</p>
       ) : null}

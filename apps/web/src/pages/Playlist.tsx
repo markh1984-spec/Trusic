@@ -13,6 +13,7 @@ import { TrackList } from "../components/TrackList";
 import { duration, plural } from "../format";
 import { useAsync } from "../hooks";
 import { useLibrary } from "../library";
+import { DownloadButton } from "../offline/DownloadButton";
 import { usePlayTracks } from "../player";
 import { usePageTitle } from "../share";
 import { useToast } from "../toast";
@@ -116,6 +117,16 @@ export function PlaylistPage() {
             </button>
           </>
         ) : null}
+        <DownloadButton
+          collection={{
+            type: "playlist",
+            id: playlist.id,
+            title: playlist.name,
+            subtitle: playlist.owner.displayName,
+            artworkUrl: playlist.artworkUrls[0] ?? null,
+            trackIds: [...new Set(tracks.map((t) => t.id))],
+          }}
+        />
         {playlist.isPublic ? (
           <MoreMenuWithShare
             target={{ kind: "playlist", key: playlist.id, title: `${playlist.name} · ${playlist.owner.displayName}` }}

@@ -3,6 +3,7 @@ import { Stack, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Alert, Platform, StyleSheet, Text, View } from "react-native";
 import { PlaylistCover } from "../components/Artwork";
+import { DownloadToggle } from "../components/DownloadToggle";
 import { LikedCover } from "../components/Tiles";
 import { TrackList } from "../components/TrackList";
 import { Button, ErrorScreen, Loading, Muted, PlayButton, Screen, SignInPrompt } from "../components/ui";
@@ -12,9 +13,11 @@ import { useAsync } from "../lib/hooks";
 import { usePlayTracks } from "../lib/navigation";
 import { useAuth } from "../state/auth";
 import { useLibrary } from "../state/library";
+import { useDownloadedCollection } from "../state/offline";
 import { usePlayer } from "../state/player";
 import { useToast } from "../state/toast";
 import { colors, space } from "../theme";
+import { OfflineCollectionScreen } from "./OfflineCollectionScreen";
 
 /** Ask before doing something that can't be undone. */
 function confirm(title: string, message: string, action: string): Promise<boolean> {
@@ -35,10 +38,11 @@ export function PlaylistScreen({ id }: { id: string }) {
   const library = useLibrary();
   const toast = useToast();
   const router = useRouter();
+  const downloaded = useDownloadedCollection({ type: "playlist", id });
 
   useEffect(() => setPlaylist(data), [data]);
 
-  if (error) return <ErrorScreen message={error} />;
+  if (error) return downloaded ? <OfflineCollectionScreen {...downloaded} /> : <ErrorScreen message={error} />;
   if (loading || !playlist) return <Loading />;
 
   const tracks = playlist.entries.map((e) => e.track);
@@ -96,6 +100,16 @@ export function PlaylistScreen({ id }: { id: string }) {
           />
         ) : null}
       </View>
+      <DownloadToggle
+        collection={{
+          type: "playlist",
+          id: playlist.id,
+          title: playlist.name,
+          subtitle: playlist.owner.displayName,
+          artworkUrl: playlist.artworkUrls[0] ?? null,
+          trackIds: [...new Set(tracks.map((t) => t.id))],
+        }}
+      />
       <TrackList
         tracks={tracks}
         keys={playlist.entries.map((e) => e.entryId)}
@@ -140,8 +154,9 @@ function Liked() {
   const { data, error, loading, reload } = useAsync(() => api.likes(), []);
   const play = usePlayTracks();
   const player = usePlayer();
+  const downloaded = useDownloadedCollection({ type: "liked" });
 
-  if (error) return <ErrorScreen message={error} />;
+  if (error) return downloaded ? <OfflineCollectionScreen {...downloaded} /> : <ErrorScreen message={error} />;
   if (loading || !data) return <Loading />;
   // Hide tracks unliked on this screen without loading again.
   const tracks = data.map((l) => l.track).filter((t) => library.isLiked(t.id));
@@ -164,6 +179,16 @@ function Liked() {
           />
         ) : null}
       </View>
+      <DownloadToggle
+        collection={{
+          type: "liked",
+          id: null,
+          title: "Liked songs",
+          subtitle: null,
+          artworkUrl: null,
+          trackIds: tracks.map((t) => t.id),
+        }}
+      />
       <TrackList tracks={tracks} label="Liked songs" empty="Tap the heart on any track to save it here." />
     </Screen>
   );

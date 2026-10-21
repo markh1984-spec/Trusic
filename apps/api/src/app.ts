@@ -20,6 +20,7 @@ import { libraryRoutes } from "./routes/library";
 import { listeningRoutes } from "./routes/listening";
 import { lyricsRoutes } from "./routes/lyrics";
 import { moneyRoutes } from "./routes/money";
+import { offlineRoutes } from "./routes/offline";
 import { playlistRoutes } from "./routes/playlists";
 import { recommendationRoutes } from "./routes/recommendations";
 import { releaseRoutes } from "./routes/releases";
@@ -97,6 +98,8 @@ export async function buildApp(deps: AppDeps, options: { logger?: boolean } = {}
       // Artist stats, recommendations and radio.
       await api.register(insightRoutes(deps));
       await api.register(recommendationRoutes(deps));
+      // Offline listening: play batches, download checks and download links.
+      await api.register(offlineRoutes(deps));
     },
     { prefix: "/api" },
   );

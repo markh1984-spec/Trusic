@@ -5,7 +5,7 @@ import { AiBadge } from "../components/AiBadge";
 import { Card, ErrorNote, Heading, Loading, Muted, Note, Screen, SignInPrompt } from "../components/ui";
 import { SubscriptionCard } from "../components/SubscriptionCard";
 import { api } from "../lib/api";
-import { money, periodName } from "../lib/format";
+import { money, periodName, plural } from "../lib/format";
 import { useAsync } from "../lib/hooks";
 import { routes, useGo } from "../lib/navigation";
 import { useAuth } from "../state/auth";
@@ -65,6 +65,12 @@ function Statement({ statement: s }: { statement: ListenerStatementView }) {
             : "Everything you played was fully AI-generated, so"}{" "}
           your {money(s.toHumanPot.amount, s.currency)} went to the shared pot for human-made music, split by listening
           across Trusic.
+        </Note>
+      ) : null}
+      {s.lateStreams ? (
+        <Note>
+          Includes {plural(s.lateStreams, "stream")} from earlier months that reached us after those months were closed,
+          such as music you played offline.
         </Note>
       ) : null}
 
