@@ -11,7 +11,8 @@ import { openDatabase, type Database } from "../src/db/client";
 import { users } from "../src/db/schema";
 import { MetadataDetector } from "../src/detection";
 import { MemoryMailer } from "../src/mailer";
-import { LocalMediaStorage } from "../src/storage";
+import { MediaProcessor, type MediaProcessorOptions } from "../src/media/processor";
+import { LocalMediaStorage, type MediaStorage } from "../src/storage";
 import { synthPng, synthWav } from "../src/synth";
 
 export const ADMIN_EMAIL = "admin@trusic.test";
@@ -21,11 +22,19 @@ export interface TestApp {
   database: Database;
   /** Every email the app has "sent". */
   mailer: MemoryMailer;
+  storage: MediaStorage;
+  media: MediaProcessor;
   close(): Promise<void>;
 }
 
 export async function createTestApp(
-  options: { env?: Record<string, string>; stripe?: Stripe | null } = {},
+  options: {
+    env?: Record<string, string>;
+    stripe?: Stripe | null;
+    /** Convert uploads with the real ffmpeg. Off by default: uploads go live at once and play as uploaded. */
+    media?: boolean | Partial<MediaProcessorOptions>;
+    storage?: MediaStorage;
+  } = {},
 ): Promise<TestApp> {
   const dir = await mkdtemp(path.join(tmpdir(), "trusic-test-"));
   const config = loadConfig({
@@ -36,19 +45,32 @@ export async function createTestApp(
   });
   const database = await openDatabase({});
   const mailer = new MemoryMailer();
+  const storage = options.storage ?? new LocalMediaStorage(path.join(dir, "media"));
+  const media = await MediaProcessor.create({
+    db: database.db,
+    storage,
+    ffmpegPath: options.media ? "ffmpeg" : null,
+    retryDelayMs: 0,
+    ...(typeof options.media === "object" ? options.media : {}),
+  });
+  media.start();
   const app = await buildApp({
     db: database.db,
-    storage: new LocalMediaStorage(path.join(dir, "media")),
+    storage,
     detector: new MetadataDetector(),
     config,
     stripe: options.stripe ?? null,
     mailer,
+    media,
   });
   return {
     app,
     database,
     mailer,
+    storage,
+    media,
     async close() {
+      await media.stop();
       await app.close();
       await database.close();
       await rm(dir, { recursive: true, force: true });

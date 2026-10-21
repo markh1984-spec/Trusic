@@ -98,7 +98,9 @@ export async function loadTrackDetail(
   if (!row) return null;
 
   const isOwner = viewer?.id === row.ownerUserId;
-  const hidden = row.track.status === "removed" || row.track.status === "taken_down";
+  const status = row.track.status;
+  const processing = status === "processing" || status === "failed" ? status : null;
+  const hidden = status === "removed" || status === "taken_down" || processing !== null;
   if (hidden && !isOwner && !viewer?.isAdmin) return null;
 
   let appeal: Appeal | null = null;
@@ -130,6 +132,7 @@ export async function loadTrackDetail(
     credits: isOwner || viewer?.isAdmin ? t.credits : publicCredits(t.credits),
     appeal,
     isOwner,
+    processing,
   };
 }
 

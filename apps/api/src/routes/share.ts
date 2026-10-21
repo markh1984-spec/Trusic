@@ -1,4 +1,4 @@
-import { EMBED_HEIGHT, embedCode, type EmbedKind, type SiteInfo } from "@trusic/client";
+import { EMBED_HEIGHT, embedCode, jpegImageUrl, type EmbedKind, type SiteInfo } from "@trusic/client";
 import type { FastifyInstance, FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import type { AppDeps } from "../app";
@@ -48,13 +48,16 @@ async function shareImage(app: FastifyInstance, item: ShareItem, version: string
   }
 }
 
-/** Fetch artwork through its public address, so it works wherever images are stored. */
+/**
+ * Fetch artwork through its public address, so it works wherever images are stored. Trusic's own images are
+ * asked for as JPEG: their usual resized copies are WebP, which decodeImage can't read.
+ */
 async function loadArtwork(app: FastifyInstance, url: string | null) {
   if (!url) return null;
   try {
     let bytes: Buffer;
     if (url.startsWith("/")) {
-      const res = await app.inject({ method: "GET", url });
+      const res = await app.inject({ method: "GET", url: jpegImageUrl(url) });
       if (res.statusCode !== 200) return null;
       bytes = res.rawPayload;
     } else {

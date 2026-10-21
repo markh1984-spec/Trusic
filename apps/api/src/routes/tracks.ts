@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { stat } from "node:fs/promises";
 import type { RubricInfo, Split, TrackList } from "@trusic/client";
 import {
   AI_LABEL_RANGES,
@@ -67,7 +68,7 @@ function audioFormat(metadata: IAudioMetadata) {
 }
 
 export const trackRoutes =
-  ({ db, storage, detector }: AppDeps): FastifyPluginAsync =>
+  ({ db, storage, detector, media }: AppDeps): FastifyPluginAsync =>
   async (app) => {
     app.get("/rubric", async () => {
       return {
@@ -168,7 +169,10 @@ export const trackRoutes =
         const resolution = resolveAiScore({ declaredScore: breakdown.score, detection });
 
         const trackId = randomUUID();
-        const audioKey = `tracks/${trackId}${format.ext}`;
+        // The upload is kept as it is. With ffmpeg, the streaming files are made from it in the background and the
+        // track stays "processing" (not public) until they're ready; without, it's streamed as uploaded.
+        const audioKey = `originals/${trackId}${format.ext}`;
+        const audioBytes = (await stat(filePath)).size;
         await storage.save(audioKey, filePath);
         const row: typeof tracks.$inferInsert = {
           id: trackId,
@@ -178,8 +182,10 @@ export const trackRoutes =
           credits,
           durationMs: Math.round(durationSec * 1000),
           audioKey,
+          originalAudioKey: audioKey,
+          status: media.audio ? "processing" : "live",
           audioMimeType: format.mime,
-          audioBytes: await storage.size(audioKey),
+          audioBytes,
           declaration,
           declaredScore: breakdown.score,
           rubricVersion: breakdown.rubricVersion,
@@ -203,11 +209,13 @@ export const trackRoutes =
             await tx.insert(tracks).values(row);
             // The uploader is paid 100% until they set up band splits.
             await tx.insert(trackSplits).values({ trackId, userId: user.id, shareBps: 10_000 });
+            if (media.audio) await media.queueAudio(tx, trackId, audioKey);
           });
         } catch (error) {
           await storage.remove(audioKey);
           throw error;
         }
+        media.wake();
         return reply.code(201).send(await loadTrackDetail(db, trackId, user));
       });
     });

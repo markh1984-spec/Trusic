@@ -39,6 +39,18 @@
 
 - One Docker image and a Render blueprint for a free public demo (sign-ups closed, shared demo password). See
   [HOSTING.md](HOSTING.md).
+- The demo can keep its data for free with a Supabase project: Postgres for the database, and its S3-compatible
+  storage for audio and artwork (Cloudflare R2, Backblaze B2 and MinIO work too). The demo data is loaded once, into
+  an empty database.
+
+**Audio and artwork**
+
+- Uploads are converted in the background with ffmpeg: 160 kbps AAC (about 1.2 MB a minute, against 10 MB for
+  WAV), turned up or down towards −14 LUFS without compressing anything, plus a separate 30-second preview file. The
+  upload itself is kept privately, so tracks can be re-encoded later. New tracks show as "Processing" in Studio and
+  go live when they're ready; work interrupted by a restart carries on.
+- Artwork and artist photos are cropped square and kept as WebP at 120, 300 and 640 pixels. The web, desktop and
+  phone apps load the size they show.
 
 **Accounts, reports and takedowns**
 
@@ -99,9 +111,8 @@
 - Releases: pre-release scheduling.
 - Lyrics and sharing in the phone app (the server and the shared client already support them). A lyric licence
   for covers, if the founder wants one (open question 19).
-- Audio: transcode uploads to HLS/AAC at several bitrates and serve them from object storage behind a CDN
-  (the `MediaStorage` interface and signed URLs are already in place for this). Loudness normalisation. Resize
-  artwork to standard sizes.
+- Audio: a "data saver" setting with a lower bitrate, HLS with several bitrates, and a CDN in front of storage. A
+  button for an artist to retry an upload that failed to convert.
 - Social: collaborative playlists.
 - Downloads: a "Your devices" page to see and remove devices, downloading over mobile data per collection, and
   saving artwork on phones for offline browsing.
@@ -137,8 +148,9 @@
 - **Billing:** switch Stripe to live mode (see [STRIPE.md](STRIPE.md)), deduct Stripe's fees from booked revenue,
   and decide on app-store billing for the phone apps (or keep sending people to the website).
 - **Paying artists:** Stripe Connect's identity checks (KYC) and tax forms in live mode, and a payout schedule.
-- **Hosting that keeps data:** a real Postgres database (`DATABASE_URL`), object storage for audio and artwork, and a
-  server that doesn't sleep. The free demo deliberately resets on every restart.
+- **Hosting that keeps data:** the free Supabase setup keeps data, but it pauses after a week without use, has no
+  backups you can restore, and only takes files up to 50 MB. A launch needs paid plans for the database and storage
+  (with backups), a server that doesn't sleep, and more than one CPU for converting uploads.
 - **Fraud:** per-listener stream caps, bot detection, device fingerprinting. User-centric payouts already stop
   stream farms from taking other listeners' money; they can still waste their own.
 - **Security and operations:** move web sessions to httpOnly cookies, audit logging for admin actions, backups,

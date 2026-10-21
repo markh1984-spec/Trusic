@@ -11,6 +11,7 @@ import { Icon } from "../components/Icon";
 import { ImagePicker } from "../components/ImagePicker";
 import { StudioStats } from "../components/StudioStats";
 import { StudioTakedowns } from "../components/StudioTakedowns";
+import { UploadsInProgress } from "../components/UploadsInProgress";
 import { money, periodName, plural } from "../format";
 import { useAsync } from "../hooks";
 import { LyricsTracksCard } from "./LyricsEditor";
@@ -26,6 +27,8 @@ export function StudioPage() {
 function Studio() {
   const { me } = useAuth();
   const artists = me!.artists;
+  // Bumped when an upload goes live, to reload the artist sections that list it.
+  const [uploadsDone, setUploadsDone] = useState(0);
 
   return (
     <>
@@ -35,12 +38,13 @@ function Studio() {
           Upload a track
         </Link>
       </div>
+      <UploadsInProgress onLive={() => setUploadsDone((n) => n + 1)} />
       <StudioStats />
       <BalanceCard />
       <StudioTakedowns />
       <Earnings />
       {artists.map((a) => (
-        <ArtistSection key={a.id} slug={a.slug} />
+        <ArtistSection key={`${a.id}-${uploadsDone}`} slug={a.slug} />
       ))}
       <LyricsTracksCard />
       <NewArtist />

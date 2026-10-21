@@ -199,7 +199,10 @@ function UploadForm() {
               accept="audio/*,.mp3,.flac,.wav,.ogg,.aiff,.m4a"
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
             />
-            <small className="muted">MP3, FLAC, WAV, OGG, AIFF or M4A.</small>
+            <small className="muted">
+              MP3, FLAC, WAV, OGG, AIFF or M4A. Send the best quality you have: we keep your file as it is and make the
+              streaming copy from it, at an even volume, which takes a minute or two after uploading.
+            </small>
           </label>
         </div>
 

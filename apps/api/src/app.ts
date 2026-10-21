@@ -10,6 +10,7 @@ import type { Db } from "./db/client";
 import type { AiDetector } from "./detection";
 import { HttpError } from "./errors";
 import { createMailer, type Mailer } from "./mailer";
+import type { MediaProcessor } from "./media/processor";
 import { accountSettingsRoutes } from "./routes/account-settings";
 import { accountRoutes } from "./routes/accounts";
 import { adminRoutes } from "./routes/admin";
@@ -18,6 +19,7 @@ import { billingRoutes } from "./routes/billing";
 import { insightRoutes } from "./routes/insights";
 import { libraryRoutes } from "./routes/library";
 import { listeningRoutes } from "./routes/listening";
+import { mediaRoutes } from "./routes/media";
 import { lyricsRoutes } from "./routes/lyrics";
 import { moneyRoutes } from "./routes/money";
 import { offlineRoutes } from "./routes/offline";
@@ -38,6 +40,8 @@ export interface AppDeps {
   stripe: Stripe | null;
   /** Sends email. Defaults to SMTP if configured, otherwise printing emails to the log. */
   mailer?: Mailer;
+  /** Converts uploaded audio and resizes images in the background. */
+  media: MediaProcessor;
 }
 
 /** AppDeps with every optional part filled in. */
@@ -100,6 +104,8 @@ export async function buildApp(deps: AppDeps, options: { logger?: boolean } = {}
       await api.register(recommendationRoutes(deps));
       // Offline listening: play batches, download checks and download links.
       await api.register(offlineRoutes(deps));
+      // Uploads in progress, and images at the size asked for.
+      await api.register(mediaRoutes(deps));
     },
     { prefix: "/api" },
   );

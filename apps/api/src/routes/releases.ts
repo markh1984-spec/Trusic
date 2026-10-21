@@ -9,7 +9,7 @@ import { artists, releases, tracks } from "../db/schema";
 import { requireVerifiedEmail } from "../email-tokens";
 import { HttpError } from "../errors";
 import { resolveHumanOnly } from "../human-only";
-import { IMAGE_MIME_BY_EXT, storeImage, withUpload } from "../uploads";
+import { storeImage, withUpload } from "../uploads";
 import { loadReleaseSummaries, selectTrackSummaries, toArtist, toTrackSummary } from "../views";
 
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use a date like 2026-10-06.");
@@ -50,7 +50,7 @@ export async function loadReleaseDetail(
 }
 
 export const releaseRoutes =
-  ({ db, storage }: AppDeps): FastifyPluginAsync =>
+  ({ db, storage, media }: AppDeps): FastifyPluginAsync =>
   async (app) => {
     /** The release, if the user owns its artist. */
     async function ownedRelease(releaseId: string, userId: string) {
@@ -120,7 +120,7 @@ export const releaseRoutes =
         await tx.update(tracks).set({ releaseId: null, trackNumber: null }).where(eq(tracks.releaseId, release.id));
         await tx.delete(releases).where(eq(releases.id, release.id));
       });
-      if (release.artworkKey) await storage.remove(release.artworkKey);
+      if (release.artworkKey) await media.removeImage(release.artworkKey);
       return reply.code(204).send();
     });
 
@@ -164,9 +164,9 @@ export const releaseRoutes =
       const user = await requireUser(db, request);
       requireVerifiedEmail(user, "upload artwork");
       const release = await ownedRelease(z.uuid().parse(request.params.id), user.id);
-      const key = await withUpload(request, storage, "image", ({ filePath }) => storeImage(storage, filePath));
+      const key = await withUpload(request, storage, "image", ({ filePath }) => storeImage(storage, filePath, media));
       await db.update(releases).set({ artworkKey: key }).where(eq(releases.id, release.id));
-      if (release.artworkKey) await storage.remove(release.artworkKey);
+      if (release.artworkKey) await media.removeImage(release.artworkKey);
       return loadReleaseDetail(db, release.id, user);
     });
 
@@ -179,23 +179,9 @@ export const releaseRoutes =
         .where(and(eq(artists.id, z.uuid().parse(request.params.id)), eq(artists.ownerUserId, user.id)))
         .limit(1);
       if (!artist) throw new HttpError(404, "Artist not found.");
-      const key = await withUpload(request, storage, "image", ({ filePath }) => storeImage(storage, filePath));
+      const key = await withUpload(request, storage, "image", ({ filePath }) => storeImage(storage, filePath, media));
       const [updated] = await db.update(artists).set({ imageKey: key }).where(eq(artists.id, artist.id)).returning();
-      if (artist.imageKey) await storage.remove(artist.imageKey);
+      if (artist.imageKey) await media.removeImage(artist.imageKey);
       return toArtist(updated!) satisfies Artist;
-    });
-
-    /** Images are public and never change (each upload gets a new name), so cache them forever. */
-    app.get<{ Params: { name: string } }>("/images/:name", async (request, reply) => {
-      const m = /^[0-9a-f-]{36}\.(png|jpg|webp)$/.exec(request.params.name);
-      if (!m) throw new HttpError(404, "Image not found.");
-      const key = `images/${request.params.name}`;
-      const size = await storage.size(key).catch(() => null);
-      if (size === null) throw new HttpError(404, "Image not found.");
-      return reply
-        .header("content-type", IMAGE_MIME_BY_EXT[m[1]!]!)
-        .header("content-length", size)
-        .header("cache-control", "public, max-age=31536000, immutable")
-        .send(storage.read(key));
     });
   };

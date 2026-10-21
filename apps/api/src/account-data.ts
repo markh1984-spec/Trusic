@@ -40,6 +40,7 @@ import { compose, emails } from "./emails";
 import { HttpError } from "./errors";
 import { sendLater, type Mailer } from "./mailer";
 import { deleteOfflineAccountData, offlineAccountData } from "./offline-data";
+import { removeMediaFiles } from "./media/processor";
 import type { MediaStorage } from "./storage";
 
 /** Everything Trusic holds about one account, as a JSON document. */
@@ -361,10 +362,17 @@ export async function deleteAccount(deps: DeletionDeps, userId: string): Promise
     const artistIds = owned.map((a) => a.id);
     if (artistIds.length) {
       const ownedTracks = await tx
-        .select({ audioKey: tracks.audioKey })
+        .select({
+          audioKey: tracks.audioKey,
+          originalAudioKey: tracks.originalAudioKey,
+          previewAudioKey: tracks.previewAudioKey,
+        })
         .from(tracks)
         .where(inArray(tracks.artistId, artistIds));
-      files.push(...ownedTracks.map((t) => t.audioKey));
+      // The streamed file, the upload it was made from, and the preview.
+      files.push(
+        ...ownedTracks.flatMap((t) => [t.audioKey, t.originalAudioKey, t.previewAudioKey].filter((k) => k !== null)),
+      );
       // Lyrics go with the rest of their content.
       await tx
         .delete(trackLyrics)
@@ -453,6 +461,7 @@ export async function deleteAccount(deps: DeletionDeps, userId: string): Promise
       .where(eq(users.id, userId));
   });
 
-  for (const key of files) await storage.remove(key).catch(() => undefined);
+  // With any resized copies of the images.
+  await removeMediaFiles(db, storage, files);
   sendLater(mailer, compose(user.email, emails.accountDeleted({ name: user.displayName })));
 }

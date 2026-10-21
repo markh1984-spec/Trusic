@@ -203,5 +203,16 @@ describe("the app:// handler with downloads", () => {
 
     const artwork = await handler(get(`/api/images/${IMAGE}`));
     expect(await artwork.text()).toBe("png");
+    // The web app asks for artwork at a size (?size=120); offline, the saved copy answers for every size.
+    const sized = await handler(get(`/api/images/${IMAGE}?size=120`));
+    expect(await sized.text()).toBe("png");
+  });
+
+  it("labels saved artwork by what it is: the server sends resized artwork as WebP whatever its name", async () => {
+    const { dir, store } = makeStore();
+    await store.download(TRACK, `/api/stream/${TRACK}?expires=1&sig=good`, `/api/images/${IMAGE}`);
+    store.saveManifest(manifest(new Date(NOW + 30 * DAY).toISOString()));
+    writeFileSync(path.join(dir, "images", IMAGE), Buffer.from("RIFF\0\0\0\0WEBPVP8 ", "latin1"));
+    expect(store.image(IMAGE)).toMatchObject({ mimeType: "image/webp" });
   });
 });

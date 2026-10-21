@@ -41,6 +41,9 @@ This document is the source of truth for the rules. The code that implements the
 - **Subscribers only. No free tier and no adverts.** Premium is £10.99 a month including VAT.
 - Anyone can browse the whole catalogue and hear **30-second previews**. Previews never count as plays, so only
   subscribers' listening moves money.
+- **Every track sounds consistent.** Whatever was uploaded is streamed as 160 kbps AAC at an even volume (about −14
+  LUFS, as on Spotify). A new upload goes live once it's converted, usually a minute or two later. The artist's
+  original file is kept privately.
 - **Embedded players** on other websites (a band's own site, say) play the same 30-second previews to everyone,
   subscribers included: nobody signs in inside someone else's website. They always show the AI label and link to
   Trusic to listen in full. Only these players can appear inside other websites; every other Trusic page refuses.
@@ -255,6 +258,10 @@ artist's declaration will remain the main evidence; see [research/ai-detection.m
 | 2026-10-21 | Only the uploader and the band split can edit a track's lyrics.                                                                       | The people who wrote and recorded the song; the same people who share its money.                                                            |
 | 2026-10-21 | Embedded players play 30-second previews to everyone, never full tracks, and never count as plays.                                    | Nobody should sign in inside someone else's website, and only listening on Trusic moves money. Embeds send people to Trusic instead.        |
 | 2026-10-21 | Link previews and share pictures never include private playlists or taken-down content.                                               | A preview is shown to everyone the link is sent to, so it must only show what anyone could see on Trusic.                                   |
+| 2026-10-21 | Tracks are turned up or down towards −14 LUFS, but a quiet track only as far as its peaks allow. Nothing is compressed.               | An even volume from track to track, without changing how an artist's music sounds.                                                          |
+| 2026-10-21 | A preview is a separate file of a track's first 30 seconds.                                                                           | A preview link can never play more, and players show the preview's real length.                                                             |
+| 2026-10-21 | New uploads aren't public until they've been converted for streaming.                                                                 | Everyone hears the same quality and volume, and nobody downloads a 40 MB WAV.                                                               |
+| 2026-10-21 | Audio and artwork are sent through Trusic's own links, not straight from file storage.                                                | Previews stay limited, the desktop app works unchanged and storage stays private. The cost is the site's own bandwidth.                     |
 
 ## 5. Open questions
 

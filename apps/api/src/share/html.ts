@@ -1,4 +1,4 @@
-import { sharePath } from "@trusic/client";
+import { jpegImageUrl, sharePath } from "@trusic/client";
 import { SHARE_IMAGE_HEIGHT, SHARE_IMAGE_WIDTH, shareImagesAvailable, shareImageVersion } from "./image";
 import type { ShareItem } from "./items";
 
@@ -19,7 +19,9 @@ export const shareImagePath = (item: ShareItem): string =>
 export function previewImageUrl(item: ShareItem, origin: string): string | null {
   if (shareImagesAvailable()) return origin + shareImagePath(item);
   if (!item.artworkUrl) return null;
-  return /^https?:\/\//.test(item.artworkUrl) ? item.artworkUrl : origin + item.artworkUrl;
+  // As JPEG: not every app that shows link previews can read WebP.
+  const artwork = jpegImageUrl(item.artworkUrl);
+  return /^https?:\/\//.test(artwork) ? artwork : origin + artwork;
 }
 
 /**

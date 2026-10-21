@@ -1,5 +1,16 @@
 import { randomUUID } from "node:crypto";
-import { createWriteStream, existsSync, mkdirSync, readdirSync, renameSync, rmSync, statSync } from "node:fs";
+import {
+  closeSync,
+  createWriteStream,
+  existsSync,
+  mkdirSync,
+  openSync,
+  readdirSync,
+  readSync,
+  renameSync,
+  rmSync,
+  statSync,
+} from "node:fs";
 import path from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
@@ -218,7 +229,7 @@ export class OfflineStore {
     if (!match) return null;
     const file = this.path("images", match[1]!);
     const size = fileSize(file);
-    return size === null ? null : { file, size, mimeType: IMAGE_TYPES[match[2]!]! };
+    return size === null ? null : { file, size, mimeType: imageType(file, match[2]!) };
   }
 }
 
@@ -237,6 +248,28 @@ function listDir(dir: string): string[] {
   } catch {
     return [];
   }
+}
+
+/**
+ * What kind of image a saved file is, from its first bytes. The server sends resized copies of artwork as WebP,
+ * whatever the name ends in, so the name alone can't say.
+ */
+function imageType(file: string, extension: string): string {
+  try {
+    const head = Buffer.alloc(12);
+    const fd = openSync(file, "r");
+    try {
+      readSync(fd, head, 0, 12, 0);
+    } finally {
+      closeSync(fd);
+    }
+    if (head.toString("ascii", 0, 4) === "RIFF" && head.toString("ascii", 8, 12) === "WEBP") return "image/webp";
+    if (head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff) return "image/jpeg";
+    if (head[0] === 0x89 && head.toString("ascii", 1, 4) === "PNG") return "image/png";
+  } catch {
+    // Unreadable: go by the name.
+  }
+  return IMAGE_TYPES[extension]!;
 }
 
 function fileSize(file: string): number | null {

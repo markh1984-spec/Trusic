@@ -18,7 +18,8 @@ What's next is in [docs/ROADMAP.md](docs/ROADMAP.md), and research on AI detecti
 ## Try it
 
 You need Node 22+ and pnpm (`corepack enable` gives you pnpm). No database install is needed: the API runs an
-embedded Postgres locally.
+embedded Postgres locally. With [ffmpeg](https://ffmpeg.org) installed too, uploads are converted for streaming at an
+even volume and artwork is resized; without it, files play as uploaded.
 
 ```sh
 pnpm install
@@ -79,7 +80,8 @@ mobile app can never disagree about them.
 ## Put it online (free)
 
 [docs/HOSTING.md](docs/HOSTING.md) puts a public demo on Render's free plan in about 10 minutes, with no card needed.
-Anyone with the link can browse and hear previews; only people you give the demo password to can log in.
+Anyone with the link can browse and hear previews; only people you give the demo password to can log in. Add a free
+Supabase project and it keeps its data between restarts.
 
 ## Running in production
 

@@ -117,7 +117,7 @@ export const releases = pgTable(
   (t) => [index("releases_artist_idx").on(t.artistId)],
 );
 
-export type TrackStatus = "live" | "removed" | "suspended" | "taken_down";
+export type TrackStatus = "live" | "removed" | "suspended" | "taken_down" | "processing" | "failed";
 
 export const tracks = pgTable(
   "tracks",
@@ -134,9 +134,20 @@ export const tracks = pgTable(
     /** Position within the release, starting at 1. */
     trackNumber: integer("track_number"),
     durationMs: integer("duration_ms").notNull(),
+    /** What's streamed: the processed AAC file, or the upload itself if it hasn't been processed. */
     audioKey: text("audio_key").notNull(),
     audioMimeType: text("audio_mime_type").notNull(),
     audioBytes: bigint("audio_bytes", { mode: "number" }).notNull(),
+    /** The upload as received. Kept privately, never streamed once processed, so it can be re-encoded later. */
+    originalAudioKey: text("original_audio_key"),
+    /** A separate file of the first 30 seconds, so a preview link can never play more than that. */
+    previewAudioKey: text("preview_audio_key"),
+    previewAudioBytes: bigint("preview_audio_bytes", { mode: "number" }),
+    /** The upload's measured loudness (EBU R128) and the gain applied to bring it to the streaming level. */
+    loudnessLufs: real("loudness_lufs"),
+    loudnessGainDb: real("loudness_gain_db"),
+    /** When the streaming files were made. Null = streamed as uploaded. */
+    audioProcessedAt: timestamp("audio_processed_at", { withTimezone: true }),
 
     /** What the artist told us, stage by stage. */
     declaration: jsonb("declaration").$type<AiDeclaration>().notNull(),
@@ -154,7 +165,9 @@ export const tracks = pgTable(
 
     /**
      * "suspended" hides a suspended artist's tracks until they're reinstated. "taken_down" is set by an admin after a
-     * report: hidden everywhere, not streamable, and not paid for months still being calculated.
+     * report: hidden everywhere, not streamable, and not paid for months still being calculated. A new upload is
+     * "processing" until its streaming files are ready, or "failed" if they couldn't be made. Only "live" tracks
+     * are public.
      */
     status: text("status").$type<TrackStatus>().notNull().default("live"),
     createdAt: createdAt(),
@@ -164,6 +177,46 @@ export const tracks = pgTable(
     index("tracks_created_idx").on(t.createdAt),
     index("tracks_release_idx").on(t.releaseId),
   ],
+);
+
+export type MediaJobStatus = "pending" | "running" | "done" | "failed";
+
+/** A resized copy of an uploaded image. */
+export interface ImageVariant {
+  /** Width and height in pixels, as requested (smaller if the upload was smaller). */
+  size: number;
+  key: string;
+  bytes: number;
+  mime: string;
+}
+
+/**
+ * Work on uploads that happens in the background (see media/processor.ts): audio is converted for streaming and
+ * images are resized. The table is the queue, so jobs survive a restart.
+ */
+export const mediaJobs = pgTable(
+  "media_jobs",
+  {
+    id: id(),
+    kind: text("kind").$type<"audio" | "image">().notNull(),
+    /** Storage key of the upload, as received. */
+    sourceKey: text("source_key").notNull().unique(),
+    /** The track an audio job belongs to. */
+    trackId: uuid("track_id").references(() => tracks.id, { onDelete: "cascade" }),
+    status: text("status").$type<MediaJobStatus>().notNull().default("pending"),
+    attempts: integer("attempts").notNull().default(0),
+    /** Not before this (failed attempts wait a little before trying again). */
+    runAfter: timestamp("run_after", { withTimezone: true }).notNull().defaultNow(),
+    /** Updated while a job runs. A running job that stops updating was interrupted, and is picked up again. */
+    heartbeatAt: timestamp("heartbeat_at", { withTimezone: true }),
+    /** What went wrong last time, for the logs. */
+    error: text("error"),
+    /** Image jobs: the resized copies. */
+    variants: jsonb("variants").$type<ImageVariant[]>(),
+    createdAt: createdAt(),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+  },
+  (t) => [index("media_jobs_status_idx").on(t.status, t.runAfter)],
 );
 
 /** Who gets paid for a track. Shares are basis points and total 10000. */

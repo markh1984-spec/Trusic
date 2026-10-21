@@ -27,7 +27,8 @@ import {
   TASTE_GROUPS,
   type DemoListener,
 } from "./seed-listening";
-import { LocalMediaStorage } from "./storage";
+import { MediaProcessor } from "./media/processor";
+import { createStorage } from "./storage";
 import { synthPng, synthWav } from "./synth";
 
 // The seed creates accounts through the API, so it needs sign-ups open even where the live site has them closed.
@@ -43,23 +44,33 @@ if (process.argv.includes("--reset")) {
 
 const database = await openDatabase({ url: config.databaseUrl, dataDir: path.join(config.dataDir, "pglite") });
 const { db } = database;
+const storage = createStorage(config);
+const media = await MediaProcessor.create({ db, storage, ffmpegPath: config.ffmpegPath });
 const app = await buildApp({
   db,
-  storage: new LocalMediaStorage(path.join(config.dataDir, "media")),
+  storage,
   detector: new MetadataDetector(),
   config,
   stripe: createStripeClient(config),
   // Demo accounts aren't real addresses, so nothing is sent.
   mailer: new MemoryMailer(),
+  media,
 });
 
 const [existing] = await db.select({ id: users.id }).from(users).limit(1);
 if (existing) {
-  console.log("The database already has data. Run `pnpm seed --reset` to start again.");
+  console.log(
+    config.databaseUrl
+      ? "The database already has data, so the demo data isn't loaded again."
+      : "The database already has data. Run `pnpm seed --reset` to start again.",
+  );
   await app.close();
   await database.close();
   process.exit(0);
 }
+// Stop before creating anything if files can't be stored: half the demo data would be worse than none.
+await storage.check();
+media.start(console);
 
 async function call<T>(method: string, url: string, token: string | null, body?: unknown): Promise<T> {
   const res = await app.inject({
@@ -324,6 +335,8 @@ for (const [owner, key, credits] of [
   await call("PUT", `/api/tracks/${t[key]}/credits`, owner.token, credits);
 }
 
+// Tracks go on releases and playlists once they're live, which is once they've been converted for streaming.
+await media.idle();
 // Lyrics: synced on one track, so the player's Lyrics panel follows it, and plain text on another.
 await call("PUT", `/api/tracks/${t.pines1}/lyrics`, pines.token, {
   format: "synced",
@@ -546,6 +559,9 @@ for (const period of months.slice(0, -1)) {
   );
 }
 
+// Finish resizing the artwork, so a site built with this data has nothing left to do when it starts.
+await media.idle();
+await media.stop();
 await app.close();
 await database.close();
 
