@@ -7,14 +7,20 @@
  *   results). `order` is the order its tracks play in, shuffled or not.
  * - `upNext` holds tracks the listener queued by hand. They play before the
  *   context carries on, like Spotify's queue.
+ * - Radio is a context that never ends: the app adds more tracks to it
+ *   (`extendContext`) whenever `radioNeedsMore` says it's running low.
  */
-import type { TrackSummary } from "@trusic/client";
+import type { PlaySource, RadioSeed, TrackSummary } from "@trusic/client";
 
 export type RepeatMode = "off" | "all" | "one";
 
 export interface QueueState {
   context: TrackSummary[];
   contextLabel: string | null;
+  /** Where the context came from (an album, a playlist, search…), reported with each play for artists' stats. */
+  contextSource: PlaySource | null;
+  /** What the radio is based on, while radio is playing. */
+  radio: RadioSeed | null;
   order: number[];
   /** Index into `order` of the context track playing (or last played). */
   position: number;
@@ -30,6 +36,8 @@ export interface QueueState {
 export const initialQueue: QueueState = {
   context: [],
   contextLabel: null,
+  contextSource: null,
+  radio: null,
   order: [],
   position: -1,
   upNext: [],
@@ -41,7 +49,17 @@ export const initialQueue: QueueState = {
 };
 
 export type QueueAction =
-  | { type: "playContext"; tracks: TrackSummary[]; startIndex: number; label: string | null }
+  | {
+      type: "playContext";
+      tracks: TrackSummary[];
+      startIndex: number;
+      label: string | null;
+      /** Where these tracks were picked from. Optional, so older callers still work. */
+      source?: PlaySource | null;
+      /** Set when this context is a radio station. */
+      radio?: RadioSeed | null;
+    }
+  | { type: "extendContext"; tracks: TrackSummary[] }
   | { type: "next" }
   | { type: "previous" }
   | { type: "replay" }
@@ -88,6 +106,18 @@ export function upcomingFromContext(state: QueueState): { track: TrackSummary; o
     .map((contextIndex, i) => ({ track: state.context[contextIndex]!, orderIndex: state.position + 1 + i }));
 }
 
+/** Where the playing track was picked from, for artists' stats. Tracks queued by hand count as the queue. */
+export function currentPlaySource(state: QueueState): PlaySource | null {
+  if (!state.current) return null;
+  if (state.currentFrom === "queue") return "queue";
+  return state.contextSource ?? "other";
+}
+
+/** True when radio is playing and fewer than `ahead` of its tracks are left: time to add more. */
+export function radioNeedsMore(state: QueueState, ahead = 3): boolean {
+  return state.radio !== null && state.order.length - (state.position + 1) < ahead;
+}
+
 export function queueReducer(state: QueueState, action: QueueAction, random: () => number = Math.random): QueueState {
   const fromContext = (position: number, order = state.order): QueueState => ({
     ...state,
@@ -107,11 +137,23 @@ export function queueReducer(state: QueueState, action: QueueAction, random: () 
         ...state,
         context: tracks,
         contextLabel: action.label,
+        contextSource: action.source ?? null,
+        radio: action.radio ?? null,
         order,
         position: state.shuffle ? 0 : startIndex,
         current: tracks[startIndex],
         currentFrom: "context",
         playId: state.playId + 1,
+      };
+    }
+
+    case "extendContext": {
+      if (action.tracks.length === 0) return state;
+      const added = range(action.tracks.length).map((i) => state.context.length + i);
+      return {
+        ...state,
+        context: [...state.context, ...action.tracks],
+        order: [...state.order, ...(state.shuffle ? shuffled(added, random) : added)],
       };
     }
 

@@ -3,6 +3,7 @@ import { api } from "../api";
 import { Artwork } from "../components/Artwork";
 import { releaseAiSummary, releaseYear, TYPE_NAMES } from "../components/Cards";
 import { ErrorNote, Loading } from "../components/Guards";
+import { OpenedYourselfNote } from "../components/HumanOnlyToggle";
 import { Icon } from "../components/Icon";
 import { MoreMenuWithShare, ShareButton } from "../components/Share";
 import { TrackList } from "../components/TrackList";
@@ -48,7 +49,7 @@ export function ReleasePage() {
         {release.tracks.length ? (
           <button
             className="play-button play-button--large"
-            onClick={() => play(release.tracks, 0, release.title)}
+            onClick={() => play(release.tracks, 0, release.title, "release")}
             aria-label={`Play ${release.title}`}
           >
             <Icon name="play" size={26} />
@@ -68,7 +69,8 @@ export function ReleasePage() {
           items={release.isOwner ? [] : [{ label: "Report…", to: `/report/release/${release.id}` }]}
         />
       </div>
-      <TrackList tracks={release.tracks} label={release.title} variant="release" showArtist={false} />
+      <OpenedYourselfNote tracks={release.tracks} what="this release" />
+      <TrackList tracks={release.tracks} label={release.title} source="release" variant="release" showArtist={false} />
     </>
   );
 }

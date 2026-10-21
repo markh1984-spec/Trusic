@@ -84,6 +84,7 @@ export async function exportAccountData(db: Db, userId: string): Promise<DataExp
         msPlayed: plays.msPlayed,
         aiScore: plays.aiScore,
         playedAt: plays.playedAt,
+        source: plays.source,
       })
       .from(plays)
       .innerJoin(tracks, eq(tracks.id, plays.trackId))
@@ -172,6 +173,7 @@ export async function exportAccountData(db: Db, userId: string): Promise<DataExp
       isAdmin: user.isAdmin,
       emailVerifiedAt: user.emailVerifiedAt,
       suspendedAt: user.suspendedAt,
+      humanMadeOnly: user.humanOnly,
       createdAt: user.createdAt,
       billing: {
         stripeCustomerId: user.stripeCustomerId,

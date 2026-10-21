@@ -15,11 +15,13 @@ import { accountRoutes } from "./routes/accounts";
 import { adminRoutes } from "./routes/admin";
 import { artistRoutes } from "./routes/artists";
 import { billingRoutes } from "./routes/billing";
+import { insightRoutes } from "./routes/insights";
 import { libraryRoutes } from "./routes/library";
 import { listeningRoutes } from "./routes/listening";
 import { lyricsRoutes } from "./routes/lyrics";
 import { moneyRoutes } from "./routes/money";
 import { playlistRoutes } from "./routes/playlists";
+import { recommendationRoutes } from "./routes/recommendations";
 import { releaseRoutes } from "./routes/releases";
 import { shareRoutes } from "./routes/share";
 import { reportRoutes } from "./routes/reports";
@@ -92,6 +94,9 @@ export async function buildApp(deps: AppDeps, options: { logger?: boolean } = {}
       // Account settings, password resets, email confirmation, and reports and takedowns.
       await api.register(accountSettingsRoutes(full));
       await api.register(reportRoutes(full));
+      // Artist stats, recommendations and radio.
+      await api.register(insightRoutes(deps));
+      await api.register(recommendationRoutes(deps));
     },
     { prefix: "/api" },
   );

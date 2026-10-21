@@ -1,4 +1,4 @@
-import type { TrackSummary } from "@trusic/client";
+import type { PlaySource, TrackSummary } from "@trusic/client";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { duration } from "../format";
@@ -13,6 +13,8 @@ export interface TrackListProps {
   tracks: TrackSummary[];
   /** Shown in the queue as "Playing from …". */
   label?: string;
+  /** Where these tracks are, recorded with each play for artists' stats. */
+  source?: PlaySource;
   showArtist?: boolean;
   showArtwork?: boolean;
   /** "release" shows track numbers and hides the album column. */
@@ -29,6 +31,7 @@ export interface TrackListProps {
 export function TrackList({
   tracks,
   label,
+  source = "other",
   showArtist = true,
   showArtwork = true,
   variant = "default",
@@ -51,11 +54,11 @@ export function TrackList({
           <li
             key={keys?.[i] ?? track.id}
             className={`track-row${isCurrent ? " track-row--current" : ""}`}
-            onDoubleClick={() => play(tracks, i, label)}
+            onDoubleClick={() => play(tracks, i, label, source)}
           >
             <button
               className="track-row__play"
-              onClick={() => (isCurrent ? toggle() : play(tracks, i, label))}
+              onClick={() => (isCurrent ? toggle() : play(tracks, i, label, source))}
               aria-label={isCurrent && playing ? `Pause ${track.title}` : `Play ${track.title}`}
             >
               <span className="track-row__num">{releaseView ? (track.trackNumber ?? i + 1) : i + 1}</span>

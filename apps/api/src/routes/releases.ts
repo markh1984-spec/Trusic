@@ -8,6 +8,7 @@ import type { Db } from "../db/client";
 import { artists, releases, tracks } from "../db/schema";
 import { requireVerifiedEmail } from "../email-tokens";
 import { HttpError } from "../errors";
+import { resolveHumanOnly } from "../human-only";
 import { IMAGE_MIME_BY_EXT, storeImage, withUpload } from "../uploads";
 import { loadReleaseSummaries, selectTrackSummaries, toArtist, toTrackSummary } from "../views";
 
@@ -64,7 +65,14 @@ export const releaseRoutes =
     }
 
     /** The newest releases that have something to play. */
-    app.get("/releases", async () => loadReleaseSummaries(db, { withTracks: true, limit: 12 }));
+    app.get("/releases", async (request) => {
+      // "Human-made only" shows releases whose tracks are all Human-made: opening one plays all of it.
+      if (!(await resolveHumanOnly(db, request)).humanOnly) {
+        return loadReleaseSummaries(db, { withTracks: true, limit: 12 });
+      }
+      const recent = await loadReleaseSummaries(db, { withTracks: true, limit: 60 });
+      return recent.filter((r) => r.aiLabels.human === r.trackCount).slice(0, 12);
+    });
 
     app.get<{ Params: { id: string } }>("/releases/:id", async (request) => {
       const viewer = await optionalUser(db, request);

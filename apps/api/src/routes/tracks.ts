@@ -21,6 +21,7 @@ import { appeals, artists, releases, trackSplits, tracks, users } from "../db/sc
 import { HttpError } from "../errors";
 import { CreditsSchema } from "../credits";
 import { requireVerifiedEmail } from "../email-tokens";
+import { humanMadeOnly, resolveHumanOnly } from "../human-only";
 import { withUpload } from "../uploads";
 import { isArtistOwner, loadTrackDetail, selectTrackSummaries, toAppeal, toTrackSummary } from "../views";
 
@@ -95,6 +96,8 @@ export const trackRoutes =
         const range = AI_LABEL_RANGES[query.label];
         filters.push(gte(tracks.aiScore, range.min), lt(tracks.aiScore, range.max));
       }
+      // "Human-made only": the listener's setting, or `?humanOnly=` from the app.
+      if ((await resolveHumanOnly(db, request)).humanOnly) filters.push(humanMadeOnly());
       const where = and(...filters);
       const [rows, [total]] = await Promise.all([
         selectTrackSummaries(db).where(where).orderBy(desc(tracks.createdAt)).limit(query.limit).offset(query.offset),

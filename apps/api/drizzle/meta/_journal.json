@@ -47,8 +47,15 @@
     {
       "idx": 6,
       "version": "7",
-      "when": 1792610363904,
-      "tag": "0006_lyrics",
+      "when": 1792610353606,
+      "tag": "0006_insights_and_recommendations",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792611111102,
+      "tag": "0007_lyrics",
       "breakpoints": true
     }
   ]

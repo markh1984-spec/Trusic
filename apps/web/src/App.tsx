@@ -2,6 +2,8 @@ import { Route, Routes } from "react-router";
 import { Layout } from "./components/Layout";
 import { AdminPage } from "./pages/Admin";
 import { ArtistPage } from "./pages/Artist";
+import { ArtistStatsPage } from "./pages/ArtistStats";
+import { TrackStatsPage } from "./pages/TrackStats";
 import { LoginPage, RegisterPage } from "./pages/Auth";
 import { HomePage } from "./pages/Home";
 import { LibraryPage, LikedPage } from "./pages/Library";
@@ -40,6 +42,8 @@ export function App() {
         <Route path="studio" element={<StudioPage />} />
         <Route path="studio/release/:id" element={<ReleaseEditorPage />} />
         <Route path="studio/lyrics/:id" element={<LyricsEditorPage />} />
+        <Route path="studio/artist/:id" element={<ArtistStatsPage />} />
+        <Route path="studio/track/:id" element={<TrackStatsPage />} />
         <Route path="upload" element={<UploadPage />} />
         <Route path="admin" element={<AdminPage />} />
         <Route path="login" element={<LoginPage />} />
