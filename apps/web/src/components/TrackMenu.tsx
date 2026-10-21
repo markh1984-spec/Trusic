@@ -6,6 +6,7 @@ import { useLibrary } from "../library";
 import { usePlayer } from "../player";
 import { useToast } from "../toast";
 import { Icon } from "./Icon";
+import { useShareActions } from "./Share";
 
 export interface ExtraMenuItem {
   label: string;
@@ -20,9 +21,10 @@ export function TrackMenu({ track, extraItems = [] }: { track: TrackSummary; ext
   const toast = useToast();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const [view, setView] = useState<"main" | "playlists">("main");
+  const [view, setView] = useState<"main" | "playlists" | "share">("main");
   const [newName, setNewName] = useState("");
   const ref = useRef<HTMLDivElement>(null);
+  const share = useShareActions({ kind: "track", key: track.id, title: `${track.title} · ${track.artist.name}` });
 
   useEffect(() => {
     if (!open) return;
@@ -130,6 +132,10 @@ export function TrackMenu({ track, extraItems = [] }: { track: TrackSummary; ext
               <button role="menuitem" onClick={() => (close(), navigate(`/track/${track.id}`))}>
                 AI transparency
               </button>
+              <hr />
+              <button role="menuitem" onClick={() => setView("share")}>
+                Share…
+              </button>
               <button role="menuitem" onClick={() => (close(), navigate(`/report/track/${track.id}`))}>
                 Report…
               </button>
@@ -137,6 +143,17 @@ export function TrackMenu({ track, extraItems = [] }: { track: TrackSummary; ext
               {extraItems.map((item) => (
                 <button key={item.label} role="menuitem" onClick={() => (close(), item.onSelect())}>
                   {item.label}
+                </button>
+              ))}
+            </>
+          ) : view === "share" ? (
+            <>
+              <button className="menu__back" onClick={() => setView("main")}>
+                <Icon name="back" size={16} /> Share
+              </button>
+              {share.actions.map((action) => (
+                <button key={action.label} role="menuitem" onClick={() => (close(), action.onSelect())}>
+                  {action.label}
                 </button>
               ))}
             </>
@@ -169,6 +186,7 @@ export function TrackMenu({ track, extraItems = [] }: { track: TrackSummary; ext
           )}
         </div>
       ) : null}
+      {share.dialog}
     </div>
   );
 }

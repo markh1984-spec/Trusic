@@ -20,11 +20,13 @@ import { insightRoutes } from "./routes/insights";
 import { libraryRoutes } from "./routes/library";
 import { listeningRoutes } from "./routes/listening";
 import { mediaRoutes } from "./routes/media";
+import { lyricsRoutes } from "./routes/lyrics";
 import { moneyRoutes } from "./routes/money";
 import { offlineRoutes } from "./routes/offline";
 import { playlistRoutes } from "./routes/playlists";
 import { recommendationRoutes } from "./routes/recommendations";
 import { releaseRoutes } from "./routes/releases";
+import { shareRoutes } from "./routes/share";
 import { reportRoutes } from "./routes/reports";
 import { trackRoutes } from "./routes/tracks";
 import type { MediaStorage } from "./storage";
@@ -91,6 +93,9 @@ export async function buildApp(deps: AppDeps, options: { logger?: boolean } = {}
       await api.register(moneyRoutes(deps));
       await api.register(billingRoutes(deps));
       await api.register(adminRoutes(deps));
+      // Lyrics, link previews, share images and embeds.
+      await api.register(lyricsRoutes(deps));
+      await api.register(shareRoutes(deps));
       // Account settings, password resets, email confirmation, and reports and takedowns.
       await api.register(accountSettingsRoutes(full));
       await api.register(reportRoutes(full));

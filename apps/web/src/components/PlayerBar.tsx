@@ -9,7 +9,17 @@ import { LikeButton } from "./LikeButton";
 
 const REPEAT_LABELS = { off: "Repeat", all: "Repeat one", one: "Don't repeat" } as const;
 
-export function PlayerBar({ queueOpen, onToggleQueue }: { queueOpen: boolean; onToggleQueue(): void }) {
+export function PlayerBar({
+  queueOpen,
+  onToggleQueue,
+  lyricsOpen = false,
+  onToggleLyrics,
+}: {
+  queueOpen: boolean;
+  onToggleQueue(): void;
+  lyricsOpen?: boolean;
+  onToggleLyrics?(): void;
+}) {
   const p = usePlayer();
   const track = p.current;
   const progress = p.durationMs ? Math.min(100, (p.positionMs / p.durationMs) * 100) : 0;
@@ -95,6 +105,17 @@ export function PlayerBar({ queueOpen, onToggleQueue }: { queueOpen: boolean; on
       </div>
 
       <div className="player__volume">
+        {onToggleLyrics ? (
+          <button
+            className={`icon-button toggle${lyricsOpen ? " toggle--on" : ""}`}
+            onClick={onToggleLyrics}
+            aria-pressed={lyricsOpen}
+            aria-label="Lyrics"
+            title="Lyrics"
+          >
+            <Icon name="lyrics" size={18} />
+          </button>
+        ) : null}
         <button
           className={`icon-button toggle${queueOpen ? " toggle--on" : ""}`}
           onClick={onToggleQueue}

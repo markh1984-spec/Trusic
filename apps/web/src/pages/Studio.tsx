@@ -14,6 +14,7 @@ import { StudioTakedowns } from "../components/StudioTakedowns";
 import { UploadsInProgress } from "../components/UploadsInProgress";
 import { money, periodName, plural } from "../format";
 import { useAsync } from "../hooks";
+import { LyricsTracksCard } from "./LyricsEditor";
 
 export function StudioPage() {
   return (
@@ -45,6 +46,7 @@ function Studio() {
       {artists.map((a) => (
         <ArtistSection key={`${a.id}-${uploadsDone}`} slug={a.slug} />
       ))}
+      <LyricsTracksCard />
       <NewArtist />
     </>
   );

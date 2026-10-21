@@ -44,6 +44,16 @@ This document is the source of truth for the rules. The code that implements the
 - **Every track sounds consistent.** Whatever was uploaded is streamed as 160 kbps AAC at an even volume (about −14
   LUFS, as on Spotify). A new upload goes live once it's converted, usually a minute or two later. The artist's
   original file is kept privately.
+- **Embedded players** on other websites (a band's own site, say) play the same 30-second previews to everyone,
+  subscribers included: nobody signs in inside someone else's website. They always show the AI label and link to
+  Trusic to listen in full. Only these players can appear inside other websites; every other Trusic page refuses.
+
+### Sharing
+
+- A link to a track, release, artist or public playlist shows a preview wherever it's pasted (WhatsApp, iMessage,
+  Slack, Discord, X, Facebook…): the title, who it's by, the artwork and the AI label, on a picture Trusic draws
+  itself.
+- Previews never show private playlists, anything taken down after a report, or deleted accounts.
 
 ### Listening offline
 
@@ -128,6 +138,17 @@ The exact score is always shown next to the label.
 Uploads ask who wrote the song, whether any songwriter belongs to PRS for Music or another collecting society,
 whether it's a cover, and the ISRC if there is one. Nothing is paid differently because of it yet: it's the
 information Trusic will need to agree a licence with PRS (see open question 10).
+
+### Lyrics
+
+- Artists add lyrics in Studio, as plain text or synced to the music, so each line lights up as it's sung.
+- Only the track's uploader and the people in its band split can add or change them.
+- **Lyrics aren't shown for covers.** The words belong to the original songwriters, and showing lyrics on screen
+  needs its own licence, separate from playing the song, usually bought through LyricFind or Musixmatch. Trusic
+  doesn't have one, so it doesn't accept lyrics for tracks marked as covers, and hides any added before a track was
+  marked as one.
+- For original songs, Trusic shows lyrics on the uploader's word that the band wrote them and can let Trusic show
+  them. Whether that's enough, for example when a writer has a music publisher, is open question 19.
 
 Today's detector only reads file metadata (generators like Suno sometimes leave their name in the tags). It
 catches careless uploads but is trivially evaded. A real audio-analysis detector is a launch requirement (see the
@@ -233,6 +254,10 @@ artist's declaration will remain the main evidence; see [research/ai-detection.m
 | 2026-10-21 | An offline play counts only if the listener was subscribed when they played it, it's under 30 days old and the track is still up.     | Stops listening on downloads after cancelling, and a track taken down (for a false declaration, say) shouldn't earn from plays heard later. |
 | 2026-10-21 | Every play the apps send carries an id made up on the device; the server keeps one play per id, with the longest listen reported.     | Retries never double-count, so the phone app can safely report a listen when it goes to the background, before the phone closes it.         |
 | 2026-10-21 | Plays are dated when the listen started; a phone whose clock is ahead has its plays dated when they reach us.                         | The start is when the listener chose to play it. A wrong clock shouldn't push plays into a future month.                                    |
+| 2026-10-21 | Lyrics for covers are never shown. Lyrics for original songs are shown on the uploader's word.                                        | Showing lyrics needs the songwriters' permission. Trusic has none for covers; bands can give it for their own songs (question 19).          |
+| 2026-10-21 | Only the uploader and the band split can edit a track's lyrics.                                                                       | The people who wrote and recorded the song; the same people who share its money.                                                            |
+| 2026-10-21 | Embedded players play 30-second previews to everyone, never full tracks, and never count as plays.                                    | Nobody should sign in inside someone else's website, and only listening on Trusic moves money. Embeds send people to Trusic instead.        |
+| 2026-10-21 | Link previews and share pictures never include private playlists or taken-down content.                                               | A preview is shown to everyone the link is sent to, so it must only show what anyone could see on Trusic.                                   |
 | 2026-10-21 | Tracks are turned up or down towards −14 LUFS, but a quiet track only as far as its peaks allow. Nothing is compressed.               | An even volume from track to track, without changing how an artist's music sounds.                                                          |
 | 2026-10-21 | A preview is a separate file of a track's first 30 seconds.                                                                           | A preview link can never play more, and players show the preview's real length.                                                             |
 | 2026-10-21 | New uploads aren't public until they've been converted for streaming.                                                                 | Everyone hears the same quality and volume, and nobody downloads a 40 MB WAV.                                                               |
@@ -283,13 +308,18 @@ These need a decision from the founder. The current behaviour is in brackets.
 18. **Late plays after cancelling.** Someone who cancels, then sends plays from their last weeks of offline
     listening, has no money in the month those plays are counted. Their plays then only share in the human pot.
     Should those plays be paid some other way? [they share in the human pot]
+19. **Showing lyrics.** Can Trusic show lyrics that bands wrote themselves without a lyric licence, including when a
+    writer has a music publisher or belongs to PRS? And should Trusic pay for a lyric licence (LyricFind or
+    Musixmatch) so covers can show lyrics too? See [research/uk-licensing.md](research/uk-licensing.md). [lyrics
+    for original songs are shown on the uploader's word; lyrics for covers are never shown]
 
 ## 6. Research
 
 - [Detecting AI-generated music](research/ai-detection.md): what detection can and can't do, vendors to trial, an
   evaluation plan, and what other platforms do.
 - [Licensing and legal obligations in the UK](research/uk-licensing.md): recording versus songwriting rights, PRS for
-  Music, how songwriting royalties affect the 80/20 split, platform liability, online safety and AI labelling.
+  Music, how songwriting royalties affect the 80/20 split, showing lyrics, platform liability, online safety and AI
+  labelling.
 
 Both were compiled from web searches on 6 October 2026. Several primary sources couldn't be opened directly, so
 figures marked unverified must be checked before they go into a financial model.

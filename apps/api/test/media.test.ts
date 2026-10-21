@@ -11,12 +11,14 @@ import type {
   TrackList,
   UploadInProgress,
 } from "@trusic/client";
+import { jpegImageUrl } from "@trusic/client";
 import { eq, sql } from "drizzle-orm";
 import { parseBuffer } from "music-metadata";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { mediaJobs, tracks } from "../src/db/schema";
 import { findFfmpeg } from "../src/media/ffmpeg";
 import { jpegOrientation } from "../src/media/images";
+import { decodeImage } from "../src/share/image";
 import { MediaProcessor } from "../src/media/processor";
 import { synthPng, synthWav } from "../src/synth";
 import { call, createTestApp, declaration, register, sendFile, type TestApp } from "./helpers";
@@ -369,6 +371,12 @@ describe.skipIf(!hasFfmpeg)("artwork sizes", () => {
     const small = await fetchBytes(t, `${url}?size=120`);
     expect(small.body.length).toBeLessThan(15_000);
     expect((await fetchBytes(t, `${url}?size=abc`)).status).toBe(400);
+
+    // Link-preview pictures are drawn by code that reads JPEG and PNG but not WebP, so there's a JPEG copy too.
+    const jpeg = await fetchBytes(t, jpegImageUrl(url));
+    expect(jpeg.headers["content-type"]).toBe("image/jpeg");
+    expect(decodeImage(jpeg.body)).toMatchObject({ width: 640, height: 640 });
+    expect(decodeImage((await fetchBytes(t, url)).body)).toBeNull();
   });
 
   it("crops to a square and never enlarges", async () => {
@@ -447,7 +455,7 @@ describe.skipIf(!hasFfmpeg)("deleting an account", () => {
         image!.sourceKey,
         ...image!.variants!.map((v) => v.key),
       ];
-      expect(files).toHaveLength(7);
+      expect(files).toHaveLength(8);
       for (const key of files) expect(await t.storage.size(key)).toBeGreaterThan(0);
 
       const res = await call(t, "POST", "/api/me/delete", band.token, {

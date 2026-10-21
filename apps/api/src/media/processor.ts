@@ -7,7 +7,7 @@ import { PREVIEW_MS } from "../routes/listening";
 import type { MediaStorage } from "../storage";
 import { analyseAudio, encodeAudio, normalisingGain, STREAM_BITRATE, STREAM_MIME, TARGET_LUFS } from "./audio";
 import { findFfmpeg, type Ffmpeg } from "./ffmpeg";
-import { IMAGE_MIME, resizeImage } from "./images";
+import { IMAGE_MIMES, JPEG_SIZE, resizeImage } from "./images";
 
 export interface Log {
   info(message: string): void;
@@ -428,16 +428,20 @@ export class MediaProcessor {
     const { storage } = this.options;
     const ffmpeg = this.ffmpeg!;
     return storage.withLocalCopy(job.sourceKey, async (input) => {
-      const outputs = await Promise.all(IMAGE_SIZES.map(async (size) => ({ size, path: await storage.tempPath() })));
+      const wanted = [
+        ...IMAGE_SIZES.map((size) => ({ size, format: "webp" as const })),
+        { size: JPEG_SIZE, format: "jpeg" as const },
+      ];
+      const outputs = await Promise.all(wanted.map(async (o) => ({ ...o, path: await storage.tempPath() })));
       try {
         await resizeImage(ffmpeg, input, { outputs, timeoutMs: 5 * 60_000, signal });
         const base = job.sourceKey.replace(/\.[a-z0-9]+$/i, "");
         const variants: ImageVariant[] = [];
-        for (const { size, path } of outputs) {
-          const key = `${base}-${size}.webp`;
+        for (const { size, format, path } of outputs) {
+          const key = `${base}-${size}.${format === "webp" ? "webp" : "jpg"}`;
           const bytes = (await stat(path)).size;
           await storage.save(key, path);
-          variants.push({ size, key, bytes, mime: IMAGE_MIME });
+          variants.push({ size, key, bytes, mime: IMAGE_MIMES[format] });
         }
         return variants;
       } finally {

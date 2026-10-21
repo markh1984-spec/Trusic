@@ -3,9 +3,13 @@ import { runFfmpeg, type Ffmpeg } from "./ffmpeg";
 
 /**
  * Artwork and artist photos are kept as squares at a few standard sizes (IMAGE_SIZES in @trusic/client), cropped
- * from the middle and saved as WebP, so a list of 40-pixel thumbnails doesn't download full-size photos.
+ * from the middle and saved as WebP, so a list of 40-pixel thumbnails doesn't download full-size photos. There's
+ * also one JPEG copy, for things that can't read WebP: the pictures Trusic draws for link previews (see share/).
  */
-export const IMAGE_MIME = "image/webp";
+export type ImageFormat = "webp" | "jpeg";
+export const IMAGE_MIMES: Record<ImageFormat, string> = { webp: "image/webp", jpeg: "image/jpeg" };
+/** The JPEG copy's size. */
+export const JPEG_SIZE = 640;
 
 /** Filters that turn a photo the right way up, by its EXIF orientation (phones store photos sideways). */
 const ORIENTATION_FILTERS: Record<number, string> = {
@@ -22,22 +26,36 @@ const ORIENTATION_FILTERS: Record<number, string> = {
 export async function resizeImage(
   ffmpeg: Ffmpeg,
   input: string,
-  options: { outputs: { size: number; path: string }[]; timeoutMs: number; signal?: AbortSignal },
+  options: {
+    outputs: { size: number; format: ImageFormat; path: string }[];
+    timeoutMs: number;
+    signal?: AbortSignal;
+  },
 ): Promise<void> {
   const orientation = ORIENTATION_FILTERS[await readOrientation(input)];
   const n = options.outputs.length;
   const graph = [
     `[0:v]${orientation ? `${orientation},` : ""}crop='min(iw,ih)':'min(iw,ih)',split=${n}${options.outputs.map((_, i) => `[s${i}]`).join("")}`,
-    ...options.outputs.map(({ size }, i) => `[s${i}]scale='min(${size},iw)':'min(${size},ih)':flags=lanczos[o${i}]`),
+    ...options.outputs.map(({ size, format }, i) => {
+      const scale = `[s${i}]scale='min(${size},iw)':'min(${size},ih)':flags=lanczos`;
+      // JPEG has no transparency, so see-through parts go black (otherwise they'd show whatever colour is hidden
+      // under them).
+      return format === "webp"
+        ? `${scale}[o${i}]`
+        : `${scale}[f${i}];color=c=black[c${i}];[c${i}][f${i}]scale2ref[b${i}][g${i}];` +
+            `[b${i}][g${i}]overlay=shortest=1,format=yuvj420p[o${i}]`;
+    }),
   ].join(";");
   await runFfmpeg(
     ffmpeg,
     [
       // We turn photos upright ourselves, so ffmpeg mustn't as well.
       ...["-noautorotate", "-i", input, "-filter_complex", graph],
-      ...options.outputs.flatMap(({ path }, i) => [
+      ...options.outputs.flatMap(({ path, format }, i) => [
         ...["-map", `[o${i}]`, "-frames:v", "1", "-map_metadata", "-1"],
-        ...["-c:v", "libwebp", "-quality", "82", "-f", "webp", path],
+        ...(format === "webp"
+          ? ["-c:v", "libwebp", "-quality", "82", "-f", "webp", path]
+          : ["-c:v", "mjpeg", "-q:v", "3", "-f", "mjpeg", path]),
       ]),
     ],
     options,

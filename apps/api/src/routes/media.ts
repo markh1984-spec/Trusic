@@ -6,6 +6,7 @@ import type { AppDeps } from "../app";
 import { requireUser } from "../auth";
 import { artists, tracks, type ImageVariant } from "../db/schema";
 import { HttpError } from "../errors";
+import { IMAGE_MIMES } from "../media/images";
 import { IMAGE_MIME_BY_EXT } from "../uploads";
 
 const FAILED_MESSAGE =
@@ -50,33 +51,39 @@ export const mediaRoutes =
 
     /**
      * Images are public and never change (each upload gets a new name), so they're cached forever. `?size=` picks
-     * one of the resized copies (see IMAGE_SIZES); without it, the largest. Until the copies are made, or if they
-     * can't be, the upload itself is sent.
+     * one of the resized WebP copies (see IMAGE_SIZES); without it, the largest. `?format=jpeg` asks for the JPEG
+     * copy instead, for things that can't read WebP (the link-preview pictures in share/). Until the copies are
+     * made, or if they can't be, the upload itself is sent.
      */
-    app.get<{ Params: { name: string }; Querystring: { size?: string } }>("/images/:name", async (request, reply) => {
-      const m = /^[0-9a-f-]{36}\.(png|jpg|webp)$/.exec(request.params.name);
-      if (!m) throw new HttpError(404, "Image not found.");
-      const key = `images/${request.params.name}`;
-      const size = request.query.size ? z.coerce.number().int().min(1).max(4096).parse(request.query.size) : null;
+    app.get<{ Params: { name: string }; Querystring: { size?: string; format?: string } }>(
+      "/images/:name",
+      async (request, reply) => {
+        const m = /^[0-9a-f-]{36}\.(png|jpg|webp)$/.exec(request.params.name);
+        if (!m) throw new HttpError(404, "Image not found.");
+        const key = `images/${request.params.name}`;
+        const size = request.query.size ? z.coerce.number().int().min(1).max(4096).parse(request.query.size) : null;
+        const mime = IMAGE_MIMES[z.enum(["webp", "jpeg"]).default("webp").parse(request.query.format)];
 
-      const { variants, pending } = await media.imageVariants(key);
-      if (variants) {
-        const variant = pickVariant(variants, size);
-        return reply
-          .header("content-type", variant.mime)
-          .header("content-length", variant.bytes)
-          .header("cache-control", IMMUTABLE)
-          .send(storage.read(variant.key));
-      }
-      const bytes = await storage.size(key).catch(() => null);
-      if (bytes === null) throw new HttpError(404, "Image not found.");
-      return (
-        reply
-          .header("content-type", IMAGE_MIME_BY_EXT[m[1]!]!)
-          .header("content-length", bytes)
-          // Smaller copies are on their way, so don't keep this one for long.
-          .header("cache-control", pending ? "public, max-age=60" : IMMUTABLE)
-          .send(storage.read(key))
-      );
-    });
+        const { variants: all, pending } = await media.imageVariants(key);
+        const variants = all?.filter((v) => v.mime === mime);
+        if (variants?.length) {
+          const variant = pickVariant(variants, size);
+          return reply
+            .header("content-type", variant.mime)
+            .header("content-length", variant.bytes)
+            .header("cache-control", IMMUTABLE)
+            .send(storage.read(variant.key));
+        }
+        const bytes = await storage.size(key).catch(() => null);
+        if (bytes === null) throw new HttpError(404, "Image not found.");
+        return (
+          reply
+            .header("content-type", IMAGE_MIME_BY_EXT[m[1]!]!)
+            .header("content-length", bytes)
+            // Smaller copies are on their way, so don't keep this one for long.
+            .header("cache-control", pending ? "public, max-age=60" : IMMUTABLE)
+            .send(storage.read(key))
+        );
+      },
+    );
   };

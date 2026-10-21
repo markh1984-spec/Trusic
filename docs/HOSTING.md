@@ -192,6 +192,17 @@ count as already confirmed, so they can upload straight away.
 To send real emails, follow [EMAIL.md](EMAIL.md): Brevo's free plan sends 300 a day, with no card needed. Add its
 settings under **Environment**.
 
+## Sharing links and embedding players
+
+Links to tracks, releases, artists and public playlists show a proper preview (a picture with the title, artist
+and AI label) when they're pasted into WhatsApp, iMessage, Slack, Discord and the like, and bands can put a player
+on their own website from the **Share** menu. There's nothing to set up: Render tells Trusic its own address. If
+you later give the site its own domain name, set `PUBLIC_URL` to it under **Environment**, so previews and embed
+codes use that address.
+
+Because the free site sleeps, the first preview after a quiet spell can take about a minute to load, and some apps
+give up and show a plain link. Pasting the link again a minute later works.
+
 ## When it's time for a real launch
 
 The free setup is for trying Trusic out. Even with Supabase it pauses after a quiet week, has no backups you can

@@ -23,6 +23,14 @@ export function imageSrcSet(url: string): string | undefined {
   return SIZED.test(url) ? IMAGE_SIZES.map((s) => `${url}?size=${s} ${s}w`).join(", ") : undefined;
 }
 
+/**
+ * `url` as a 640-pixel JPEG, for things that can't read WebP, such as link previews. Other URLs come back
+ * unchanged.
+ */
+export function jpegImageUrl(url: string): string {
+  return SIZED.test(url) ? `${url}?format=jpeg` : url;
+}
+
 /** Every size of `url` for React Native's <Image source>, which picks the best fit for the view. */
 export function imageSources(url: string): { uri: string; width: number; height: number }[] {
   return SIZED.test(url)
