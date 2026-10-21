@@ -4,6 +4,7 @@ import { Artwork } from "../components/Artwork";
 import { releaseAiSummary, releaseYear, TYPE_NAMES } from "../components/Cards";
 import { ErrorNote, Loading } from "../components/Guards";
 import { Icon } from "../components/Icon";
+import { MoreMenu } from "../components/MoreMenu";
 import { TrackList } from "../components/TrackList";
 import { duration, plural } from "../format";
 import { useAsync } from "../hooks";
@@ -56,6 +57,10 @@ export function ReleasePage() {
             Edit release
           </Link>
         ) : null}
+        <MoreMenu
+          label={release.title}
+          items={release.isOwner ? [] : [{ label: "Report…", to: `/report/release/${release.id}` }]}
+        />
       </div>
       <TrackList tracks={release.tracks} label={release.title} variant="release" showArtist={false} />
     </>

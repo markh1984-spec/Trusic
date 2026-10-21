@@ -9,6 +9,7 @@ import { CardGrid, TYPE_NAMES } from "../components/Cards";
 import { ErrorNote, Loading, RequireAuth } from "../components/Guards";
 import { Icon } from "../components/Icon";
 import { ImagePicker } from "../components/ImagePicker";
+import { StudioTakedowns } from "../components/StudioTakedowns";
 import { UploadsInProgress } from "../components/UploadsInProgress";
 import { money, periodName, plural } from "../format";
 import { useAsync } from "../hooks";
@@ -37,6 +38,7 @@ function Studio() {
       </div>
       <UploadsInProgress onLive={() => setUploadsDone((n) => n + 1)} />
       <BalanceCard />
+      <StudioTakedowns />
       <Earnings />
       {artists.map((a) => (
         <ArtistSection key={`${a.id}-${uploadsDone}`} slug={a.slug} />
@@ -74,8 +76,8 @@ function BalanceCard() {
     <section className="card">
       {data.suspended ? (
         <p className="note note--error">
-          Your account is suspended after three false AI declarations. Your tracks are hidden and you can't upload.
-          Contact Trusic to appeal.
+          Your account is suspended after three strikes (false AI declarations or upheld copyright claims). Your tracks
+          are hidden and you can't upload. Contact Trusic to appeal.
         </p>
       ) : null}
       <div className="balance">
@@ -108,7 +110,7 @@ function BalanceCard() {
       {connectError ? <ErrorNote message={connectError} /> : null}
       {data.strikes.length ? (
         <>
-          <h3>Strikes ({data.strikes.length} of 3)</h3>
+          <h3>AI declaration strikes ({data.strikes.length} of 3)</h3>
           <ul className="plain-list">
             {data.strikes.map((s) => (
               <li key={s.id}>

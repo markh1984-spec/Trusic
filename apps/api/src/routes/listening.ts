@@ -109,7 +109,8 @@ export const listeningRoutes =
             durationMs: tracks.durationMs,
           })
           .from(tracks)
-          .where(eq(tracks.id, trackId))
+          // Links already handed out stop working as soon as a track is taken down or removed.
+          .where(and(eq(tracks.id, trackId), eq(tracks.status, "live")))
           .limit(1);
         if (!track) throw new HttpError(404, "Track not found.");
 

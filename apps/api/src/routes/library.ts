@@ -1,5 +1,5 @@
 import type { Artist, HistoryItem, LibraryIds, LikedTrack } from "@trusic/client";
-import { and, desc, eq, inArray, max } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, max } from "drizzle-orm";
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import type { AppDeps } from "../app";
@@ -60,7 +60,7 @@ export const libraryRoutes =
         .select({ artist: artists })
         .from(follows)
         .innerJoin(artists, eq(artists.id, follows.artistId))
-        .where(eq(follows.userId, user.id))
+        .where(and(eq(follows.userId, user.id), isNull(artists.takenDownAt)))
         .orderBy(desc(follows.createdAt));
       return rows.map((r) => toArtist(r.artist)) satisfies Artist[];
     });

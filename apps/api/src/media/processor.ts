@@ -33,6 +33,21 @@ export interface MediaProcessorOptions {
   leaseMs?: number;
 }
 
+/**
+ * Delete stored files along with anything made from them (an image's resized copies), and forget their jobs. A job
+ * still running finds its row gone and deletes what it made. Files that are already gone are fine.
+ */
+export async function removeMediaFiles(db: Db | Tx, storage: MediaStorage, keys: string[]): Promise<void> {
+  const unique = [...new Set(keys)];
+  if (!unique.length) return;
+  const jobs = await db
+    .delete(mediaJobs)
+    .where(inArray(mediaJobs.sourceKey, unique))
+    .returning({ variants: mediaJobs.variants });
+  const made = jobs.flatMap((j) => (j.variants ?? []).map((v) => v.key));
+  for (const key of [...unique, ...made]) await storage.remove(key).catch(() => undefined);
+}
+
 const HEARTBEAT_MS = 20_000;
 const MB = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 
@@ -177,12 +192,7 @@ export class MediaProcessor {
 
   /** Delete an image and its resized copies. */
   async removeImage(key: string): Promise<void> {
-    const [job] = await this.options.db
-      .delete(mediaJobs)
-      .where(eq(mediaJobs.sourceKey, key))
-      .returning({ variants: mediaJobs.variants });
-    await this.options.storage.remove(key);
-    for (const v of job?.variants ?? []) await this.options.storage.remove(v.key);
+    await removeMediaFiles(this.options.db, this.options.storage, [key]);
   }
 
   /** The resized copies of an image, once they're ready; null until then (or if it won't be resized). */
@@ -278,15 +288,20 @@ export class MediaProcessor {
     }, HEARTBEAT_MS);
     try {
       let variants: ImageVariant[] | null = null;
-      if (job.kind === "audio") await this.processAudio(job, controller.signal);
-      else variants = await this.processImage(job, controller.signal);
+      let made: string[];
+      if (job.kind === "audio") {
+        made = await this.processAudio(job, controller.signal);
+      } else {
+        variants = await this.processImage(job, controller.signal);
+        made = variants.map((v) => v.key);
+      }
       const [still] = await db
         .update(mediaJobs)
         .set({ status: "done", error: null, finishedAt: sql`now()`, ...(variants ? { variants } : {}) })
         .where(eq(mediaJobs.id, job.id))
         .returning({ id: mediaJobs.id });
-      // The image was replaced or deleted while we worked on it.
-      if (!still && variants) for (const v of variants) await storage.remove(v.key);
+      // The upload was deleted (a replaced image, a deleted account) while we worked on it.
+      if (!still) for (const key of made) await storage.remove(key).catch(() => undefined);
     } catch (error) {
       await this.failed(job, error as Error);
     } finally {
@@ -333,7 +348,8 @@ export class MediaProcessor {
     });
   }
 
-  private async processAudio(job: MediaJob, signal: AbortSignal): Promise<void> {
+  /** Make the streaming files for a track. Returns their keys. */
+  private async processAudio(job: MediaJob, signal: AbortSignal): Promise<string[]> {
     const { db, storage } = this.options;
     const ffmpeg = this.ffmpeg!;
     const [track] = await db
@@ -342,11 +358,11 @@ export class MediaProcessor {
       .where(eq(tracks.id, job.trackId!))
       .limit(1);
     // Deleted by the artist before we got to it.
-    if (!track || track.status === "removed") return;
+    if (!track || track.status === "removed") return [];
     // Generous: at 0.1 of a CPU a four-minute track takes about two minutes.
     const timeoutMs = 10 * 60_000 + track.durationMs;
 
-    await storage.withLocalCopy(job.sourceKey, async (input) => {
+    return storage.withLocalCopy(job.sourceKey, async (input) => {
       const analysis = await analyseAudio(ffmpeg, input, { timeoutMs, signal });
       const gainDb = normalisingGain(analysis);
       const full = await storage.tempPath();
@@ -399,6 +415,7 @@ export class MediaProcessor {
           `Track ${track.id} is ready: ${MB(source)} upload → ${MB(audioBytes)} to stream` +
             (analysis.integratedLufs === null ? "" : `, ${analysis.integratedLufs} LUFS adjusted by ${gainDb} dB`),
         );
+        return previewAudioKey ? [audioKey, previewAudioKey] : [audioKey];
       } finally {
         await rm(full, { force: true });
         if (preview) await rm(preview, { force: true });

@@ -69,6 +69,12 @@ export async function loadPlaylistDetail(
   if (!summary) return null;
   const isOwner = viewer?.id === summary.owner.id;
   if (!summary.isPublic && !isOwner) return null;
+  // Taken down after a report: only its owner can still see it.
+  const [state] = await db
+    .select({ takenDownAt: playlists.takenDownAt })
+    .from(playlists)
+    .where(eq(playlists.id, playlistId));
+  if (state?.takenDownAt && !isOwner) return null;
 
   const rows = await selectTrackSummariesWith(db, {
     entryId: playlistEntries.id,

@@ -20,6 +20,7 @@ import { ErrorNote, RequireAuth } from "../components/Guards";
 import { TYPE_NAMES } from "../components/Cards";
 import { CreditsFields, emptyCredits, fromDraft, type CreditsDraft } from "../components/CreditsFields";
 import { ScoreBreakdown } from "../components/ScoreBreakdown";
+import { RequireVerifiedEmail } from "../components/VerifyBanner";
 import { useAsync } from "../hooks";
 
 const LEVELS: { value: StageDeclaration; label: string; hint: string }[] = [
@@ -47,7 +48,9 @@ const EMPTY: AiDeclaration = {
 export function UploadPage() {
   return (
     <RequireAuth>
-      <UploadForm />
+      <RequireVerifiedEmail to="upload music">
+        <UploadForm />
+      </RequireVerifiedEmail>
     </RequireAuth>
   );
 }

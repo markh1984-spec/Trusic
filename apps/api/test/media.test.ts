@@ -402,3 +402,38 @@ describe.skipIf(!hasFfmpeg)("artwork sizes", () => {
     ).toEqual([]);
   });
 });
+
+describe.skipIf(!hasFfmpeg)("deleting an account", () => {
+  it("deletes every file made from its uploads: the upload, the streaming copy, the preview and resized images", async () => {
+    const t = await createTestApp({ media: true });
+    try {
+      const band = await register(t, "leaving@trusic.test");
+      const artist = (await call<Artist>(t, "POST", "/api/artists", band.token, { name: "Leaving Band" })).body;
+      const track = await upload(t, band.token, artist.id, "Last Song", synthWav({ seconds: 35, sampleRate: 22_050 }));
+      const photo = { name: "image", filename: "me.png", data: synthPng({ size: 400 }) };
+      await sendFile(t, "PUT", `/api/artists/${artist.id}/image`, band.token, {}, photo);
+      await t.media.idle();
+      const [row] = await t.database.db.select().from(tracks).where(eq(tracks.id, track.body.id));
+      const [image] = await t.database.db.select().from(mediaJobs).where(eq(mediaJobs.kind, "image"));
+      const files = [
+        row!.originalAudioKey!,
+        row!.audioKey,
+        row!.previewAudioKey!,
+        image!.sourceKey,
+        ...image!.variants!.map((v) => v.key),
+      ];
+      expect(files).toHaveLength(7);
+      for (const key of files) expect(await t.storage.size(key)).toBeGreaterThan(0);
+
+      const res = await call(t, "POST", "/api/me/delete", band.token, {
+        password: "correct horse battery",
+        confirm: "DELETE",
+      });
+      expect(res.status).toBe(204);
+      for (const key of files) await expect(t.storage.size(key)).rejects.toThrow();
+      expect(await t.database.db.select().from(mediaJobs).where(eq(mediaJobs.kind, "image"))).toEqual([]);
+    } finally {
+      await t.close();
+    }
+  });
+});

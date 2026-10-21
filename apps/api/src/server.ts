@@ -29,6 +29,11 @@ const app = await buildApp(
   { logger: true },
 );
 
+app.log.info(
+  config.mail.smtp
+    ? `Sending email through ${config.mail.smtp.host}`
+    : "No SMTP server set (SMTP_HOST), so emails are printed to this log instead of sent",
+);
 app.log.info(`Files are kept in ${storage.description}.`);
 await storage.check().catch((error: Error) => app.log.error(error.message));
 // Keeping one without the other loses data on a restart: the database would point at files that are gone, or the

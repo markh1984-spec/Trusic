@@ -1,10 +1,10 @@
 import type { AdminAppeal, AdminStrike, RightsSummary, StrikeResult, SuspendedAccount } from "@trusic/client";
-import { and, count, desc, eq, inArray, isNotNull } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import type { AppDeps } from "../app";
 import { requireAdmin } from "../auth";
-import { appeals, strikes, tracks, users } from "../db/schema";
+import { appeals, copyrightStrikes, strikes, tracks, users } from "../db/schema";
 import { HttpError } from "../errors";
 import { finalizeRun, runPayouts } from "../payout-service";
 import { applyReviewScore, issueStrike, loadStrikes, reinstate, toStrike } from "../strikes";
@@ -166,7 +166,14 @@ export const adminRoutes =
     app.get("/admin/suspended", async (request) => {
       await requireAdmin(db, request);
       const rows = await db
-        .select({ user: users, strikes: count(strikes.id) })
+        .select({
+          user: users,
+          strikes: count(strikes.id),
+          copyrightStrikes:
+            sql<number>`(select count(*) from ${copyrightStrikes} where ${copyrightStrikes.userId} = ${users.id} and ${copyrightStrikes.withdrawnAt} is null)`.mapWith(
+              Number,
+            ),
+        })
         .from(users)
         .leftJoin(strikes, eq(strikes.userId, users.id))
         .where(isNotNull(users.suspendedAt))
@@ -177,6 +184,7 @@ export const adminRoutes =
         displayName: r.user.displayName,
         suspendedAt: r.user.suspendedAt!.toISOString(),
         strikes: r.strikes,
+        copyrightStrikes: r.copyrightStrikes,
       })) satisfies SuspendedAccount[];
     });
 

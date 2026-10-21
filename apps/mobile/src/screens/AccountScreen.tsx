@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { StyleSheet, Text, TextInput, View, type TextInputProps } from "react-native";
+import { Linking, StyleSheet, Text, TextInput, View, type TextInputProps } from "react-native";
 import { SubscriptionCard } from "../components/SubscriptionCard";
 import { Button, Card, ErrorNote, Heading, Loading, Muted, Screen } from "../components/ui";
 import { errorMessage } from "../lib/api";
-import { API_URL } from "../lib/config";
+import { API_URL, SITE_URL } from "../lib/config";
 import { useAuth } from "../state/auth";
 import { usePlayer } from "../state/player";
+import { useToast } from "../state/toast";
 import { colors, radius, space } from "../theme";
 
 export function AccountScreen() {
@@ -22,9 +23,19 @@ export function AccountScreen() {
   );
 }
 
+/** Open a page of the Trusic website in the phone's browser. */
+function useOpenOnSite() {
+  const toast = useToast();
+  return (path: string) =>
+    void Linking.openURL(`${SITE_URL}${path}`).catch(() =>
+      toast(`Couldn't open ${SITE_URL}. Visit it in your browser.`),
+    );
+}
+
 function SignedIn() {
   const { me, logout } = useAuth();
   const player = usePlayer();
+  const openOnSite = useOpenOnSite();
   const [busy, setBusy] = useState(false);
   if (!me) return null;
   const { user } = me;
@@ -48,6 +59,13 @@ function SignedIn() {
           <Muted small>Upload music and see your earnings in Studio on the Trusic website.</Muted>
         </Card>
       ) : null}
+      <Card style={{ gap: space.sm }}>
+        <Heading style={{ marginBottom: 0 }}>Account settings</Heading>
+        <Muted small>
+          Change your name, email address or password, download your data or delete your account on the Trusic website.
+        </Muted>
+        <Button title="Open settings" variant="ghost" onPress={() => openOnSite("/settings")} />
+      </Card>
       <Button
         title={busy ? "Logging out…" : "Log out"}
         variant="ghost"
@@ -67,6 +85,7 @@ function SignedIn() {
 
 function SignInForms() {
   const { login, register } = useAuth();
+  const openOnSite = useOpenOnSite();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
@@ -125,6 +144,9 @@ function SignInForms() {
         onPress={() => void submit()}
         disabled={busy || !canSubmit}
       />
+      {registering ? null : (
+        <Button title="Forgotten your password?" variant="ghost" onPress={() => openOnSite("/forgot-password")} />
+      )}
       <Button
         title={registering ? "I already have an account" : "Create an account"}
         variant="ghost"

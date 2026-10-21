@@ -14,7 +14,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import { plays } from "../src/db/schema";
 import { currentPeriod } from "../src/payout-service";
-import { ADMIN_EMAIL, createTestApp, declaration, multipart, wav, type TestApp } from "./helpers";
+import { ADMIN_EMAIL, confirmEmail, createTestApp, declaration, multipart, wav, type TestApp } from "./helpers";
 
 let t: TestApp;
 /** Size of the 40-second test WAV every upload uses. */
@@ -46,6 +46,7 @@ async function register(email: string, displayName = email.split("@")[0]!) {
     displayName,
   });
   expect(res.status).toBe(201);
+  await confirmEmail(t, res.body.user.id);
   return res.body.token;
 }
 

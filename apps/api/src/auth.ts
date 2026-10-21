@@ -42,7 +42,7 @@ export async function deleteSession(db: Db, token: string): Promise<void> {
 
 export type AuthUser = Pick<
   typeof users.$inferSelect,
-  "id" | "email" | "displayName" | "isAdmin" | "plan" | "suspendedAt"
+  "id" | "email" | "displayName" | "isAdmin" | "plan" | "suspendedAt" | "emailVerifiedAt"
 >;
 
 export function bearerToken(request: FastifyRequest): string | null {
@@ -60,6 +60,7 @@ export async function findUserByToken(db: Db, token: string): Promise<AuthUser |
       isAdmin: users.isAdmin,
       plan: users.plan,
       suspendedAt: users.suspendedAt,
+      emailVerifiedAt: users.emailVerifiedAt,
     })
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.userId))
