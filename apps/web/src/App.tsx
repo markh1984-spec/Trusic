@@ -7,6 +7,7 @@ import { HomePage } from "./pages/Home";
 import { LibraryPage, LikedPage } from "./pages/Library";
 import { MoneyPage } from "./pages/Money";
 import { NotFoundPage } from "./pages/NotFound";
+import { DownloadsPage } from "./offline/DownloadsPage";
 import { PlaylistPage } from "./pages/Playlist";
 import { ReleasePage } from "./pages/Release";
 import { ReleaseEditorPage } from "./pages/ReleaseEditor";
@@ -28,6 +29,7 @@ export function App() {
         <Route path="playlist/:id" element={<PlaylistPage />} />
         <Route path="library" element={<LibraryPage />} />
         <Route path="liked" element={<LikedPage />} />
+        <Route path="downloads" element={<DownloadsPage />} />
         <Route path="transparency" element={<TransparencyPage />} />
         <Route path="money" element={<MoneyPage />} />
         <Route path="studio" element={<StudioPage />} />

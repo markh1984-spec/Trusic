@@ -11,7 +11,7 @@ describe("ListenTracker", () => {
     const t = new ListenTracker();
     t.start("a");
     play(t, 0, 40);
-    expect(t.take()).toEqual({ trackId: "a", msPlayed: 40_000 });
+    expect(t.take()).toMatchObject({ trackId: "a", msPlayed: 40_000 });
   });
 
   it("doesn't count seeking ahead, and keeps counting after a seek", () => {
@@ -71,6 +71,31 @@ describe("ListenTracker", () => {
     play(t, 0, 50);
     t.start("b");
     play(t, 0, 2);
-    expect(t.take()).toEqual({ trackId: "b", msPlayed: 2_000 });
+    expect(t.take()).toMatchObject({ trackId: "b", msPlayed: 2_000 });
+  });
+
+  it("reports the listen so far under the same id, so going to the background never counts it twice", () => {
+    const t = new ListenTracker();
+    const startedAt = Date.parse("2026-10-21T12:00:00Z");
+    t.start("a", { now: startedAt });
+    play(t, 0, 20);
+    const early = t.snapshot();
+    play(t, 20.25, 200);
+    const final = t.take();
+    expect(early).toMatchObject({ trackId: "a", msPlayed: 20_000, playedAt: "2026-10-21T12:00:00.000Z" });
+    expect(final).toMatchObject({ id: early!.id, msPlayed: 200_000, playedAt: early!.playedAt });
+  });
+
+  it("gives each listen its own id, including a repeat of the same track", () => {
+    const t = new ListenTracker();
+    t.start("a");
+    play(t, 0, 10);
+    const first = t.take();
+    play(t, 0.25, 10);
+    const repeat = t.take();
+    t.start("a");
+    play(t, 0, 10);
+    const again = t.take();
+    expect(new Set([first?.id, repeat?.id, again?.id]).size).toBe(3);
   });
 });

@@ -7,7 +7,7 @@ import {
   type AiLabel,
   type PayoutInput,
 } from "@trusic/core";
-import { and, count, desc, eq, gte, inArray, isNotNull, isNull, lt, or, sum } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, isNotNull, isNull, or, sum } from "drizzle-orm";
 import type { Db } from "./db/client";
 import {
   artists,
@@ -23,6 +23,7 @@ import {
   tracks,
 } from "./db/schema";
 import { HttpError } from "./errors";
+import { assignPlaysToPeriod, playsCountedIn } from "./late-plays";
 
 const PERIOD = /^(\d{4})-(0[1-9]|1[0-2])$/;
 
@@ -56,13 +57,12 @@ interface GatherOptions {
 
 /** Everything the payout engine needs for one month, read from the database. */
 async function gatherPayoutInput(db: Db, period: string, options: GatherOptions = {}): Promise<PayoutInput> {
-  const [start, end] = periodBounds(period);
   const config = DEFAULT_PAYOUT_CONFIG;
 
   const streams = await db
     .select({ listenerId: plays.userId, trackId: plays.trackId, streams: count() })
     .from(plays)
-    .where(and(gte(plays.playedAt, start), lt(plays.playedAt, end), gte(plays.msPlayed, config.minStreamMs)))
+    .where(and(playsCountedIn(period, periodBounds(period)), gte(plays.msPlayed, config.minStreamMs)))
     .groupBy(plays.userId, plays.trackId);
 
   const trackIds = [...new Set(streams.map((s) => s.trackId))];
@@ -125,7 +125,7 @@ async function gatherPayoutInput(db: Db, period: string, options: GatherOptions 
  * added to this month's human pot.
  */
 export async function runPayouts(db: Db, period: string, currency: string): Promise<PayoutRunSummary> {
-  periodBounds(period);
+  const bounds = periodBounds(period);
   const [existing] = await db
     .select({ finalizedAt: payoutRuns.finalizedAt })
     .from(payoutRuns)
@@ -140,6 +140,8 @@ export async function runPayouts(db: Db, period: string, currency: string): Prom
     .where(or(isNull(strikes.appliedInPeriod), eq(strikes.appliedInPeriod, period)));
   const clawbacksIn = pending.reduce((acc, s) => acc + s.amount, 0);
 
+  // Plays that reached us late (from offline listening) join this month if theirs is closed.
+  await assignPlaysToPeriod(db, period, bounds);
   const result = calculatePayouts(await gatherPayoutInput(db, period, { clawbacksIn }));
 
   await db.transaction(async (tx) => {

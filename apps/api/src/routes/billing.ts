@@ -14,6 +14,7 @@ import type { Db } from "../db/client";
 import { ledgerEntries, payoutRuns, revenueEntries, users } from "../db/schema";
 import { HttpError } from "../errors";
 import { currentPeriod } from "../payout-service";
+import { recordPlanChange } from "../subscriptions";
 import { toUser } from "../views";
 
 /**
@@ -77,6 +78,7 @@ export const billingRoutes =
         return { user: toUser(user), endsAt } satisfies CancelResult;
       }
       await db.update(users).set({ plan: "free" }).where(eq(users.id, user.id));
+      await recordPlanChange(db, user.id, "free");
       return { user: toUser({ ...user, plan: "free" }), endsAt: null } satisfies CancelResult;
     });
 
@@ -196,6 +198,7 @@ async function subscribeDemo(db: Db, userId: string, netMinor: number) {
   const period = currentPeriod();
   await db.transaction(async (tx) => {
     await tx.update(users).set({ plan: "premium" }).where(eq(users.id, userId));
+    await recordPlanChange(tx, userId, "premium");
     await tx
       .insert(revenueEntries)
       .values({ userId, period, source: "subscription", amount: netMinor, externalRef: `demo-${userId}-${period}` })
@@ -238,6 +241,7 @@ export async function handleStripeEvent(db: Db, config: BillingSettings, event: 
             typeof session.subscription === "string" ? session.subscription : (session.subscription?.id ?? null),
         })
         .where(eq(users.id, userId));
+      await recordPlanChange(db, userId, "premium");
       return;
     }
     case "invoice.paid": {
@@ -265,6 +269,7 @@ export async function handleStripeEvent(db: Db, config: BillingSettings, event: 
         })
         .onConflictDoNothing();
       await db.update(users).set({ plan: "premium" }).where(eq(users.id, user.id));
+      await recordPlanChange(db, user.id, "premium");
       return;
     }
     case "customer.subscription.updated":
@@ -272,13 +277,15 @@ export async function handleStripeEvent(db: Db, config: BillingSettings, event: 
       const sub = event.data.object;
       const customerId = typeof sub.customer === "string" ? sub.customer : sub.customer.id;
       const active = event.type === "customer.subscription.updated" && ["active", "trialing"].includes(sub.status);
-      await db
+      const changed = await db
         .update(users)
         .set({
           plan: active ? "premium" : "free",
           ...(event.type === "customer.subscription.deleted" ? { stripeSubscriptionId: null } : {}),
         })
-        .where(eq(users.stripeCustomerId, customerId));
+        .where(eq(users.stripeCustomerId, customerId))
+        .returning({ id: users.id });
+      for (const { id } of changed) await recordPlanChange(db, id, active ? "premium" : "free");
       return;
     }
     default:

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Pressable, StyleSheet, TextInput, View } from "react-native";
+import { DownloadsSection } from "../components/DownloadsSection";
 import { Icon } from "../components/Icon";
 import { ArtistTile, CollectionRow, LikedCover, PlaylistRow } from "../components/Tiles";
 import { TrackList } from "../components/TrackList";
@@ -9,11 +10,13 @@ import { useAsync } from "../lib/hooks";
 import { routes, useGo } from "../lib/navigation";
 import { useAuth } from "../state/auth";
 import { useLibrary } from "../state/library";
+import { useOffline } from "../state/offline";
 import { useToast } from "../state/toast";
 import { colors, radius, space } from "../theme";
 
 const TABS = [
   { id: "playlists", label: "Playlists" },
+  { id: "downloads", label: "Downloads" },
   { id: "artists", label: "Artists" },
   { id: "history", label: "Recently played" },
 ] as const;
@@ -21,7 +24,9 @@ type Tab = (typeof TABS)[number]["id"];
 
 export function LibraryScreen() {
   const { me, loading } = useAuth();
-  const [tab, setTab] = useState<Tab>("playlists");
+  // Offline, downloads are what can play, so they come first.
+  const { isOffline } = useOffline();
+  const [tab, setTab] = useState<Tab>(isOffline ? "downloads" : "playlists");
   const [version, setVersion] = useState(0);
   const library = useLibrary();
 
@@ -49,6 +54,8 @@ export function LibraryScreen() {
       <View style={{ marginTop: space.md }}>
         {tab === "playlists" ? (
           <Playlists />
+        ) : tab === "downloads" ? (
+          <DownloadsSection />
         ) : tab === "artists" ? (
           <Artists key={version} />
         ) : (

@@ -177,6 +177,11 @@ export interface ListenerStatementView {
     amount: number;
   }[];
   toHumanPot: { amount: number; reason: HumanPotReason } | null;
+  /**
+   * Streams counted this month that were played in an earlier one, because they
+   * reached us after that month was finalised (for example, listening offline).
+   */
+  lateStreams?: number;
 }
 
 export interface EarningsPeriod {
@@ -378,4 +383,93 @@ export interface RightsSummary {
   totalTracks: number;
   societyMember: { yes: number; no: number; unsure: number; notGiven: number };
   covers: number;
+}
+
+// Offline listening (downloads in the phone and desktop apps)
+
+/** One listen, reported by an app's play queue. Reporting the same id again never counts it twice. */
+export interface PlayReport {
+  /** Made up by the app (a UUID) when the listen starts. */
+  id: string;
+  trackId: string;
+  /** When the listen started. */
+  playedAt: string;
+  msPlayed: number;
+}
+
+export type PlayReportResult =
+  /** Kept. "counted" means it was long enough to count as a stream. */
+  | { id: string; status: "counted" | "recorded" }
+  | {
+      id: string;
+      status: "rejected";
+      /**
+       * too_old: played more than 30 days ago. not_subscribed: the listener wasn't
+       * subscribed when they played it. unavailable: the track has been taken down.
+       */
+      reason: "too_old" | "not_subscribed" | "unavailable";
+    };
+
+export interface PlayBatchResult {
+  results: PlayReportResult[];
+}
+
+/** Something a listener keeps downloaded. */
+export type OfflineCollectionRef = { type: "release" | "playlist"; id: string } | { type: "liked" };
+
+export interface OfflineCollection {
+  type: "release" | "playlist" | "liked";
+  /** Null for liked songs. */
+  id: string | null;
+  title: string;
+  /** The artist of a release, or the owner of a playlist. */
+  subtitle: string | null;
+  artworkUrl: string | null;
+  /** Its tracks that can be downloaded, in order. */
+  trackIds: string[];
+}
+
+export interface OfflineDevice {
+  /** Made up by the app when it's installed. */
+  id: string;
+  name: string;
+  platform: "ios" | "android" | "web" | "desktop";
+}
+
+export interface OfflineSyncRequest {
+  device: OfflineDevice;
+  collections: OfflineCollectionRef[];
+  /** Tracks already downloaded on this device. */
+  trackIds: string[];
+}
+
+export interface OfflineSync {
+  /**
+   * not_subscribed: delete every download. device_removed: downloads were used on
+   * too many other devices since this one last checked in, so delete them here.
+   */
+  status: "ok" | "not_subscribed" | "device_removed";
+  checkedAt: string;
+  /** Downloads play until then without checking in again. */
+  validUntil: string | null;
+  collections: OfflineCollection[];
+  /** Collections that have gone, or can no longer be seen (a playlist made private). */
+  unavailable: OfflineCollectionRef[];
+  /** Every track this device may keep: the collections' tracks and any it has that are still live. */
+  tracks: TrackSummary[];
+  /** Tracks on the device that have been taken down or suspended. Delete them. */
+  removedTrackIds: string[];
+}
+
+export interface DownloadAuthorization {
+  downloads: {
+    trackId: string;
+    /** A signed link, valid until expiresAt: long enough to finish the download. */
+    url: string;
+    expiresAt: string;
+    bytes: number;
+    mimeType: string;
+  }[];
+  /** Tracks that can't be downloaded (taken down, or not found). */
+  refusedTrackIds: string[];
 }

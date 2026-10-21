@@ -16,6 +16,7 @@ import { billingRoutes } from "./routes/billing";
 import { libraryRoutes } from "./routes/library";
 import { listeningRoutes } from "./routes/listening";
 import { moneyRoutes } from "./routes/money";
+import { offlineRoutes } from "./routes/offline";
 import { playlistRoutes } from "./routes/playlists";
 import { releaseRoutes } from "./routes/releases";
 import { trackRoutes } from "./routes/tracks";
@@ -75,6 +76,7 @@ export async function buildApp(deps: AppDeps, options: { logger?: boolean } = {}
       await api.register(moneyRoutes(deps));
       await api.register(billingRoutes(deps));
       await api.register(adminRoutes(deps));
+      await api.register(offlineRoutes(deps));
     },
     { prefix: "/api" },
   );

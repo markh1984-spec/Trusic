@@ -2,7 +2,8 @@
 
 The Trusic phone app. It does what the website does for listeners: browse new releases and tracks, search, see
 every track's AI label and score, play music with a queue (shuffle, repeat, play next), keep a library of playlists,
-liked songs and followed artists, see where your money went, and log in or sign up.
+liked songs and followed artists, see where your money went, and log in or sign up. Subscribers can also download
+music to listen without signal (see [Listening offline](#listening-offline)).
 
 It's one app for both iPhone and Android, built with [Expo](https://expo.dev) (React Native). The same code also runs
 in a web browser, which is handy for quick checks.
@@ -91,6 +92,42 @@ There are no free accounts and no ads. Anyone who isn't subscribed, including vi
 Google take a cut of in-app purchases and need paid developer accounts. Instead, the Account and Your money screens
 show whether you're subscribed and link to the website to subscribe. Coming back to the app checks again.
 
+## Listening offline
+
+Subscribers can download albums, EPs, singles, playlists and their liked songs to listen without signal:
+
+- **Download** switches are on release and playlist screens and on Liked songs. Tracks download in the background
+  while the app is open, on Wi-Fi only unless you turn that off.
+- **Library › Downloads** shows what's downloaded, how much space it takes, the "Download using Wi-Fi only" setting
+  and **Remove all downloads**.
+- **Offline**, a banner says so. Downloaded releases and playlists still open, and tracks that aren't downloaded are
+  greyed out. Downloaded tracks play from the phone, with or without signal.
+- Downloads are kept in the app's private storage, named by track id, never in a music folder. They belong to the
+  account and the phone: signing out deletes them, and so does the subscription ending. The app checks them with
+  Trusic whenever it's online (at least every 12 hours); after 30 days without a check they stop playing until it
+  can. Tracks that have been taken down are deleted at the next check. One account can keep downloads on up to five
+  phones and computers.
+- Every listen goes into a queue on the phone and is sent when there's a connection, so offline listening pays
+  artists. Plays more than 30 days old aren't accepted.
+
+The full rules are in [docs/PRODUCT.md](../../docs/PRODUCT.md).
+
+### What can only be checked on a real phone
+
+Downloads, offline mode and the play queue have been tested in a browser (where the app keeps downloads in the
+browser's own storage). These need a real iPhone and Android phone, ideally with a test build from EAS Build:
+
+- Downloading into the phone's storage with Expo's file system, and playing those files, including with the screen
+  locked.
+- What happens to a download in progress when the app goes to the background or is closed (it should carry on next
+  time the app opens).
+- Wi-Fi only: that downloads wait on mobile data and start on Wi-Fi.
+- Turning on aeroplane mode: the offline banner, greyed-out tracks and playing downloads.
+- The listen being reported when the app goes to the background mid-song, then once more when it ends, without
+  counting twice.
+- iPhone backups: downloads are in the app's documents folder, which iCloud backs up by default. Before the App Store,
+  they should be excluded from backups (Apple asks this of files that can be downloaded again).
+
 ## Publishing to the App Store and Google Play (later)
 
 When you're ready to put Trusic in the stores, you'll need:
@@ -122,7 +159,8 @@ the link may need to be hidden in some countries.
 - **Lock-screen buttons.** Expo's audio library gives the lock screen play/pause and skip forward/back within a track,
   but not next/previous track.
 - **Not yet tried on real phones.** It has been tested in a browser at phone size. iPhone and Android builds need
-  the steps above.
+  the steps above. For downloads, see [what can only be checked on a real phone](#what-can-only-be-checked-on-a-real-phone).
+- **Artwork offline.** Downloads keep the music but not the cover art, so covers may be blank without signal.
 
 ## For developers
 
@@ -133,9 +171,14 @@ the link may need to be hidden in some countries.
   website uses too.
 - The repo keeps pnpm's normal isolated installs. No Metro config is needed: Expo has set up monorepos automatically
   since SDK 52 and supports isolated installs since SDK 54.
-- Plays: the app counts how long each track is actually heard (seeking doesn't count) and reports it to the API
-  when the track ends or changes, or when the app goes to the background with nothing playing. If music keeps
-  playing in the background, the listen is reported when it ends or stops, so one listen is never counted twice.
+- Plays: the app counts how long each track is actually heard (seeking doesn't count) and puts it in the play queue
+  (`src/state/offline.tsx`) when the track ends or changes, or when the app goes to the background. If music keeps
+  playing in the background, the listen so far is reported then and again when it ends. Each listen has an id made
+  up on the phone and the API keeps one play per id, so it's never counted twice. The queue is sent to
+  `POST /api/plays/batch` whenever the server can be reached.
+- Downloads: the rules are shared with the desktop app in `@trusic/player` (`downloads.ts` and `outbox.ts`, with
+  tests). `src/lib/offline-storage.ts` keeps files with Expo's file system; `offline-storage.web.ts` is the browser
+  version.
 - The sign-in token is kept in the phone's secure storage (`expo-secure-store`), or `localStorage` in a browser.
 - `pnpm --filter @trusic/mobile typecheck` and `pnpm --filter @trusic/mobile test` run with the rest of the repo's
   checks.

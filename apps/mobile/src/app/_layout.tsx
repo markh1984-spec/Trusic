@@ -3,6 +3,7 @@ import { StatusBar } from "expo-status-bar";
 import { TrackActionsProvider } from "../components/TrackActions";
 import { AuthProvider } from "../state/auth";
 import { LibraryProvider } from "../state/library";
+import { OfflineProvider } from "../state/offline";
 import { PlayerProvider } from "../state/player";
 import { ToastProvider } from "../state/toast";
 import { colors } from "../theme";
@@ -26,18 +27,24 @@ export default function RootLayout() {
       <ToastProvider>
         <AuthProvider>
           <LibraryProvider>
-            <PlayerProvider>
-              <TrackActionsProvider>
-                <StatusBar style="light" />
-                <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
-                  <Stack.Screen name="(tabs)" />
-                  <Stack.Screen
-                    name="now-playing"
-                    options={{ presentation: "fullScreenModal", animation: "slide_from_bottom", title: "Now playing" }}
-                  />
-                </Stack>
-              </TrackActionsProvider>
-            </PlayerProvider>
+            <OfflineProvider>
+              <PlayerProvider>
+                <TrackActionsProvider>
+                  <StatusBar style="light" />
+                  <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
+                    <Stack.Screen name="(tabs)" />
+                    <Stack.Screen
+                      name="now-playing"
+                      options={{
+                        presentation: "fullScreenModal",
+                        animation: "slide_from_bottom",
+                        title: "Now playing",
+                      }}
+                    />
+                  </Stack>
+                </TrackActionsProvider>
+              </PlayerProvider>
+            </OfflineProvider>
           </LibraryProvider>
         </AuthProvider>
       </ToastProvider>

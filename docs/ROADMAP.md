@@ -46,6 +46,17 @@
   system's "now playing" controls. The server is chosen in the app. Unsigned installers come from a manual GitHub
   workflow.
 
+**Offline listening**
+
+- Subscribers download releases, playlists and liked songs in the phone and desktop apps, on up to five devices.
+  Downloads are checked online at least every 30 days, deleted when the subscription ends or on signing out, and
+  taken-down tracks are removed at the next check. The phone app has an offline mode, a Downloads section with
+  storage used and a Wi-Fi-only setting; the desktop app has a Downloads page and keeps playing when the server
+  can't be reached.
+- Both apps queue every play with an id made up on the device and send them when back online, so offline listening
+  pays artists and a play sent twice counts once. Plays that arrive after their month is finalised count in the next
+  month calculated, and listeners' statements say so.
+
 ## Next: things Spotify has that we don't yet
 
 - Recommendations and editorial: personalised home feed, radio, "Human-made only" listening mode.
@@ -55,7 +66,8 @@
   (the `MediaStorage` interface and signed URLs are already in place for this). Loudness normalisation. Resize
   artwork to standard sizes.
 - Social: shareable links with previews, collaborative playlists.
-- Offline downloads (mobile and desktop).
+- Downloads: a "Your devices" page to see and remove devices, downloading over mobile data per collection, and
+  saving artwork on phones for offline browsing.
 
 ## Apps
 
@@ -63,8 +75,9 @@
   and a Windows certificate) and automatic updates.
 - **iPhone and Android:** first version in `apps/mobile` (Expo), reusing `@trusic/core`, `@trusic/client` and the
   shared queue in `@trusic/player`. It has browse, search, AI labels, the player with background audio, library,
-  "your money" and accounts, and can be tried on a phone with Expo Go. Next: test builds with EAS Build, offline
-  downloads, and the app-store decisions below.
+  "your money" and accounts, downloads for listening offline, and can be tried on a phone with Expo Go. Next: test
+  builds with EAS Build, trying downloads on real phones (see apps/mobile/README.md), and the app-store decisions
+  below.
 - **App-store billing:** Apple and Google take 15–30% of in-app subscriptions. Revenue in the payout engine is
   _net_ revenue, so this is handled, but it changes what each subscriber is worth. Note that PRS calculates its fee
   on revenue before those fees. Many services send sign-ups to the web instead; that's a business decision.

@@ -31,12 +31,31 @@ This document is the source of truth for the rules. The code that implements the
 7. **Months are finalised.** A month is calculated, checked, then finalised. Until then it can be recalculated.
    Once finalised, its earnings can be paid out (via Stripe, once an artist has £10 or more available), and later
    corrections are made by clawing money back rather than rewriting the month.
+8. **Late plays.** Plays made offline reach us when the app is next online, up to 30 days later. A late play counts
+   in the month it was played if that month hasn't been calculated yet, or is recalculated before it's finalised.
+   If its month has already been finalised (or was finalised without it), it counts in the next month calculated,
+   paid from the listener's money for that month. Their statement for that month says how many streams arrived late.
 
 ### Listening
 
 - **Subscribers only. No free tier and no adverts.** Premium is £10.99 a month including VAT.
 - Anyone can browse the whole catalogue and hear **30-second previews**. Previews never count as plays, so only
   subscribers' listening moves money.
+
+### Listening offline
+
+- **Downloads.** In the phone and desktop apps (not the website), subscribers can download releases, playlists and
+  their liked songs. Downloads are kept inside the app, belong to one account on one device, and work on up to
+  **five devices** per account. Downloading on a sixth removes them from the one used least recently.
+- **Checked every 30 days.** The app checks its downloads with Trusic whenever it's online (at least every 12 hours).
+  If it hasn't checked for 30 days, downloads stop playing until it does.
+- **Removed when they should be.** All downloads are deleted when the subscription ends or the listener signs out.
+  Tracks that are taken down or suspended are deleted at the next check. A phone can be set to download on Wi-Fi only
+  (the default).
+- **Offline plays count.** The apps keep each listen in a queue and send it when they're back online. A play counts
+  if the listener was subscribed when they played it, it reaches us within 30 days, and the track is still up. Each
+  listen carries an id made up by the app, so sending it twice (a retry, or the phone reporting a listen early when it
+  goes to the background) never counts it twice. Late plays are paid as described in rule 8 above.
 
 ### Worked example
 
@@ -114,22 +133,28 @@ artist's declaration will remain the main evidence; see [research/ai-detection.m
 
 ## 3. Decisions log
 
-| Date       | Decision                                                                                                                             | Why                                                                                                                                        |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| 2026-10-06 | 80% artists / 20% platform, applied to net revenue.                                                                                  | Founder's model.                                                                                                                           |
-| 2026-10-06 | AI forfeits are redistributed human-weighted, not only to score-0 artists.                                                           | No cliff edge: an artist with score 1 shouldn't lose all redistribution compared with score 0. Every track earns exactly its score's rate. |
-| 2026-10-06 | User-centric payouts rather than Spotify-style pro-rata.                                                                             | Fairer to indie artists, much harder to game with stream farms, and suits a transparency brand.                                            |
-| 2026-10-06 | Score = declare + detect (raise only) + human appeal.                                                                                | Partial AI use can't be reliably detected from audio alone, and false positives shouldn't silently cut a human artist's pay.               |
-| 2026-10-06 | AI mastering and other engineering tools never affect the score.                                                                     | "What we're eliminating is the entire song being someone typing prompts."                                                                  |
-| 2026-10-06 | A listener's AI forfeits go to the human tracks _that listener_ played; only AI-only listeners' money goes to the platform-wide pot. | Keeps the user-centric promise: your money only reaches artists you listened to, unless none of them were human.                           |
-| 2026-10-06 | Payouts use each track's score at the time the month is calculated.                                                                  | Simple for now. To revisit before real payouts (see open questions).                                                                       |
-| 2026-10-06 | The score is per track. Artist pages show how many of their tracks are human-made.                                                   | Bands may use AI on one song and not others.                                                                                               |
-| 2026-10-06 | No free tier and no adverts. Non-subscribers can browse and hear 30-second previews.                                                 | Founder: no advertising on the platform. Previews let people discover music without free listening.                                        |
-| 2026-10-06 | Labels are "Human-made", "Partly AI" and "AI Slop".                                                                                  | Founder's choice: plain about what fully generated music is.                                                                               |
-| 2026-10-06 | AI assistance is free; only AI-generated parts raise the score.                                                                      | Light help can't be detected, so a penalty would only punish honest artists.                                                               |
-| 2026-10-06 | False declarations get a strike and an exact clawback; three strikes suspends the account.                                           | Declarations are the main evidence for partial AI, so lying has to cost more than it can earn.                                             |
-| 2026-10-06 | Months are finalised before payout; corrections after that are clawbacks.                                                            | A month can't be both recalculated and clawed back, which would charge an artist twice.                                                    |
-| 2026-10-06 | Collect songwriting details at upload; keep 80/20 as is until PRS's terms are known.                                                 | Needed for a PRS licence either way; how songwriting royalties fit the split needs legal advice (open question 10).                        |
+| Date       | Decision                                                                                                                              | Why                                                                                                                                         |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-10-06 | 80% artists / 20% platform, applied to net revenue.                                                                                   | Founder's model.                                                                                                                            |
+| 2026-10-06 | AI forfeits are redistributed human-weighted, not only to score-0 artists.                                                            | No cliff edge: an artist with score 1 shouldn't lose all redistribution compared with score 0. Every track earns exactly its score's rate.  |
+| 2026-10-06 | User-centric payouts rather than Spotify-style pro-rata.                                                                              | Fairer to indie artists, much harder to game with stream farms, and suits a transparency brand.                                             |
+| 2026-10-06 | Score = declare + detect (raise only) + human appeal.                                                                                 | Partial AI use can't be reliably detected from audio alone, and false positives shouldn't silently cut a human artist's pay.                |
+| 2026-10-06 | AI mastering and other engineering tools never affect the score.                                                                      | "What we're eliminating is the entire song being someone typing prompts."                                                                   |
+| 2026-10-06 | A listener's AI forfeits go to the human tracks _that listener_ played; only AI-only listeners' money goes to the platform-wide pot.  | Keeps the user-centric promise: your money only reaches artists you listened to, unless none of them were human.                            |
+| 2026-10-06 | Payouts use each track's score at the time the month is calculated.                                                                   | Simple for now. To revisit before real payouts (see open questions).                                                                        |
+| 2026-10-06 | The score is per track. Artist pages show how many of their tracks are human-made.                                                    | Bands may use AI on one song and not others.                                                                                                |
+| 2026-10-06 | No free tier and no adverts. Non-subscribers can browse and hear 30-second previews.                                                  | Founder: no advertising on the platform. Previews let people discover music without free listening.                                         |
+| 2026-10-06 | Labels are "Human-made", "Partly AI" and "AI Slop".                                                                                   | Founder's choice: plain about what fully generated music is.                                                                                |
+| 2026-10-06 | AI assistance is free; only AI-generated parts raise the score.                                                                       | Light help can't be detected, so a penalty would only punish honest artists.                                                                |
+| 2026-10-06 | False declarations get a strike and an exact clawback; three strikes suspends the account.                                            | Declarations are the main evidence for partial AI, so lying has to cost more than it can earn.                                              |
+| 2026-10-06 | Months are finalised before payout; corrections after that are clawbacks.                                                             | A month can't be both recalculated and clawed back, which would charge an artist twice.                                                     |
+| 2026-10-06 | Collect songwriting details at upload; keep 80/20 as is until PRS's terms are known.                                                  | Needed for a PRS licence either way; how songwriting royalties fit the split needs legal advice (open question 10).                         |
+| 2026-10-21 | Offline downloads for subscribers in the phone and desktop apps only, on up to five devices, checked online at least every 30 days.   | As Spotify does. Downloads stay tied to paying subscribers; the website can't keep files privately.                                         |
+| 2026-10-21 | Downloads are deleted when the subscription ends or the listener signs out. No DRM: files are kept inside the app, named by track id. | Simple and honest. Keeping them out of music folders stops casual copying; DRM would cost money and only slow down determined copiers.      |
+| 2026-10-21 | Plays from a month already finalised count in the next month calculated, paid from the listener's money for that month.               | Finalised months never change, so clawbacks stay exact. The listener's own money still only goes to music they played.                      |
+| 2026-10-21 | An offline play counts only if the listener was subscribed when they played it, it's under 30 days old and the track is still up.     | Stops listening on downloads after cancelling, and a track taken down (for a false declaration, say) shouldn't earn from plays heard later. |
+| 2026-10-21 | Every play the apps send carries an id made up on the device; the server keeps one play per id, with the longest listen reported.     | Retries never double-count, so the phone app can safely report a listen when it goes to the background, before the phone closes it.         |
+| 2026-10-21 | Plays are dated when the listen started; a phone whose clock is ahead has its plays dated when they reach us.                         | The start is when the listener chose to play it. A wrong clock shouldn't push plays into a future month.                                    |
 
 ## 4. Open questions
 
@@ -158,6 +183,11 @@ These need a decision from the founder. The current behaviour is in brackets.
 11. **How confident detection must be.** The research suggests only raising scores automatically when two signals
     agree that a whole track is generated, and sending partial-AI signals to a person. Adopt that? See
     [research/ai-detection.md](research/ai-detection.md). [one confident signal is enough]
+12. **Downloads.** Is five devices per account right, and should there be a limit on tracks per device (Spotify's is
+    10,000)? [five devices, no track limit]
+13. **Late plays after cancelling.** Someone who cancels, then sends plays from their last weeks of offline
+    listening, has no money in the month those plays are counted. Their plays then only share in the human pot.
+    Should those plays be paid some other way? [they share in the human pot]
 
 ## 5. Research
 

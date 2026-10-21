@@ -13,7 +13,7 @@ import { eq } from "drizzle-orm";
 import { buildApp } from "./app";
 import { loadConfig } from "./config";
 import { openDatabase } from "./db/client";
-import { plays, revenueEntries, users } from "./db/schema";
+import { plays, revenueEntries, subscriptionPeriods, users } from "./db/schema";
 import { MetadataDetector } from "./detection";
 import { createStripeClient } from "./routes/billing";
 import { currentPeriod, finalizeRun, periodBounds, previousPeriod, runPayouts } from "./payout-service";
@@ -377,6 +377,10 @@ for (const period of [previous, currentPeriod()]) {
   );
 }
 for (const i of premium) await db.update(users).set({ plan: "premium" }).where(eq(users.id, listeners[i]!.id));
+// Subscribed since the start of last month, so plays from offline listening since then count.
+await db
+  .insert(subscriptionPeriods)
+  .values(premium.map((i) => ({ userId: listeners[i]!.id, startedAt: periodBounds(previous)[0] })));
 
 console.log(`Running payouts for ${previous}…`);
 const run = await runPayouts(db, previous, config.currency);

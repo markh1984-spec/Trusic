@@ -36,6 +36,7 @@ import type {
   TrackList,
   Transparency,
 } from "./types";
+import type { DownloadAuthorization, OfflineSync, OfflineSyncRequest, PlayBatchResult, PlayReport } from "./types";
 
 export class ApiError extends Error {
   constructor(
@@ -206,6 +207,20 @@ export class TrusicClient {
   }
   recordPlay(trackId: string, msPlayed: number) {
     return this.request<PlayRecorded>("POST", "/plays", { trackId, msPlayed });
+  }
+
+  // Offline listening
+  /** Send plays from an app's play queue. Safe to retry: a play sent twice counts once. */
+  recordPlays(plays: PlayReport[]) {
+    return this.request<PlayBatchResult>("POST", "/plays/batch", { plays });
+  }
+  /** Check this device's downloads: what it may keep, and for how long. */
+  offlineSync(input: OfflineSyncRequest) {
+    return this.request<OfflineSync>("POST", "/offline/sync", input);
+  }
+  /** Signed links to download tracks with. Subscribers only. */
+  authorizeDownloads(deviceId: string, trackIds: string[]) {
+    return this.request<DownloadAuthorization>("POST", "/offline/downloads", { deviceId, trackIds });
   }
 
   // Library

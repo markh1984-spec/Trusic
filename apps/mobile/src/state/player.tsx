@@ -25,6 +25,7 @@ import { api, errorMessage, mediaUrl } from "../lib/api";
 import { DEFAULT_PREVIEW_MS } from "../lib/config";
 import { ListenTracker } from "../lib/listen-tracker";
 import { useAuth } from "./auth";
+import { useOffline } from "./offline";
 
 interface PlayerState {
   current: TrackSummary | null;
@@ -74,11 +75,13 @@ const ProgressContext = createContext<Progress>({ positionMs: 0, durationMs: 0 }
  * with the app in the background and with the screen locked.
  *
  * We count how long each track is actually heard (seeking doesn't count) and
- * report it with `api.recordPlay` when the track ends or changes, or when the
- * app goes to the background with nothing playing. While music carries on in
- * the background the listen isn't over yet, so it's reported when the track
- * ends or changes, or if playback stops while the app is in the background.
- * Reporting it early would split one listen into two plays.
+ * put it in the play queue (see state/offline.tsx) when the track ends or
+ * changes, or when the app goes to the background. If music carries on in the
+ * background, the listen so far is reported then, in case the phone closes the
+ * app, and again when it ends. Both reports carry the listen's id, so the
+ * server counts it once.
+ *
+ * Downloaded tracks play from the phone's storage, with or without signal.
  */
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const player = useAudioPlayer(null, { updateInterval: 250 });
@@ -102,10 +105,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const wasPlaying = useRef(false);
   const appState = useRef<AppStateStatus>(AppState.currentState);
 
-  /** Send the listen so far to the API. Resolves once it's sent (or failed). */
+  const offline = useOffline();
+  const offlineRef = useRef(offline);
+  offlineRef.current = offline;
+
+  /** End the listen and queue it to be sent (now, or when back online). */
   const report = useCallback(async () => {
     const listen = tracker.take();
-    if (listen) await api.recordPlay(listen.trackId, listen.msPlayed).catch(() => undefined);
+    if (listen) offlineRef.current.recordPlay(listen);
+  }, [tracker]);
+
+  /** Queue the listen so far without ending it. Sent again when it ends, under the same id. */
+  const reportSoFar = useCallback(() => {
+    const listen = tracker.snapshot();
+    if (listen) offlineRef.current.recordPlay(listen);
   }, [tracker]);
 
   // Keep playing with the screen locked or another app open, and on iPhones in silent mode.
@@ -168,10 +181,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const sub = AppState.addEventListener("change", (state) => {
       appState.current = state;
-      if (state === "background" && !player.playing) report();
+      if (state !== "background") return;
+      if (player.playing) reportSoFar();
+      else report();
     });
     return () => sub.remove();
-  }, [player, report]);
+  }, [player, report, reportSoFar]);
 
   // Load and start the current track whenever the queue says so.
   const current = queue.current;
@@ -188,15 +203,24 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setError(null);
     setPreviewEnded(false);
     setProgress({ positionMs: 0, durationMs: current.durationMs });
-    api
-      .streamUrl(current.id)
-      .then((stream) => {
+    // A downloaded copy plays from the phone. Otherwise it's streamed (a preview for non-subscribers).
+    const source = async (): Promise<{ uri: string; previewMs: number | null }> => {
+      const local = await offlineRef.current.localUri(current.id);
+      if (local) return { uri: local, previewMs: null };
+      if (offlineRef.current.isOffline) throw new Error("You're offline, and this track isn't downloaded.");
+      const stream = await api.streamUrl(current.id);
+      return {
+        uri: api.resolveUrl(stream.url),
+        previewMs: stream.preview ? (stream.previewMs ?? DEFAULT_PREVIEW_MS) : null,
+      };
+    };
+    source()
+      .then(({ uri, previewMs: limit }) => {
         if (cancelled) return;
-        const limit = stream.preview ? (stream.previewMs ?? DEFAULT_PREVIEW_MS) : null;
         loaded.current = { playId, previewMs: limit };
         setPreviewMs(limit);
-        tracker.start(current.id, { counts: !stream.preview });
-        player.replace({ uri: api.resolveUrl(stream.url) });
+        tracker.start(current.id, { counts: limit === null });
+        player.replace({ uri });
         player.play();
         const artworkUrl = mediaUrl(current.artworkUrl);
         player.setActiveForLockScreen(

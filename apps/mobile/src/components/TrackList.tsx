@@ -2,6 +2,8 @@ import type { TrackSummary } from "@trusic/client";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { duration } from "../lib/format";
 import { routes, useGo, usePlayTracks } from "../lib/navigation";
+import { playableQueue } from "../lib/offline";
+import { useOffline } from "../state/offline";
 import { usePlayer } from "../state/player";
 import { colors, space } from "../theme";
 import { AiBadge } from "./AiBadge";
@@ -38,6 +40,13 @@ export function TrackList({
   const player = usePlayer();
   const openActions = useTrackActions();
   const go = useGo();
+  const offline = useOffline();
+  // Offline, only downloaded tracks can play: the rest are greyed out and left out of the queue.
+  const canPlay = (track: TrackSummary) => !offline.isOffline || offline.isPlayable(track.id);
+  const playFrom = (i: number) => {
+    const queue = offline.isOffline ? playableQueue(tracks, i, canPlay) : { tracks, startIndex: i };
+    if (queue) play(queue.tracks, queue.startIndex, label);
+  };
 
   if (tracks.length === 0) return <Muted style={{ paddingVertical: space.md }}>{empty ?? "No tracks yet."}</Muted>;
 
@@ -45,14 +54,21 @@ export function TrackList({
     <View>
       {tracks.map((track, i) => {
         const isCurrent = player.current?.id === track.id;
+        const available = canPlay(track);
         return (
           <Pressable
             key={keys?.[i] ?? track.id}
-            onPress={() => (isCurrent ? player.toggle() : play(tracks, i, label))}
+            onPress={() => (isCurrent ? player.toggle() : playFrom(i))}
             onLongPress={() => openActions(track, extraActions?.(track, i))}
+            disabled={!available && !isCurrent}
             accessibilityRole="button"
-            accessibilityLabel={`${isCurrent && player.playing ? "Pause" : "Play"} ${track.title} by ${track.artist.name}`}
-            style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+            accessibilityState={{ disabled: !available }}
+            accessibilityLabel={
+              available
+                ? `${isCurrent && player.playing ? "Pause" : "Play"} ${track.title} by ${track.artist.name}`
+                : `${track.title} by ${track.artist.name}, not downloaded`
+            }
+            style={({ pressed }) => [styles.row, pressed && styles.pressed, !available && styles.unavailable]}
           >
             {numbered ? (
               <View style={styles.number}>
@@ -103,6 +119,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   pressed: { backgroundColor: colors.cardPressed },
+  unavailable: { opacity: 0.35 },
   number: { width: 28, alignItems: "center" },
   numberText: { color: colors.muted, fontSize: 15, fontVariant: ["tabular-nums"] },
   text: { flex: 1, minWidth: 0, gap: 4 },
