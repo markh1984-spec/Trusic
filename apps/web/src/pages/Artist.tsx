@@ -6,6 +6,7 @@ import { Artwork } from "../components/Artwork";
 import { CardGrid, ReleaseCard } from "../components/Cards";
 import { ErrorNote, Loading } from "../components/Guards";
 import { Icon } from "../components/Icon";
+import { MoreMenu } from "../components/MoreMenu";
 import { TrackList } from "../components/TrackList";
 import { plural } from "../format";
 import { useAsync } from "../hooks";
@@ -59,6 +60,10 @@ export function ArtistPage() {
             {following ? "Following" : "Follow"}
           </button>
         ) : null}
+        <MoreMenu
+          label={artist.name}
+          items={data.isOwner ? [] : [{ label: "Report…", to: `/report/artist/${artist.id}` }]}
+        />
       </div>
 
       {releases.length ? (

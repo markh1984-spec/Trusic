@@ -1,4 +1,12 @@
-import type { TrackCredits } from "@trusic/client";
+import type {
+  CopyrightNotice,
+  CounterNotice,
+  ReportMessageKind,
+  ReportReason,
+  ReportStatus,
+  ReportTargetType,
+  TrackCredits,
+} from "@trusic/client";
 import type {
   AiDeclaration,
   DetectionResult,
@@ -42,6 +50,10 @@ export const users = pgTable("users", {
   stripeSubscriptionId: text("stripe_subscription_id"),
   /** Stripe Connect: the account artist payouts are sent to. */
   stripeAccountId: text("stripe_account_id"),
+  /** When the owner proved they can read mail at `email`. Needed to upload or be paid. */
+  emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
+  /** Set when the account was deleted. The row stays, anonymised, because money records point at it. */
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
   createdAt: createdAt(),
 });
 
@@ -73,6 +85,8 @@ export const artists = pgTable(
     bio: text("bio").notNull().default(""),
     /** Storage key of the profile image, e.g. "images/<uuid>.jpg". */
     imageKey: text("image_key"),
+    /** Hidden after a report (see reports). Its owner and admins can still see it. */
+    takenDownAt: timestamp("taken_down_at", { withTimezone: true }),
     createdAt: createdAt(),
   },
   (t) => [index("artists_owner_idx").on(t.ownerUserId)],
@@ -93,10 +107,14 @@ export const releases = pgTable(
     /** "2026-10-06". Optional until the artist sets it. */
     releaseDate: text("release_date"),
     artworkKey: text("artwork_key"),
+    /** Hidden after a report (see reports). */
+    takenDownAt: timestamp("taken_down_at", { withTimezone: true }),
     createdAt: createdAt(),
   },
   (t) => [index("releases_artist_idx").on(t.artistId)],
 );
+
+export type TrackStatus = "live" | "removed" | "suspended" | "taken_down";
 
 export const tracks = pgTable(
   "tracks",
@@ -131,8 +149,11 @@ export const tracks = pgTable(
     /** Detection raised the score above the declaration. */
     flagged: boolean("flagged").notNull().default(false),
 
-    /** "suspended" hides a suspended artist's tracks until they're reinstated. */
-    status: text("status").$type<"live" | "removed" | "suspended">().notNull().default("live"),
+    /**
+     * "suspended" hides a suspended artist's tracks until they're reinstated. "taken_down" is set by an admin after a
+     * report: hidden everywhere, not streamable, and not paid for months still being calculated.
+     */
+    status: text("status").$type<TrackStatus>().notNull().default("live"),
     createdAt: createdAt(),
   },
   (t) => [
@@ -333,6 +354,8 @@ export const playlists = pgTable(
     name: text("name").notNull(),
     description: text("description").notNull().default(""),
     isPublic: boolean("is_public").notNull().default(true),
+    /** Hidden from everyone but its owner after a report. */
+    takenDownAt: timestamp("taken_down_at", { withTimezone: true }),
     createdAt: createdAt(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -408,4 +431,123 @@ export const ledgerEntries = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index("ledger_user_idx").on(t.userId)],
+);
+
+// ---------------------------------------------------------------------------
+// Account emails, reports and takedowns.
+
+export type EmailTokenPurpose = "verify_email" | "change_email" | "reset_password";
+
+/**
+ * Single-use links sent by email: confirm an address, switch to a new one, or reset a password.
+ * Only a hash of the token is stored.
+ */
+export const emailTokens = pgTable(
+  "email_tokens",
+  {
+    id: id(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    purpose: text("purpose").$type<EmailTokenPurpose>().notNull(),
+    tokenHash: text("token_hash").notNull().unique(),
+    /** The address the link was sent to. For "change_email", the new address. */
+    email: text("email").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("email_tokens_user_idx").on(t.userId, t.purpose)],
+);
+
+/** What an admin changed when taking something down, so it can be put back exactly. */
+export interface TakedownRecord {
+  tracks: { id: string; previousStatus: TrackStatus }[];
+  releaseIds: string[];
+  artistIds: string[];
+  playlistIds: string[];
+  /** Artwork taken off releases and artist profiles, with the image it pointed to. */
+  images: { on: "release" | "artist"; id: string; key: string }[];
+}
+
+/**
+ * Anyone can report a track, release, artist, playlist or a piece of artwork. Copyright, offensive and impersonation
+ * reports go to the takedown queue; wrong AI labels go to the score review next to appeals.
+ */
+export const reports = pgTable(
+  "reports",
+  {
+    id: id(),
+    targetType: text("target_type").$type<ReportTargetType>().notNull(),
+    /** A uuid, or for artwork the image's file name ("<uuid>.png"). */
+    targetId: text("target_id").notNull(),
+    /** What it was called when reported, e.g. "Chalk Paths by The Hollow Pines". */
+    targetTitle: text("target_title").notNull(),
+    /** Whoever uploaded or owns the reported content. */
+    ownerUserId: uuid("owner_user_id").references(() => users.id),
+    reason: text("reason").$type<ReportReason>().notNull(),
+    details: text("details").notNull(),
+    reporterUserId: uuid("reporter_user_id").references(() => users.id),
+    reporterName: text("reporter_name"),
+    reporterEmail: text("reporter_email"),
+    /** The parts of a copyright notice, for copyright reports. */
+    copyright: jsonb("copyright").$type<CopyrightNotice>(),
+    status: text("status").$type<ReportStatus>().notNull().default("open"),
+    /** Lets the reporter answer questions from a link in their email, without an account. */
+    replyTokenHash: text("reply_token_hash"),
+    /** Set while the content is down. */
+    takedown: jsonb("takedown").$type<TakedownRecord>(),
+    counterNotice: jsonb("counter_notice").$type<CounterNotice>(),
+    decidedByUserId: uuid("decided_by_user_id").references(() => users.id),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("reports_status_idx").on(t.status, t.createdAt),
+    index("reports_target_idx").on(t.targetType, t.targetId),
+    index("reports_owner_idx").on(t.ownerUserId),
+  ],
+);
+
+/** Everything said about a report, in order: questions, replies, decisions and counter-notices. */
+export const reportMessages = pgTable(
+  "report_messages",
+  {
+    id: id(),
+    reportId: uuid("report_id")
+      .notNull()
+      .references(() => reports.id, { onDelete: "cascade" }),
+    kind: text("kind").$type<ReportMessageKind>().notNull(),
+    authorUserId: uuid("author_user_id").references(() => users.id),
+    body: text("body").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("report_messages_report_idx").on(t.reportId, t.createdAt)],
+);
+
+/**
+ * An upheld copyright takedown, kept apart from strikes for false AI declarations. Three that haven't been
+ * withdrawn suspend the account. A strike is withdrawn if the content is put back after a counter-notice.
+ */
+export const copyrightStrikes = pgTable(
+  "copyright_strikes",
+  {
+    id: id(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    reportId: uuid("report_id")
+      .notNull()
+      .references(() => reports.id),
+    /** What was taken down, e.g. "Track: Chalk Paths by The Hollow Pines". */
+    targetTitle: text("target_title").notNull(),
+    reason: text("reason").notNull(),
+    issuedByUserId: uuid("issued_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    withdrawnAt: timestamp("withdrawn_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("copyright_strikes_user_idx").on(t.userId)],
 );
