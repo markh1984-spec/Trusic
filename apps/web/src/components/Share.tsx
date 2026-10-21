@@ -66,7 +66,7 @@ export function ShareButton({ target }: { target: ShareTarget }) {
         <Icon name="share" size={18} /> Share
       </button>
       {open ? (
-        <div className="menu__popover menu__popover--start" role="menu">
+        <div className="menu__popover menu__popover--left" role="menu">
           {actions.map((action) => (
             <button
               key={action.label}

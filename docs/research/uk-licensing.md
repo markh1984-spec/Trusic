@@ -67,7 +67,26 @@ original before it is used in a financial model.
 - declare the songwriters, their society memberships and their IPI numbers (the ID number each songwriter has at a
   collecting society);
 - confirm the AI declaration;
+- confirm that any lyrics the uploader adds are the band's own words, and that Trusic may show them;
 - include an indemnity (a promise to cover Trusic's losses if any of this turns out to be untrue).
+
+### Showing lyrics
+
+_Added 21 October 2026, when Trusic started showing lyrics. Not legal advice; based on the research above._
+
+- **Showing the words on screen is a separate use from playing the song.** The lyrics are part of the song (the
+  musical work), so the rights sit with the songwriters, or with their music publisher if they have one. Streaming
+  services usually license lyric display from publishers through aggregators such as LyricFind or Musixmatch (see
+  the table above). This research found nothing to say a PRS for Music licence covers showing lyrics as text, so
+  assume it doesn't until PRS confirms (**unverified**).
+- **Covers:** the words belong to someone else's songwriters. Without a lyric licence Trusic has no right to show
+  them, so Trusic doesn't accept lyrics for tracks marked as covers and hides any added before a track was marked as
+  one. A lyric aggregator's licence would change that; its cost for a small UK service is unknown.
+- **Original songs:** a band that wrote its own words and has no publisher can let Trusic show them. If a writer has
+  signed to a music publisher, the publisher may control this instead, even for the band's own song. Trusic shows
+  lyrics on the uploader's word, so the artist agreement should include that promise (above).
+- **Online safety:** lyrics are text that users upload and others read, so they belong in the Online Safety Act risk
+  assessment (section 4) and can be reported and taken down like the rest of a track.
 
 ## 2. PRS for Music and MCPS
 
@@ -308,7 +327,9 @@ nothing.
 2. Can we take direct song licences from writers who aren't in any collecting society? How do we check that they
    aren't?
 3. How should we handle covers, changed lyrics, samples and remixes?
-4. Can we show lyrics that artists wrote themselves without a lyric-aggregator licence?
+4. Can we show lyrics that artists wrote themselves without a lyric-aggregator licence, including when a writer has
+   a music publisher or is a PRS member? (Trusic shows them on the uploader's word and never shows lyrics for covers;
+   see "Showing lyrics" in section 1.)
 
 **PRS for Music**
 

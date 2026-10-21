@@ -1,10 +1,5 @@
 /* Sharing (Share menu, embed and QR dialogs) and lyrics (track page, player panel, Studio editor). */
 
-.menu__popover--start {
-  left: 0;
-  right: auto;
-}
-
 .dialog {
   width: min(560px, calc(100vw - 32px));
   max-height: calc(100vh - 48px);

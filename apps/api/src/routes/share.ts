@@ -104,8 +104,8 @@ export const shareRoutes =
     );
 
     /**
-     * oEmbed (https://oembed.com): lets website builders such as WordPress turn a pasted Trusic link into the
-     * embedded player.
+     * oEmbed (https://oembed.com): lets tools that support it turn a pasted Trusic link into the embedded player.
+     * Pages point to it with a <link rel="alternate" type="application/json+oembed"> tag.
      */
     app.get("/oembed", async (request) => {
       const query = OembedQuery.parse(request.query);
