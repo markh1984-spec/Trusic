@@ -15,9 +15,11 @@ import { artistRoutes } from "./routes/artists";
 import { billingRoutes } from "./routes/billing";
 import { libraryRoutes } from "./routes/library";
 import { listeningRoutes } from "./routes/listening";
+import { lyricsRoutes } from "./routes/lyrics";
 import { moneyRoutes } from "./routes/money";
 import { playlistRoutes } from "./routes/playlists";
 import { releaseRoutes } from "./routes/releases";
+import { shareRoutes } from "./routes/share";
 import { trackRoutes } from "./routes/tracks";
 import type { MediaStorage } from "./storage";
 
@@ -75,6 +77,9 @@ export async function buildApp(deps: AppDeps, options: { logger?: boolean } = {}
       await api.register(moneyRoutes(deps));
       await api.register(billingRoutes(deps));
       await api.register(adminRoutes(deps));
+      // Lyrics, link previews, share images and embeds.
+      await api.register(lyricsRoutes(deps));
+      await api.register(shareRoutes(deps));
     },
     { prefix: "/api" },
   );

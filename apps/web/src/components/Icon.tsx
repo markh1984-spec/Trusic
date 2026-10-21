@@ -35,6 +35,9 @@ const STROKES = {
   image: "M4 5h16v14H4zM4 16l5-5 4 4 3-3 4 4",
   check: "M5 12.5l4.5 4.5L19 7.5",
   back: "M15 6l-6 6 6 6",
+  // Sharing and lyrics
+  share: "M12 3v12M7.5 7.5 12 3l4.5 4.5M5 12v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-7",
+  lyrics: "M12 4a3 3 0 0 1 3 3v4a3 3 0 0 1-6 0V7a3 3 0 0 1 3-3zM6 11a6 6 0 0 0 12 0M12 17v3",
 } as const;
 
 export type IconName = keyof typeof PATHS | keyof typeof STROKES;

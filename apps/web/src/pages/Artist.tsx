@@ -6,11 +6,13 @@ import { Artwork } from "../components/Artwork";
 import { CardGrid, ReleaseCard } from "../components/Cards";
 import { ErrorNote, Loading } from "../components/Guards";
 import { Icon } from "../components/Icon";
+import { ShareButton } from "../components/Share";
 import { TrackList } from "../components/TrackList";
 import { plural } from "../format";
 import { useAsync } from "../hooks";
 import { useLibrary } from "../library";
 import { usePlayTracks } from "../player";
+import { usePageTitle } from "../share";
 
 export function ArtistPage() {
   const { slug = "" } = useParams();
@@ -18,6 +20,7 @@ export function ArtistPage() {
   const { me } = useAuth();
   const library = useLibrary();
   const play = usePlayTracks();
+  usePageTitle(data?.artist.name ?? null);
 
   if (error) return <ErrorNote message={error} />;
   if (loading || !data) return <Loading />;
@@ -59,6 +62,7 @@ export function ArtistPage() {
             {following ? "Following" : "Follow"}
           </button>
         ) : null}
+        <ShareButton target={{ kind: "artist", key: artist.slug, title: artist.name }} />
       </div>
 
       {releases.length ? (

@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.8",
+    "@expo-google-fonts/inter": "^0.4.2",
     "@fastify/cors": "^11.3.0",
     "@fastify/multipart": "^10.1.2",
     "@fastify/rate-limit": "^11.2.0",
@@ -23,6 +24,7 @@
     "@trusic/core": "workspace:*",
     "drizzle-orm": "^0.45.3",
     "fastify": "^5.12.5",
+    "jpeg-js": "^0.4.4",
     "music-metadata": "^12.0.0",
     "pg": "^8.23.1",
     "stripe": "^23.0.0",

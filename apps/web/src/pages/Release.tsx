@@ -4,15 +4,18 @@ import { Artwork } from "../components/Artwork";
 import { releaseAiSummary, releaseYear, TYPE_NAMES } from "../components/Cards";
 import { ErrorNote, Loading } from "../components/Guards";
 import { Icon } from "../components/Icon";
+import { ShareButton } from "../components/Share";
 import { TrackList } from "../components/TrackList";
 import { duration, plural } from "../format";
 import { useAsync } from "../hooks";
 import { usePlayTracks } from "../player";
+import { usePageTitle } from "../share";
 
 export function ReleasePage() {
   const { id = "" } = useParams();
   const { data: release, error, loading } = useAsync(() => api.release(id), [id]);
   const play = usePlayTracks();
+  usePageTitle(release ? `${release.title} · ${TYPE_NAMES[release.type]} by ${release.artist.name}` : null);
 
   if (error) return <ErrorNote message={error} />;
   if (loading || !release) return <Loading />;
@@ -51,6 +54,9 @@ export function ReleasePage() {
             <Icon name="play" size={26} />
           </button>
         ) : null}
+        <ShareButton
+          target={{ kind: "release", key: release.id, title: `${release.title} · ${release.artist.name}` }}
+        />
         {release.isOwner ? (
           <Link to={`/studio/release/${release.id}`} className="button button--ghost">
             Edit release

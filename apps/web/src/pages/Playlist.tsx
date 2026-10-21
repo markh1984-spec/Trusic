@@ -5,11 +5,13 @@ import { api } from "../api";
 import { PlaylistCover } from "../components/Artwork";
 import { ErrorNote, Loading } from "../components/Guards";
 import { Icon } from "../components/Icon";
+import { ShareButton } from "../components/Share";
 import { TrackList } from "../components/TrackList";
 import { duration, plural } from "../format";
 import { useAsync } from "../hooks";
 import { useLibrary } from "../library";
 import { usePlayTracks } from "../player";
+import { usePageTitle } from "../share";
 import { useToast } from "../toast";
 
 export function PlaylistPage() {
@@ -23,6 +25,7 @@ export function PlaylistPage() {
   const navigate = useNavigate();
 
   useEffect(() => setPlaylist(data), [data]);
+  usePageTitle(playlist?.name ?? null);
 
   if (error) return <ErrorNote message={error} />;
   if (loading || !playlist) return <Loading />;
@@ -93,6 +96,11 @@ export function PlaylistPage() {
           >
             <Icon name="play" size={26} />
           </button>
+        ) : null}
+        {playlist.isPublic ? (
+          <ShareButton
+            target={{ kind: "playlist", key: playlist.id, title: `${playlist.name} · ${playlist.owner.displayName}` }}
+          />
         ) : null}
         {playlist.isOwner && !editing ? (
           <>

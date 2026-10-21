@@ -4,6 +4,7 @@ import { useAuth } from "../auth";
 import { useLibrary } from "../library";
 import { useToast } from "../toast";
 import { Icon, type IconName } from "./Icon";
+import { LyricsPanel } from "./Lyrics";
 import { PlayerBar } from "./PlayerBar";
 import { QueuePanel } from "./QueuePanel";
 
@@ -22,6 +23,7 @@ export function Layout() {
   const [params] = useSearchParams();
   const [query, setQuery] = useState(params.get("q") ?? "");
   const [queueOpen, setQueueOpen] = useState(false);
+  const [lyricsOpen, setLyricsOpen] = useState(false);
 
   const onSearch = (e: FormEvent) => {
     e.preventDefault();
@@ -120,8 +122,14 @@ export function Layout() {
         </main>
       </div>
 
-      <PlayerBar queueOpen={queueOpen} onToggleQueue={() => setQueueOpen((o) => !o)} />
+      <PlayerBar
+        queueOpen={queueOpen}
+        onToggleQueue={() => (setLyricsOpen(false), setQueueOpen((o) => !o))}
+        lyricsOpen={lyricsOpen}
+        onToggleLyrics={() => (setQueueOpen(false), setLyricsOpen((o) => !o))}
+      />
       {queueOpen ? <QueuePanel onClose={() => setQueueOpen(false)} /> : null}
+      {lyricsOpen ? <LyricsPanel onClose={() => setLyricsOpen(false)} /> : null}
     </div>
   );
 }

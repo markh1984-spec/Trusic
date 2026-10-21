@@ -36,6 +36,7 @@ import type {
   TrackList,
   Transparency,
 } from "./types";
+import type { LyricsFormat, LyricsTrack, SiteInfo, TrackLyrics } from "./types";
 
 export class ApiError extends Error {
   constructor(
@@ -206,6 +207,25 @@ export class TrusicClient {
   }
   recordPlay(trackId: string, msPlayed: number) {
     return this.request<PlayRecorded>("POST", "/plays", { trackId, msPlayed });
+  }
+
+  // Lyrics and sharing
+  lyrics(trackId: string) {
+    return this.request<TrackLyrics>("GET", `/tracks/${trackId}/lyrics`);
+  }
+  /** Only the uploader and the track's split members can set lyrics. */
+  setLyrics(trackId: string, input: { format: LyricsFormat; text: string }) {
+    return this.request<TrackLyrics>("PUT", `/tracks/${trackId}/lyrics`, input);
+  }
+  deleteLyrics(trackId: string) {
+    return this.request<void>("DELETE", `/tracks/${trackId}/lyrics`);
+  }
+  /** Tracks whose lyrics the signed-in user can edit. */
+  lyricsTracks() {
+    return this.request<LyricsTrack[]>("GET", "/me/lyrics");
+  }
+  siteInfo() {
+    return this.request<SiteInfo>("GET", "/share/site");
   }
 
   // Library

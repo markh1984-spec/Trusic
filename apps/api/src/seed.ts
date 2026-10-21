@@ -274,6 +274,36 @@ for (const [owner, key, credits] of [
   await call("PUT", `/api/tracks/${t[key]}/credits`, owner.token, credits);
 }
 
+// Lyrics: synced on one track, so the player's Lyrics panel follows it, and plain text on another.
+await call("PUT", `/api/tracks/${t.pines1}/lyrics`, pines.token, {
+  format: "synced",
+  text: [
+    "[00:03.00]Down the chalk paths in the morning light",
+    "[00:08.50]Footprints filling up with rain",
+    "[00:14.00]Every hedge we passed was singing",
+    "[00:19.50]Every gate swung back again",
+    "[00:25.00]",
+    "[00:27.00]Oh, carry me home the long way round",
+    "[00:32.50]Over the downs where the larks are loud",
+    "[00:38.00]We never needed a map to find it",
+    "[00:43.50]Just the white line through the ground",
+  ].join("\n"),
+});
+await call("PUT", `/api/tracks/${t.mara1}/lyrics`, mara.token, {
+  format: "plain",
+  text: [
+    "Folded a boat from yesterday's paper",
+    "Set it down where the river bends",
+    "Watched it lean into the current",
+    "Like it knew where the water ends",
+    "",
+    "Paper boats, paper boats",
+    "Everything I meant to say",
+    "Paper boats, paper boats",
+    "Floating out the other way",
+  ].join("\n"),
+});
+
 console.log("Creating releases and libraries…");
 const releaseIds: Record<string, string> = {};
 async function release(
