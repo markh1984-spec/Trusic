@@ -118,6 +118,9 @@ export function TrackMenu({ track, extraItems = [] }: { track: TrackSummary; ext
               <button role="menuitem" onClick={() => (close(), navigate(`/track/${track.id}`))}>
                 AI transparency
               </button>
+              <button role="menuitem" onClick={() => (close(), navigate(`/report/track/${track.id}`))}>
+                Report…
+              </button>
               {extraItems.length ? <hr /> : null}
               {extraItems.map((item) => (
                 <button key={item.label} role="menuitem" onClick={() => (close(), item.onSelect())}>

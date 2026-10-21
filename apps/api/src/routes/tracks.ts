@@ -11,7 +11,7 @@ import {
   resolveAiScore,
   scoreDeclaration,
 } from "@trusic/core";
-import { and, count, desc, eq, gte, ilike, inArray, lt, max, or, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, gte, ilike, inArray, lt, max, ne, or, type SQL } from "drizzle-orm";
 import type { FastifyPluginAsync } from "fastify";
 import { parseFile, type IAudioMetadata } from "music-metadata";
 import { z } from "zod";
@@ -20,6 +20,7 @@ import { optionalUser, requireUser } from "../auth";
 import { appeals, artists, releases, trackSplits, tracks, users } from "../db/schema";
 import { HttpError } from "../errors";
 import { CreditsSchema } from "../credits";
+import { requireVerifiedEmail } from "../email-tokens";
 import { withUpload } from "../uploads";
 import { isArtistOwner, loadTrackDetail, selectTrackSummaries, toAppeal, toTrackSummary } from "../views";
 
@@ -118,8 +119,12 @@ export const trackRoutes =
     app.post("/tracks", async (request, reply) => {
       const user = await requireUser(db, request);
       if (user.suspendedAt) {
-        throw new HttpError(403, "Your account is suspended after three false AI declarations, so you can't upload.");
+        throw new HttpError(
+          403,
+          "Your account is suspended after three strikes (false AI declarations or upheld copyright claims), so you can't upload.",
+        );
       }
+      requireVerifiedEmail(user, "upload music");
       return withUpload(request, storage, "audio", async ({ fields, filePath }) => {
         if (!filePath) throw new HttpError(400, 'Attach the audio file in a field named "audio".');
 
@@ -207,8 +212,12 @@ export const trackRoutes =
     app.delete<{ Params: { id: string } }>("/tracks/:id", async (request, reply) => {
       const user = await requireUser(db, request);
       const track = await ownedTrack(z.uuid().parse(request.params.id), user.id);
-      // Keep the row: past statements and payouts still refer to it.
-      await db.update(tracks).set({ status: "removed" }).where(eq(tracks.id, track.id));
+      // Keep the row: past statements and payouts still refer to it. A taken-down track stays taken down, so
+      // removing it can't bring back the earnings a takedown stops.
+      await db
+        .update(tracks)
+        .set({ status: "removed" })
+        .where(and(eq(tracks.id, track.id), ne(tracks.status, "taken_down")));
       return reply.code(204).send();
     });
 

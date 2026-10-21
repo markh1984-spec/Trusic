@@ -52,6 +52,9 @@ export function LoginPage() {
           onChange={(e) => setPassword(e.target.value)}
         />
       </label>
+      <Link to="/forgot-password" className="small">
+        Forgotten your password?
+      </Link>
       <button className="button" disabled={busy}>
         {busy ? "Logging in…" : "Log in"}
       </button>
