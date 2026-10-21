@@ -223,6 +223,19 @@ export const plays = pgTable(
     playedAt: timestamp("played_at", { withTimezone: true }).notNull().defaultNow(),
     /** Where the play started: a release, a playlist, search, radio… (PLAY_SOURCES). Null from older apps. */
     source: text("source").$type<PlaySource>(),
+    /**
+     * Made up by the app that recorded the play, so a report sent twice (a retry, or
+     * the phone app reporting a listen early when it goes to the background) is
+     * counted once. Null for plays reported the original way, straight after listening.
+     */
+    clientPlayId: uuid("client_play_id"),
+    /**
+     * The payout month this play is counted in, set when a month's payouts are
+     * calculated. Plays with a clientPlayId only count once they're given a month,
+     * which is how late plays from offline listening reach the next open month
+     * (see late-plays.ts). Plays without one count in the month they were played.
+     */
+    countedInPeriod: text("counted_in_period"),
   },
   (t) => [
     index("plays_played_at_idx").on(t.playedAt),
@@ -230,6 +243,8 @@ export const plays = pgTable(
     // Artist stats and recommendations read one track's plays at a time, so they never scan the whole table.
     // The extra columns let Postgres answer them from the index alone (see stats-service.ts).
     index("plays_track_idx").on(t.trackId, t.playedAt, t.userId, t.msPlayed, t.source),
+    uniqueIndex("plays_client_play_idx").on(t.userId, t.clientPlayId),
+    index("plays_counted_in_idx").on(t.countedInPeriod),
   ],
 );
 
@@ -561,4 +576,42 @@ export const copyrightStrikes = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index("copyright_strikes_user_idx").on(t.userId)],
+);
+
+/**
+ * When each listener was subscribed. Plays from offline listening arrive late,
+ * and only count if the listener was subscribed when they played.
+ */
+export const subscriptionPeriods = pgTable(
+  "subscription_periods",
+  {
+    id: id(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    /** Null while the subscription is running. */
+    endedAt: timestamp("ended_at", { withTimezone: true }),
+  },
+  (t) => [index("subscription_periods_user_idx").on(t.userId, t.startedAt)],
+);
+
+/** Phones and computers that keep downloads for an account. */
+export const offlineDevices = pgTable(
+  "offline_devices",
+  {
+    id: id(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** Made up by the app when it's installed. */
+    deviceKey: text("device_key").notNull(),
+    name: text("name").notNull(),
+    platform: text("platform").notNull(),
+    lastSyncAt: timestamp("last_sync_at", { withTimezone: true }).notNull().defaultNow(),
+    /** Set when downloads on more recently used devices pushed this one out. It's told at its next check. */
+    removedAt: timestamp("removed_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("offline_devices_user_key_idx").on(t.userId, t.deviceKey)],
 );

@@ -14,6 +14,7 @@ import {
   tracks,
   users,
 } from "../db/schema";
+import { lateStreamsByPeriod } from "../late-plays";
 import { currentPeriod, runSummaries } from "../payout-service";
 import { loadStrikes } from "../strikes";
 import { loadTrackSummaries, toUser } from "../views";
@@ -35,7 +36,9 @@ export const moneyRoutes =
         db,
         rows.flatMap((r) => r.statement.allocations.map((a) => a.trackId)),
       );
+      const late = await lateStreamsByPeriod(db, user.id);
       return rows.map(({ statement: s, period, currency }) => ({
+        ...(late.get(period) ? { lateStreams: late.get(period) } : {}),
         period,
         currency,
         revenue: s.revenue,

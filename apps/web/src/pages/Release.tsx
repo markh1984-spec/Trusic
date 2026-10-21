@@ -9,6 +9,7 @@ import { MoreMenu } from "../components/MoreMenu";
 import { TrackList } from "../components/TrackList";
 import { duration, plural } from "../format";
 import { useAsync } from "../hooks";
+import { DownloadButton } from "../offline/DownloadButton";
 import { usePlayTracks } from "../player";
 
 export function ReleasePage() {
@@ -58,6 +59,16 @@ export function ReleasePage() {
             Edit release
           </Link>
         ) : null}
+        <DownloadButton
+          collection={{
+            type: "release",
+            id: release.id,
+            title: release.title,
+            subtitle: release.artist.name,
+            artworkUrl: release.artworkUrl,
+            trackIds: release.tracks.map((t) => t.id),
+          }}
+        />
         <MoreMenu
           label={release.title}
           items={release.isOwner ? [] : [{ label: "Report…", to: `/report/release/${release.id}` }]}

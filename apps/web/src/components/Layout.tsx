@@ -2,6 +2,8 @@ import { useState, type FormEvent } from "react";
 import { Link, NavLink, Outlet, useNavigate, useSearchParams } from "react-router";
 import { useAuth } from "../auth";
 import { useLibrary } from "../library";
+import { OfflineBanner } from "../offline/OfflineBanner";
+import { useDesktopOffline } from "../offline/offline";
 import { useToast } from "../toast";
 import { HumanOnlyToggle } from "./HumanOnlyToggle";
 import { Icon, type IconName } from "./Icon";
@@ -20,6 +22,7 @@ function NavItem({ to, icon, children }: { to: string; icon: IconName; children:
 
 export function Layout() {
   const { me, logout } = useAuth();
+  const desktopOffline = useDesktopOffline();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [query, setQuery] = useState(params.get("q") ?? "");
@@ -52,6 +55,11 @@ export function Layout() {
               <NavItem to="/library" icon="library">
                 Your library
               </NavItem>
+              {desktopOffline ? (
+                <NavItem to="/downloads" icon="download">
+                  Downloads
+                </NavItem>
+              ) : null}
               <div className="nav__heading">You</div>
               <NavItem to="/money" icon="money">
                 Your money
@@ -122,6 +130,7 @@ export function Layout() {
           </div>
         </header>
         <main className="content">
+          <OfflineBanner />
           <VerifyBanner />
           <Outlet />
           <footer className="site-footer">

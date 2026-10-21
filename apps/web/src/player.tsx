@@ -12,6 +12,7 @@ import {
 } from "react";
 import { api, API_BASE, tokenStore } from "./api";
 import { useHumanOnly } from "./human-only";
+import { useDesktopOffline } from "./offline/offline";
 import {
   currentPlaySource,
   hasNext,
@@ -88,13 +89,19 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const listened = useRef({ trackId: null as string | null, ms: 0, lastTime: 0, source: null as PlaySource | null });
   const current = queue.current;
+  // In the desktop app, plays go through its play queue, so listening offline still counts.
+  const offline = useDesktopOffline();
+  const desktopOffline = useRef(offline);
+  desktopOffline.current = offline;
 
   const report = useCallback((keepalive = false) => {
     const { trackId, ms, source } = listened.current;
     listened.current = { trackId: null, ms: 0, lastTime: 0, source: null };
     if (!trackId || ms < 1000) return;
     const msPlayed = Math.round(ms);
-    if (keepalive) {
+    if (desktopOffline.current) {
+      desktopOffline.current.recordPlay(trackId, msPlayed, source);
+    } else if (keepalive) {
       // The page is closing: a normal request would be cancelled.
       const token = tokenStore.get();
       void fetch(`${API_BASE}/plays`, {

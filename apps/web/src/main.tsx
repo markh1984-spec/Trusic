@@ -5,6 +5,7 @@ import { App } from "./App";
 import { AuthProvider } from "./auth";
 import { HumanOnlyProvider } from "./human-only";
 import { LibraryProvider } from "./library";
+import { OfflineProvider } from "./offline/offline";
 import { PlayerProvider } from "./player";
 import { ToastProvider } from "./toast";
 import "./styles.css";
@@ -16,11 +17,13 @@ createRoot(document.getElementById("root")!).render(
       <AuthProvider>
         <HumanOnlyProvider>
           <LibraryProvider>
-            <PlayerProvider>
-              <ToastProvider>
-                <App />
-              </ToastProvider>
-            </PlayerProvider>
+            <OfflineProvider>
+              <PlayerProvider>
+                <ToastProvider>
+                  <App />
+                </ToastProvider>
+              </PlayerProvider>
+            </OfflineProvider>
           </LibraryProvider>
         </HumanOnlyProvider>
       </AuthProvider>
