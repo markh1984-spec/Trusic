@@ -3,6 +3,7 @@ import { useState, type FormEvent } from "react";
 import { Link } from "react-router";
 import { api } from "../api";
 import { AiBadge } from "../components/AiBadge";
+import { FailedUploads } from "../components/FailedUploads";
 import { ErrorNote, Loading, RequireAuth } from "../components/Guards";
 import { LabelReports, ReportsAdmin } from "../components/ReportsAdmin";
 import { money, periodName } from "../format";
@@ -15,6 +16,7 @@ export function AdminPage() {
       <h1>Admin</h1>
       <Payouts />
       <ReportsAdmin />
+      <FailedUploads />
       <Appeals />
       <Strikes />
       <Rights />

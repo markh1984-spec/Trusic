@@ -92,7 +92,11 @@ export const artists = pgTable(
     takenDownAt: timestamp("taken_down_at", { withTimezone: true }),
     createdAt: createdAt(),
   },
-  (t) => [index("artists_owner_idx").on(t.ownerUserId)],
+  (t) => [
+    index("artists_owner_idx").on(t.ownerUserId),
+    // Pictures are only shown while something public uses them (see media/image-access.ts).
+    index("artists_image_idx").on(t.imageKey),
+  ],
 );
 
 export type ReleaseType = "album" | "ep" | "single";
@@ -114,7 +118,7 @@ export const releases = pgTable(
     takenDownAt: timestamp("taken_down_at", { withTimezone: true }),
     createdAt: createdAt(),
   },
-  (t) => [index("releases_artist_idx").on(t.artistId)],
+  (t) => [index("releases_artist_idx").on(t.artistId), index("releases_artwork_idx").on(t.artworkKey)],
 );
 
 export type TrackStatus = "live" | "removed" | "suspended" | "taken_down" | "processing" | "failed";
@@ -680,7 +684,29 @@ export const offlineDevices = pgTable(
     lastSyncAt: timestamp("last_sync_at", { withTimezone: true }).notNull().defaultNow(),
     /** Set when downloads on more recently used devices pushed this one out. It's told at its next check. */
     removedAt: timestamp("removed_at", { withTimezone: true }),
+    /** Why it was removed: "limit" (pushed out, as above) or "listener" (removed in Settings). */
+    removedReason: text("removed_reason").$type<"limit" | "listener">(),
+    /** How many tracks it had downloaded when it last checked in. */
+    trackCount: integer("track_count"),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("offline_devices_user_key_idx").on(t.userId, t.deviceKey)],
+);
+
+/**
+ * Every follow and unfollow as it happened, so artists' stats can show followers lost as well as gained. It doesn't
+ * say who: `follows` has that, for as long as they follow. Follows made before this was kept were copied in as
+ * follows on the day they were made.
+ */
+export const followEvents = pgTable(
+  "follow_events",
+  {
+    id: id(),
+    artistId: uuid("artist_id")
+      .notNull()
+      .references(() => artists.id, { onDelete: "cascade" }),
+    kind: text("kind").$type<"follow" | "unfollow">().notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("follow_events_artist_idx").on(t.artistId, t.createdAt)],
 );

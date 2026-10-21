@@ -8,7 +8,8 @@ import { ArtistShelf } from "../components/Shelves";
 import { ReleaseTile, Shelf } from "../components/Tiles";
 import { TrackList } from "../components/TrackList";
 import { Button, ErrorScreen, Heading, Loading, Muted, PlayButton, Screen } from "../components/ui";
-import { api } from "../lib/api";
+import { TakenDownNotice, UnavailableScreen } from "../components/Unavailable";
+import { api, isUnavailableError } from "../lib/api";
 import { plural } from "../lib/format";
 import { useAsync } from "../lib/hooks";
 import { labelName } from "../lib/labels";
@@ -21,23 +22,25 @@ import { useToast } from "../state/toast";
 import { colors, space } from "../theme";
 
 export function ArtistScreen({ slug }: { slug: string }) {
-  const { data, error, loading, reload } = useAsync(() => api.artist(slug), [slug]);
+  const { data, error, cause, loading, reload } = useAsync(() => api.artist(slug), [slug]);
   const { me } = useAuth();
   const library = useLibrary();
   const play = usePlayTracks();
   const player = usePlayer();
   const toast = useToast();
   const artist = data?.artist;
+  // A taken-down page can only be seen by its owner and admins: its link shows nothing to anyone else.
+  const listed = artist && !data.takenDown ? artist : null;
   const actions = usePageActions({
     title: artist?.name ?? "",
     subtitle: "Artist",
     artwork: { url: artist?.imageUrl ?? null, round: true },
-    radio: artist && data.tracks.length ? { type: "artist", id: artist.id } : null,
-    share: artist ? { kind: "artist", key: artist.slug, title: artist.name } : null,
-    report: artist && !data.isOwner ? { type: "artist", id: artist.id } : null,
+    radio: listed && data?.tracks.length ? { type: "artist", id: listed.id } : null,
+    share: listed ? { kind: "artist", key: listed.slug, title: listed.name } : null,
+    report: listed && !data?.isOwner ? { type: "artist", id: listed.id } : null,
   });
 
-  if (error) return <ErrorScreen message={error} />;
+  if (error) return isUnavailableError(cause) ? <UnavailableScreen kind="artist" /> : <ErrorScreen message={error} />;
   if (loading || !data || !artist) return <Loading />;
 
   const { tracks, releases } = data;
@@ -50,6 +53,7 @@ export function ArtistScreen({ slug }: { slug: string }) {
   return (
     <Screen onRefresh={reload}>
       <Stack.Screen options={{ title: artist.name }} />
+      {data.takenDown ? <TakenDownNotice kind="artist" isOwner={data.isOwner} /> : null}
       <View style={styles.hero}>
         <Artwork url={artist.imageUrl} title={artist.name} size={180} round />
         <Text style={styles.name}>{artist.name}</Text>

@@ -1,8 +1,19 @@
 import { imageSrcSet, sizedImageUrl } from "@trusic/client";
 import type { AiLabel } from "@trusic/core";
+import { useEffect, useState } from "react";
 
 /** How wide a "fill" image is on screen: half the width on phones, a grid tile (about 160–240 px) otherwise. */
 const FILL_SIZES = "(max-width: 600px) 50vw, 240px";
+
+/**
+ * Pictures that aren't public any more (taken down after a report, say) are only sent to their owner and admins,
+ * and an <img> can't send a login. The app sets this so such pictures are fetched with the login instead. Embedded
+ * players never set it: nobody signs in inside someone else's website.
+ */
+let imageLogin: () => string | null = () => null;
+export function setImageLogin(getToken: () => string | null) {
+  imageLogin = getToken;
+}
 
 /**
  * An <img> that lets the browser choose from the server's sizes (120, 300 or 640 pixels square) to suit how big it
@@ -18,14 +29,36 @@ function SizedImage({
   className?: string;
   style?: object;
 }) {
+  const src = sizedImageUrl(url, size === "fill" ? 640 : size * 2);
+  const [withLogin, setWithLogin] = useState<{ src: string; blob: string | null } | null>(null);
+  const fallback = withLogin?.src === src ? withLogin : null;
+
+  useEffect(() => {
+    const blob = fallback?.blob;
+    return () => {
+      if (blob) URL.revokeObjectURL(blob);
+    };
+  }, [fallback?.blob]);
+
+  const onError = () => {
+    const token = imageLogin();
+    if (!token || fallback) return;
+    setWithLogin({ src, blob: null });
+    fetch(src, { headers: { authorization: `Bearer ${token}` } })
+      .then((res) => (res.ok ? res.blob() : null))
+      .then((blob) => blob && setWithLogin({ src, blob: URL.createObjectURL(blob) }))
+      .catch(() => undefined);
+  };
+
   return (
     <img
       {...props}
-      src={sizedImageUrl(url, size === "fill" ? 640 : size * 2)}
-      srcSet={imageSrcSet(url)}
+      src={fallback?.blob ?? src}
+      srcSet={fallback ? undefined : imageSrcSet(url)}
       sizes={size === "fill" ? FILL_SIZES : `${size}px`}
       alt=""
       loading="lazy"
+      onError={onError}
     />
   );
 }

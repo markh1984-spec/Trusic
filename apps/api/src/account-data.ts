@@ -38,6 +38,7 @@ import {
 } from "./db/schema";
 import { compose, emails } from "./emails";
 import { HttpError } from "./errors";
+import { recordFollowChanges } from "./follow-history";
 import { sendLater, type Mailer } from "./mailer";
 import { deleteOfflineAccountData, offlineAccountData } from "./offline-data";
 import { removeMediaFiles } from "./media/processor";
@@ -434,7 +435,16 @@ export async function deleteAccount(deps: DeletionDeps, userId: string): Promise
     }
 
     await tx.delete(likes).where(eq(likes.userId, userId));
-    await tx.delete(follows).where(eq(follows.userId, userId));
+    // The artists they followed lose a follower, as if they'd unfollowed.
+    const unfollowed = await tx
+      .delete(follows)
+      .where(eq(follows.userId, userId))
+      .returning({ artistId: follows.artistId });
+    await recordFollowChanges(
+      tx,
+      "unfollow",
+      unfollowed.map((f) => f.artistId),
+    );
     await tx.delete(playlists).where(eq(playlists.ownerUserId, userId));
     await tx.delete(sessions).where(eq(sessions.userId, userId));
     await tx.delete(emailTokens).where(eq(emailTokens.userId, userId));

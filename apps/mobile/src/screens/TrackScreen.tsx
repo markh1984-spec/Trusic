@@ -1,4 +1,4 @@
-import type { TrackDetail, UploadStatus } from "@trusic/client";
+import type { TrackDetail } from "@trusic/client";
 import { AI_LABELS, aiLabel } from "@trusic/core";
 import { Stack } from "expo-router";
 import { useEffect } from "react";
@@ -11,6 +11,7 @@ import { PageButtons, usePageActions } from "../components/PageActions";
 import { TrackShelf } from "../components/Shelves";
 import { useTrackActions } from "../components/TrackActions";
 import { ScoreBreakdown, ScoreDial } from "../components/Transparency";
+import { TrackStatusNotice, UnavailableScreen } from "../components/Unavailable";
 import {
   Body,
   Card,
@@ -30,20 +31,6 @@ import { routes, useGo, usePlayTracks } from "../lib/navigation";
 import { useHumanOnly } from "../state/human-only";
 import { usePlayer } from "../state/player";
 import { colors, space } from "../theme";
-
-/** Shown to an uploader while their new track isn't live yet. Nobody else can see it. */
-const PROCESSING_NOTES: Record<UploadStatus, string> = {
-  processing:
-    "Getting this track ready: we're converting it for streaming and evening out its volume. It usually takes a " +
-    "minute or two, and this screen updates by itself. Until then, only you can see it.",
-  failed:
-    "We couldn't prepare this file for streaming. Try exporting it again as WAV, FLAC or MP3, then upload it again " +
-    "on the Trusic website. Only you can see this track.",
-};
-
-/** Listeners never see tracks that are processing, failed or taken down: the server says they're not found. */
-const UNAVAILABLE_TRACK =
-  "This track isn't available. It may have been removed or taken down, or it isn't ready to play yet.";
 
 const TOOL_NAMES: Record<string, string> = {
   mastering: "Mastering",
@@ -66,34 +53,36 @@ export function TrackScreen({ id }: { id: string }) {
   const player = usePlayer();
   const go = useGo();
   const openActions = useTrackActions();
-  const processing = track?.processing ?? null;
+  // Not live (still converting, taken down…): only its uploader and admins can open it, and it can't be played or
+  // shared. Older servers don't send `unavailable`, so `processing` counts too.
+  const live = Boolean(track && !track.unavailable && !track.processing);
+  const converting = (track?.unavailable?.status ?? track?.processing) === "processing";
   const actions = usePageActions({
     title: track?.title ?? "",
-    radio: track && !processing ? { type: "track", id: track.id } : null,
-    share:
-      track && !processing ? { kind: "track", key: track.id, title: `${track.title} · ${track.artist.name}` } : null,
+    radio: track && live ? { type: "track", id: track.id } : null,
+    share: track && live ? { kind: "track", key: track.id, title: `${track.title} · ${track.artist.name}` } : null,
   });
 
   // An upload being prepared goes live by itself: check every few seconds.
   useEffect(() => {
-    if (processing !== "processing") return;
+    if (!converting) return;
     const timer = setInterval(() => {
       api
         .track(id)
-        .then((t) => t.processing !== "processing" && reload())
+        .then((t) => (t.unavailable?.status ?? t.processing) !== "processing" && reload())
         .catch(() => undefined);
     }, 4000);
     return () => clearInterval(timer);
-  }, [id, processing, reload]);
+  }, [id, converting, reload]);
 
-  if (error) return <ErrorScreen message={isUnavailableError(cause) ? UNAVAILABLE_TRACK : error} />;
+  if (error) return isUnavailableError(cause) ? <UnavailableScreen kind="track" /> : <ErrorScreen message={error} />;
   if (loading || !track) return <Loading />;
 
   const isCurrent = player.current?.id === track.id;
   return (
     <Screen onRefresh={reload}>
       <Stack.Screen options={{ title: track.title }} />
-      {processing ? <Note tone="warn">{PROCESSING_NOTES[processing]}</Note> : null}
+      <TrackStatusNotice track={track} onChange={reload} />
       <View style={styles.hero}>
         <Artwork url={track.artworkUrl} title={track.title} label={track.aiLabel} size={220} />
         <Text style={styles.title}>{track.title}</Text>
@@ -110,20 +99,20 @@ export function TrackScreen({ id }: { id: string }) {
         <View style={styles.spacer} />
         <LikeButton trackId={track.id} />
         <IconButton icon="more" label="More options" onPress={() => openActions(track)} color={colors.muted} />
-        {processing ? null : (
+        {live ? (
           <PlayButton
             playing={isCurrent && player.playing}
             label={`Play ${track.title}`}
             onPress={() => (isCurrent ? player.toggle() : play([track], 0))}
           />
-        )}
+        ) : null}
       </View>
       <PageButtons actions={actions} />
 
       <TransparencyCard track={track} />
       <HowPaidCard track={track} />
       <TrackLyricsCard track={track} />
-      {processing ? null : <MoreLikeThis trackId={track.id} />}
+      {live ? <MoreLikeThis trackId={track.id} /> : null}
     </Screen>
   );
 }

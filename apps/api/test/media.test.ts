@@ -5,6 +5,7 @@ import path from "node:path";
 import type {
   Artist,
   DownloadAuthorization,
+  FailedUpload,
   ReleaseDetail,
   StreamUrl,
   TrackDetail,
@@ -21,7 +22,7 @@ import { jpegOrientation } from "../src/media/images";
 import { decodeImage } from "../src/share/image";
 import { MediaProcessor } from "../src/media/processor";
 import { synthPng, synthWav } from "../src/synth";
-import { call, createTestApp, declaration, register, sendFile, type TestApp } from "./helpers";
+import { ADMIN_EMAIL, call, createTestApp, declaration, register, sendFile, type TestApp } from "./helpers";
 
 const hasFfmpeg = (await findFfmpeg("ffmpeg")) !== null;
 if (!hasFfmpeg) console.warn("ffmpeg isn't installed, so the media processing tests are skipped.");
@@ -300,6 +301,101 @@ describe.skipIf(!hasFfmpeg)("recovering interrupted work", () => {
     }
   });
 
+  it("tries a failed upload again from the kept file, when its artist or an admin asks", async () => {
+    // An "ffmpeg" that can't read anything until the flag file appears, then is the real one.
+    const flag = path.join(scratch, "ffmpeg-fixed");
+    const flaky = path.join(scratch, "flaky-ffmpeg");
+    await writeFile(
+      flaky,
+      `#!/bin/sh\n[ -f "${flag}" ] && exec ffmpeg "$@"\necho "ffmpeg version flaky" >&2\n` +
+        '[ "$1" = "-encoders" ] && exit 0\necho "upload.wav: Invalid data found when processing input" >&2\nexit 1\n',
+    );
+    await chmod(flaky, 0o755);
+    const t = await createTestApp({ media: { ffmpegPath: flaky, maxAttempts: 2 } });
+    try {
+      const admin = await register(t, ADMIN_EMAIL);
+      const band = await register(t, "band@trusic.test");
+      const fan = await register(t, "fan@trusic.test");
+      const artistId = (await call<Artist>(t, "POST", "/api/artists", band.token, { name: "Second Go" })).body.id;
+      const first = await upload(t, band.token, artistId, "First Go", synthWav({ seconds: 8, sampleRate: 22_050 }));
+      const second = await upload(t, band.token, artistId, "Second Go", synthWav({ seconds: 9, sampleRate: 22_050 }));
+      await t.media.idle();
+
+      // Studio says why, in plain words, and offers to try again.
+      const uploads = (await call<UploadInProgress[]>(t, "GET", "/api/me/uploads", band.token)).body;
+      expect(uploads.map((u) => [u.track.id, u.status, u.canRetry])).toEqual([
+        [second.body.id, "failed", true],
+        [first.body.id, "failed", true],
+      ]);
+      expect(uploads[0]!.message).toBe(
+        "We couldn't prepare this file for streaming. The file looks damaged, or it's in a form we can't read. " +
+          "Try again, or export it again as WAV, FLAC or MP3 and upload that.",
+      );
+
+      // Admins see the failed jobs, with the converter's own words.
+      expect((await call(t, "GET", "/api/admin/uploads/failed", band.token)).status).toBe(403);
+      const failed = (await call<FailedUpload[]>(t, "GET", "/api/admin/uploads/failed", admin.token)).body;
+      const firstJob = failed.find((f) => f.track?.id === first.body.id)!;
+      expect(firstJob).toMatchObject({
+        kind: "audio",
+        track: { title: "First Go" },
+        artist: { name: "Second Go" },
+        owner: { email: "band@trusic.test" },
+        reason: "The file looks damaged, or it's in a form we can't read.",
+        attempts: 2,
+        canRetry: true,
+      });
+      expect(firstJob.error).toContain("Invalid data found");
+
+      // Only the artist and admins can ask, and only for a failed upload.
+      expect((await call(t, "POST", `/api/tracks/${first.body.id}/retry`, fan.token)).status).toBe(404);
+      await writeFile(flag, "");
+      expect((await call(t, "POST", `/api/tracks/${first.body.id}/retry`, band.token)).status).toBe(204);
+      expect((await call<TrackDetail>(t, "GET", `/api/tracks/${first.body.id}`, band.token)).body.processing).toBe(
+        "processing",
+      );
+      const secondJob = failed.find((f) => f.track?.id === second.body.id)!;
+      const retryAdmin = await call(t, "POST", `/api/admin/uploads/failed/${secondJob.jobId}/retry`, admin.token);
+      expect(retryAdmin.status).toBe(204);
+      await t.media.idle();
+
+      for (const id of [first.body.id, second.body.id]) {
+        expect((await call<TrackDetail>(t, "GET", `/api/tracks/${id}`)).body.processing).toBeNull();
+        const [row] = await t.database.db.select().from(tracks).where(eq(tracks.id, id));
+        expect(row!.audioKey).toBe(`tracks/${id}.m4a`);
+      }
+      expect((await call<UploadInProgress[]>(t, "GET", "/api/me/uploads", band.token)).body).toEqual([]);
+      expect((await call<FailedUpload[]>(t, "GET", "/api/admin/uploads/failed", admin.token)).body).toEqual([]);
+      const again = await call<{ error: string }>(t, "POST", `/api/tracks/${first.body.id}/retry`, band.token);
+      expect(again.status).toBe(409);
+    } finally {
+      await t.close();
+    }
+    // Its own database, four failed tries and two real conversions, at the lowest CPU priority.
+  }, 90_000);
+
+  it("can't try again once the uploaded file has gone", async () => {
+    const broken = path.join(scratch, "always-broken-ffmpeg");
+    await writeFile(broken, '#!/bin/sh\necho "ffmpeg version broken" >&2\n[ "$1" = "-encoders" ] && exit 0\nexit 1\n');
+    await chmod(broken, 0o755);
+    const t = await createTestApp({ media: { ffmpegPath: broken, maxAttempts: 1 } });
+    try {
+      const band = await register(t, "band@trusic.test");
+      const artistId = (await call<Artist>(t, "POST", "/api/artists", band.token, { name: "Lost File" })).body.id;
+      const res = await upload(t, band.token, artistId, "Gone", synthWav({ seconds: 8, sampleRate: 22_050 }));
+      await t.media.idle();
+      const [row] = await t.database.db.select().from(tracks).where(eq(tracks.id, res.body.id));
+      await t.storage.remove(row!.originalAudioKey!);
+      const retry = await call<{ error: string }>(t, "POST", `/api/tracks/${res.body.id}/retry`, band.token);
+      expect(retry.status).toBe(409);
+      expect(retry.body.error).toMatch(/no longer have the file you uploaded/);
+      const uploads = (await call<UploadInProgress[]>(t, "GET", "/api/me/uploads", band.token)).body;
+      expect(uploads[0]!.message).toMatch(/Something went wrong while converting it/);
+    } finally {
+      await t.close();
+    }
+  });
+
   it("without ffmpeg, puts tracks live as uploaded, including any left waiting", async () => {
     const t = await createTestApp({ media: true });
     try {
@@ -365,7 +461,7 @@ describe.skipIf(!hasFfmpeg)("artwork sizes", () => {
       const image = await fetchBytes(t, url + query);
       expect(image.status).toBe(200);
       expect(image.headers["content-type"]).toBe("image/webp");
-      expect(image.headers["cache-control"]).toContain("immutable");
+      expect(image.headers["cache-control"]).toBe("public, max-age=3600");
       expect(webpSize(image.body)).toEqual({ width: size, height: size });
     }
     const small = await fetchBytes(t, `${url}?size=120`);

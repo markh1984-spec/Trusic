@@ -98,6 +98,7 @@ export const artistRoutes =
         followers: followers?.n ?? 0,
         isFollowing: viewerFollow.length > 0,
         isOwner: viewer?.id === artist.ownerUserId,
+        takenDown: artist.takenDownAt !== null,
       } satisfies ArtistPage;
     });
   };

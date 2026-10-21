@@ -97,18 +97,59 @@ export interface TrackDetail extends TrackSummary {
    * "failed" if that didn't work. Null once it's live.
    */
   processing: UploadStatus | null;
+  /** Why it isn't live, for its owner and admins (nobody else can open a track that isn't live). Null when live. */
+  unavailable: TrackAvailability | null;
 }
 
 export type UploadStatus = "processing" | "failed";
+
+/** A track that isn't live, and what its uploader can do about it. */
+export interface TrackAvailability {
+  /** Not converted yet (or converting failed), removed by its uploader, suspended, or taken down after a report. */
+  status: UploadStatus | "removed" | "suspended" | "taken_down";
+  /** When converting it failed: why, in plain words, and whether it can be tried again from the kept upload. */
+  failure: { reason: string; canRetry: boolean } | null;
+  /** When it's been taken down: the report behind it and what Trusic said. */
+  takedown: {
+    reportId: string;
+    reference: string;
+    reason: ReportReason;
+    /** Trusic's note to the uploader when it was taken down. */
+    note: string | null;
+    status: ReportStatus;
+    /** The uploader hasn't sent a counter-notice yet, and still can. */
+    canCounterNotice: boolean;
+  } | null;
+}
 
 /** One of your uploads that isn't live yet, for Studio. */
 export interface UploadInProgress {
   track: { id: string; title: string };
   artist: ArtistRef;
   status: UploadStatus;
-  /** What went wrong, in plain words, when it failed. */
+  /** What went wrong, in plain words, and what to do, when it failed. */
   message: string | null;
+  /** A failed upload can be converted again from the file that was uploaded. */
+  canRetry: boolean;
   uploadedAt: string;
+}
+
+/** An upload the server gave up converting (audio) or resizing (artwork), for admins. */
+export interface FailedUpload {
+  jobId: string;
+  kind: "audio" | "image";
+  /** The track, for audio. */
+  track: { id: string; title: string } | null;
+  /** Whose it is, if it's still in use. */
+  artist: ArtistRef | null;
+  owner: { id: string; displayName: string; email: string } | null;
+  /** What went wrong, in plain words. */
+  reason: string;
+  /** Exactly what the converter said, for working out what happened. */
+  error: string | null;
+  attempts: number;
+  failedAt: string | null;
+  canRetry: boolean;
 }
 
 export interface TrackList {
@@ -282,6 +323,8 @@ export interface ArtistPage {
   /** Whether the signed-in viewer follows this artist. */
   isFollowing: boolean;
   isOwner: boolean;
+  /** Taken down after a report. Only its owner and admins can still open it. */
+  takenDown: boolean;
 }
 
 /** IDs the signed-in listener has liked or followed, for showing hearts and follow buttons. */
@@ -322,6 +365,8 @@ export interface PlaylistDetail extends PlaylistSummary {
   entries: PlaylistEntry[];
   durationMs: number;
   isOwner: boolean;
+  /** Taken down after a report. Only its owner can still open it. */
+  takenDown: boolean;
 }
 
 /** A proven false declaration. */
@@ -513,10 +558,13 @@ export interface OfflineSyncRequest {
 
 export interface OfflineSync {
   /**
-   * not_subscribed: delete every download. device_removed: downloads were used on
-   * too many other devices since this one last checked in, so delete them here.
+   * not_subscribed: delete every download. device_removed: delete them here, because
+   * the listener removed this device in Settings, or downloads were used on too many
+   * other devices since this one last checked in (see `removedBy`).
    */
   status: "ok" | "not_subscribed" | "device_removed";
+  /** With device_removed: whether the listener removed it, or the five-device limit did. */
+  removedBy?: "listener" | "limit";
   checkedAt: string;
   /** Downloads play until then without checking in again. */
   validUntil: string | null;
@@ -527,6 +575,22 @@ export interface OfflineSync {
   tracks: TrackSummary[];
   /** Tracks on the device that have been taken down or suspended. Delete them. */
   removedTrackIds: string[];
+}
+
+/** A phone or computer keeping downloads for the account, as listed in Settings. */
+export interface DownloadDevice {
+  id: string;
+  name: string;
+  platform: OfflineDevice["platform"];
+  /** When it last checked its downloads with Trusic. */
+  lastCheckedAt: string;
+  /** How many tracks it had downloaded then, if it said. */
+  trackCount: number | null;
+  /**
+   * Its downloads are deleted at its next check-in, because the listener removed it ("listener") or downloads on
+   * five newer devices pushed it out ("limit"). Null while it keeps them.
+   */
+  removedBy: "listener" | "limit" | null;
 }
 
 export interface DownloadAuthorization {

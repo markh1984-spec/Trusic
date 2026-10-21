@@ -11,8 +11,9 @@
  *   downloads deletes them, and so does signing out (the app calls removeAll).
  * - They play until `validUntil`, 30 days after the last check-in. After that
  *   they wait for the app to get online and check again.
- * - If the subscription has ended, or the account's downloads have moved to
- *   five other devices, the server says so and everything is deleted.
+ * - If the subscription has ended, the account's downloads have moved to five
+ *   other devices, or the listener removed this device in Settings, the server
+ *   says so and everything is deleted.
  */
 import {
   ApiError,
@@ -119,6 +120,8 @@ export const NOTICES = {
   not_subscribed: "Your downloads have been removed because your subscription has ended.",
   device_removed:
     "Your downloads were removed from this device because you've used downloads on five other devices since. Turn downloads back on to get them again.",
+  removed_in_settings:
+    "Your downloads were removed from this device because it was removed from your account in Settings. Turn downloads back on to get them again.",
 } as const;
 
 /** Storage used, for people: "850 KB", "12.4 MB", "1.2 GB". */
@@ -328,7 +331,8 @@ export class DownloadManager {
     }
     if (this.manifest !== m) return;
     if (result.status !== "ok") {
-      await this.removeAll(NOTICES[result.status]);
+      const removedInSettings = result.status === "device_removed" && result.removedBy === "listener";
+      await this.removeAll(NOTICES[removedInSettings ? "removed_in_settings" : result.status]);
       return;
     }
     if (!hasAnything) {

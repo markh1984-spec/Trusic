@@ -9,7 +9,8 @@ import { PageButtons, PageMenuButton, usePageActions } from "../components/PageA
 import { LikedCover } from "../components/Tiles";
 import { TrackList } from "../components/TrackList";
 import { Button, ErrorScreen, Loading, Muted, PlayButton, Screen, SignInPrompt } from "../components/ui";
-import { api, errorMessage } from "../lib/api";
+import { TakenDownNotice, UnavailableScreen } from "../components/Unavailable";
+import { api, errorMessage, isUnavailableError } from "../lib/api";
 import { duration, plural } from "../lib/format";
 import { useAsync } from "../lib/hooks";
 import { usePlayTracks } from "../lib/navigation";
@@ -33,7 +34,7 @@ function confirm(title: string, message: string, action: string): Promise<boolea
 }
 
 export function PlaylistScreen({ id }: { id: string }) {
-  const { data, error, loading, reload } = useAsync(() => api.playlist(id), [id]);
+  const { data, error, cause, loading, reload } = useAsync(() => api.playlist(id), [id]);
   const [playlist, setPlaylist] = useState<PlaylistDetail | null>(null);
   const play = usePlayTracks();
   const player = usePlayer();
@@ -42,22 +43,27 @@ export function PlaylistScreen({ id }: { id: string }) {
   const router = useRouter();
   const downloaded = useDownloadedCollection({ type: "playlist", id });
   const hasTracks = Boolean(playlist?.entries.length);
+  const takenDown = playlist?.takenDown === true;
   const actions = usePageActions({
     title: playlist?.name ?? "",
     subtitle: playlist ? `Playlist · ${playlist.owner.displayName}` : undefined,
     artwork: { url: playlist?.artworkUrls[0] ?? null },
-    radio: playlist && hasTracks ? { type: "playlist", id: playlist.id } : null,
-    // Private playlists have no page anyone else can open, so there's nothing to share.
+    radio: playlist && hasTracks && !takenDown ? { type: "playlist", id: playlist.id } : null,
+    // A private or taken-down playlist has no page anyone else can open, so there's nothing to share.
     share:
-      playlist?.isPublic === true
+      playlist?.isPublic === true && !takenDown
         ? { kind: "playlist", key: playlist.id, title: `${playlist.name} · ${playlist.owner.displayName}` }
         : null,
-    report: playlist && !playlist.isOwner ? { type: "playlist", id: playlist.id } : null,
+    report: playlist && !playlist.isOwner && !takenDown ? { type: "playlist", id: playlist.id } : null,
   });
 
   useEffect(() => setPlaylist(data), [data]);
 
-  if (error) return downloaded ? <OfflineCollectionScreen {...downloaded} /> : <ErrorScreen message={error} />;
+  if (error) {
+    // Gone, made private or taken down (its downloads go at the next check-in), or just no signal.
+    if (isUnavailableError(cause)) return <UnavailableScreen kind="playlist" />;
+    return downloaded ? <OfflineCollectionScreen {...downloaded} /> : <ErrorScreen message={error} />;
+  }
   if (loading || !playlist) return <Loading />;
 
   const tracks = playlist.entries.map((e) => e.track);
@@ -95,6 +101,7 @@ export function PlaylistScreen({ id }: { id: string }) {
   return (
     <Screen onRefresh={reload}>
       <Stack.Screen options={{ title: playlist.name }} />
+      {takenDown ? <TakenDownNotice kind="playlist" isOwner={playlist.isOwner} /> : null}
       <View style={styles.hero}>
         <PlaylistCover urls={playlist.artworkUrls} title={playlist.name} size={220} />
         <Text style={styles.title}>{playlist.name}</Text>

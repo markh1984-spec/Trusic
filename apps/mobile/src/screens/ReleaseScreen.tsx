@@ -7,7 +7,8 @@ import { OpenedYourselfNote } from "../components/HumanOnly";
 import { PageButtons, PageMenuButton, usePageActions } from "../components/PageActions";
 import { TrackList } from "../components/TrackList";
 import { ErrorScreen, Loading, PlayButton, Screen } from "../components/ui";
-import { api } from "../lib/api";
+import { UnavailableScreen } from "../components/Unavailable";
+import { api, isUnavailableError } from "../lib/api";
 import { duration, plural, RELEASE_TYPE_NAMES, releaseYear } from "../lib/format";
 import { useAsync } from "../lib/hooks";
 import { releaseAiSummary, releaseLabel } from "../lib/labels";
@@ -18,7 +19,7 @@ import { colors, space } from "../theme";
 import { OfflineCollectionScreen } from "./OfflineCollectionScreen";
 
 export function ReleaseScreen({ id }: { id: string }) {
-  const { data: release, error, loading, reload } = useAsync(() => api.release(id), [id]);
+  const { data: release, error, cause, loading, reload } = useAsync(() => api.release(id), [id]);
   const play = usePlayTracks();
   const player = usePlayer();
   const go = useGo();
@@ -32,7 +33,11 @@ export function ReleaseScreen({ id }: { id: string }) {
     extra: release ? [{ label: "Go to artist", onSelect: () => go(routes.artist(release.artist.slug)) }] : [],
   });
 
-  if (error) return downloaded ? <OfflineCollectionScreen {...downloaded} /> : <ErrorScreen message={error} />;
+  if (error) {
+    // Gone from Trusic (its downloads go at the next check-in), or just no signal.
+    if (isUnavailableError(cause)) return <UnavailableScreen kind="release" />;
+    return downloaded ? <OfflineCollectionScreen {...downloaded} /> : <ErrorScreen message={error} />;
+  }
   if (loading || !release) return <Loading />;
 
   const label = releaseLabel(release);

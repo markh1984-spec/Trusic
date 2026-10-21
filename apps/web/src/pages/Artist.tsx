@@ -4,7 +4,8 @@ import { api } from "../api";
 import { useAuth } from "../auth";
 import { Artwork } from "../components/Artwork";
 import { CardGrid, ReleaseCard } from "../components/Cards";
-import { ErrorNote, Loading } from "../components/Guards";
+import { Loading } from "../components/Guards";
+import { LoadFailed } from "../components/Unavailable";
 import { OpenedYourselfNote } from "../components/HumanOnlyToggle";
 import { Icon } from "../components/Icon";
 import { RadioButton } from "../components/RadioButton";
@@ -20,13 +21,13 @@ import { usePageTitle } from "../share";
 
 export function ArtistPage() {
   const { slug = "" } = useParams();
-  const { data, error, loading } = useAsync(() => api.artist(slug), [slug]);
+  const { data, error, errorStatus, loading } = useAsync(() => api.artist(slug), [slug]);
   const { me } = useAuth();
   const library = useLibrary();
   const play = usePlayTracks();
   usePageTitle(data?.artist.name ?? null);
 
-  if (error) return <ErrorNote message={error} />;
+  if (error) return <LoadFailed kind="artist" error={error} status={errorStatus} />;
   if (loading || !data) return <Loading />;
   const { artist, tracks, releases } = data;
   const human = tracks.filter((t) => aiLabel(t.aiScore) === "human").length;
@@ -36,6 +37,21 @@ export function ArtistPage() {
 
   return (
     <>
+      {data.takenDown ? (
+        <section className="status-notice status-notice--error" role="status">
+          <h2>This artist page has been taken down</h2>
+          <p>
+            After a report, it's hidden everywhere on Trusic with all its music, so only{" "}
+            {data.isOwner ? "you" : "its owner"} and Trusic's admins can see it.{" "}
+            {data.isOwner ? (
+              <>
+                <Link to="/studio">Studio</Link> has the reason, and how to send a counter-notice if you think we got it
+                wrong.
+              </>
+            ) : null}
+          </p>
+        </section>
+      ) : null}
       <section className="profile">
         <Artwork url={artist.imageUrl} title={artist.name} size={180} round />
         <div>
@@ -72,12 +88,17 @@ export function ArtistPage() {
             <Icon name="chart" size={18} /> Your stats
           </Link>
         ) : null}
-        <ShareButton target={{ kind: "artist", key: artist.slug, title: artist.name }} />
-        <MoreMenuWithShare
-          target={{ kind: "artist", key: artist.slug, title: artist.name }}
-          label={artist.name}
-          items={data.isOwner ? [] : [{ label: "Report…", to: `/report/artist/${artist.id}` }]}
-        />
+        {/* A taken-down page can't be shared: its link shows nothing to anyone else. */}
+        {data.takenDown ? null : (
+          <>
+            <ShareButton target={{ kind: "artist", key: artist.slug, title: artist.name }} />
+            <MoreMenuWithShare
+              target={{ kind: "artist", key: artist.slug, title: artist.name }}
+              label={artist.name}
+              items={data.isOwner ? [] : [{ label: "Report…", to: `/report/artist/${artist.id}` }]}
+            />
+          </>
+        )}
       </div>
 
       {releases.length ? (

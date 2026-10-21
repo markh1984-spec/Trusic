@@ -1,7 +1,8 @@
 import type { ArtistMoney, ArtistStats, PayoutRunSummary, StudioArtist, TrackDetail, TrackStats } from "@trusic/client";
-import { and, eq } from "drizzle-orm";
+import { readFile } from "node:fs/promises";
+import { and, eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { follows, likes, payoutTrackLines, plays, tracks } from "../src/db/schema";
+import { followEvents, follows, likes, payoutTrackLines, plays, tracks } from "../src/db/schema";
 import { currentPeriod } from "../src/payout-service";
 import { statsWindow } from "../src/stats-service";
 import { ADMIN_EMAIL, call, createTestApp, declaration, register, sendFile, wav, type TestApp } from "./helpers";
@@ -207,6 +208,77 @@ describe("artist stats", () => {
     expect(ballad.totals.streams).toBe(0);
     expect(ballad.money.months[0]!.tracks[0]!.streams).toBe(2);
     await db.update(tracks).set({ status: "live" }).where(eq(tracks.id, ids.ballad!));
+  });
+});
+
+describe("followers over time", () => {
+  const days = (n: number) => new Date(Date.now() - n * 24 * 60 * 60 * 1000);
+  const stats = async (range = "7d") =>
+    (await call<ArtistStats>(t, "GET", `/api/studio/artists/${artistId}/stats?range=${range}`, band.token)).body;
+
+  it("records follows and unfollows, so stats show followers lost as well as gained", async () => {
+    const db = t.database.db;
+    const [, b, c] = fans;
+    const before = await stats();
+    expect(before.followers).toBe(2);
+
+    // Fan 2 follows (twice: still one follow), and fan 3 unfollows.
+    for (let i = 0; i < 2; i++)
+      expect((await call(t, "PUT", `/api/me/follows/${artistId}`, b!.token)).status).toBe(204);
+    await call(t, "DELETE", `/api/me/follows/${artistId}`, c!.token);
+    await call(t, "DELETE", `/api/me/follows/${artistId}`, c!.token);
+    const events = await db.select().from(followEvents).where(eq(followEvents.artistId, artistId));
+    expect(events.map((e) => e.kind).sort()).toEqual(["follow", "unfollow"]);
+    // As if fan 2 followed three days ago and fan 3 left yesterday.
+    await db
+      .update(followEvents)
+      .set({ createdAt: days(3) })
+      .where(eq(followEvents.kind, "follow"));
+    await db
+      .update(followEvents)
+      .set({ createdAt: days(1) })
+      .where(eq(followEvents.kind, "unfollow"));
+
+    const s = await stats();
+    expect(s.followers).toBe(2);
+    expect([s.followersGained, s.followersLost]).toEqual([1, 1]);
+    // Fans 1 and 3 followed before this week; fan 2 joined, then fan 3 left.
+    expect(s.series.map((p) => p.followers)).toEqual([2, 2, 2, 3, 3, 2, 2]);
+    expect(s.series.map((p) => [p.followersGained, p.followersLost])).toEqual([
+      [0, 0],
+      [0, 0],
+      [0, 0],
+      [1, 0],
+      [0, 0],
+      [0, 1],
+      [0, 0],
+    ]);
+  });
+
+  it("counts a deleted account's follow as lost", async () => {
+    const quitter = await register(t, "quitter@trusic.test");
+    await call(t, "PUT", `/api/me/follows/${artistId}`, quitter.token);
+    expect((await stats()).followers).toBe(3);
+    await call(t, "POST", "/api/me/delete", quitter.token, { password: "correct horse battery", confirm: "DELETE" });
+    const s = await stats();
+    expect(s.followers).toBe(2);
+    expect([s.followersGained, s.followersLost]).toEqual([2, 2]);
+    expect(s.series.at(-1)).toMatchObject({ followers: 2, followersGained: 1, followersLost: 1 });
+  });
+
+  it("copies follows made before the history was kept in as follows on their day", async () => {
+    const db = t.database.db;
+    const migration = await readFile(
+      new URL("../drizzle/0010_follow_history_and_devices.sql", import.meta.url),
+      "utf8",
+    );
+    const backfill = migration.split("--> statement-breakpoint").find((s) => s.includes('INSERT INTO "follow_events"'));
+    await db.delete(followEvents);
+    await db.execute(sql.raw(backfill!));
+    const [events, rows] = await Promise.all([db.select().from(followEvents), db.select().from(follows)]);
+    expect(events.map((e) => [e.artistId, e.kind, e.createdAt.getTime()]).sort()).toEqual(
+      rows.map((f) => [f.artistId, "follow", f.createdAt.getTime()]).sort(),
+    );
   });
 });
 

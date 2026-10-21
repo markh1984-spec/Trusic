@@ -1,9 +1,10 @@
 import type { PlaylistDetail } from "@trusic/client";
 import { useEffect, useState, type FormEvent } from "react";
-import { useNavigate, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import { api } from "../api";
 import { PlaylistCover } from "../components/Artwork";
-import { ErrorNote, Loading } from "../components/Guards";
+import { Loading } from "../components/Guards";
+import { LoadFailed } from "../components/Unavailable";
 import { OpenedYourselfNote } from "../components/HumanOnlyToggle";
 import { RadioButton } from "../components/RadioButton";
 import { Icon } from "../components/Icon";
@@ -20,7 +21,7 @@ import { useToast } from "../toast";
 
 export function PlaylistPage() {
   const { id = "" } = useParams();
-  const { data, error, loading } = useAsync(() => api.playlist(id), [id]);
+  const { data, error, errorStatus, loading } = useAsync(() => api.playlist(id), [id]);
   const [playlist, setPlaylist] = useState<PlaylistDetail | null>(null);
   const [editing, setEditing] = useState(false);
   const play = usePlayTracks();
@@ -31,10 +32,12 @@ export function PlaylistPage() {
   useEffect(() => setPlaylist(data), [data]);
   usePageTitle(playlist?.name ?? null);
 
-  if (error) return <ErrorNote message={error} />;
+  if (error) return <LoadFailed kind="playlist" error={error} status={errorStatus} />;
   if (loading || !playlist) return <Loading />;
 
   const tracks = playlist.entries.map((e) => e.track);
+  // A link to a private or taken-down playlist shows nothing to anyone else.
+  const shareable = playlist.isPublic && !playlist.takenDown;
 
   /** Apply a change, then refresh the sidebar's playlist list too. */
   const apply = async (change: Promise<PlaylistDetail>) => {
@@ -63,6 +66,15 @@ export function PlaylistPage() {
 
   return (
     <>
+      {playlist.takenDown ? (
+        <section className="status-notice status-notice--error" role="status">
+          <h2>This playlist has been taken down</h2>
+          <p>
+            After a report, only you can see it, even if it's set to public. <Link to="/studio">Studio</Link> has the
+            reason, and how to send a counter-notice if you think we got it wrong.
+          </p>
+        </section>
+      ) : null}
       <section className="collection-hero">
         <div className="collection-hero__cover">
           <PlaylistCover urls={playlist.artworkUrls} title={playlist.name} />
@@ -101,7 +113,7 @@ export function PlaylistPage() {
             <Icon name="play" size={26} />
           </button>
         ) : null}
-        {playlist.isPublic ? (
+        {shareable ? (
           <ShareButton
             target={{ kind: "playlist", key: playlist.id, title: `${playlist.name} · ${playlist.owner.displayName}` }}
           />
@@ -127,7 +139,7 @@ export function PlaylistPage() {
             trackIds: [...new Set(tracks.map((t) => t.id))],
           }}
         />
-        {playlist.isPublic ? (
+        {shareable ? (
           <MoreMenuWithShare
             target={{ kind: "playlist", key: playlist.id, title: `${playlist.name} · ${playlist.owner.displayName}` }}
             label={playlist.name}

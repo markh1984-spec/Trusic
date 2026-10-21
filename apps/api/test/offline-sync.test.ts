@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type {
   DownloadAuthorization,
+  DownloadDevice,
   OfflineCollectionRef,
   OfflineSync,
   OfflineSyncRequest,
@@ -214,5 +215,59 @@ describe("checking a device's downloads", () => {
       (await call(t, "POST", "/api/offline/sync", undefined, { device: device(1), collections: [], trackIds: [] }))
         .status,
     ).toBe(401);
+  });
+});
+
+describe("your devices", () => {
+  let listener: { token: string; id: string };
+  const laptop = { id: "laptop-abcdef12", name: "Mac", platform: "desktop" } as const;
+
+  beforeAll(async () => {
+    listener = await register(t, "devices@trusic.test");
+    await call(t, "POST", "/api/billing/subscribe", listener.token);
+  });
+
+  it("lists the devices keeping downloads, with when they last checked in and how many tracks they have", async () => {
+    await sync(listener, { device: device(8), collections: [{ type: "liked" }], trackIds: [track.A!] });
+    await sync(listener, { device: laptop, collections: [{ type: "liked" }], trackIds: [track.A!, track.B!] });
+    const res = await call<DownloadDevice[]>(t, "GET", "/api/me/download-devices", listener.token);
+    expect(res.status).toBe(200);
+    // The most recently checked first.
+    expect(res.body).toMatchObject([
+      { name: "Mac", platform: "desktop", trackCount: 2, removedBy: null },
+      { name: "Phone 8", platform: "ios", trackCount: 1, removedBy: null },
+    ]);
+    expect(Date.parse(res.body[0]!.lastCheckedAt)).toBeGreaterThan(Date.now() - 60_000);
+    // Only your own.
+    expect((await call<DownloadDevice[]>(t, "GET", "/api/me/download-devices", band.token)).body).toEqual([]);
+    expect((await call(t, "GET", "/api/me/download-devices")).status).toBe(401);
+  });
+
+  it("removes a device: its downloads go at its next check-in, and its place is free at once", async () => {
+    const [mac] = (await call<DownloadDevice[]>(t, "GET", "/api/me/download-devices", listener.token)).body;
+    // Someone else can't, and it has to be one of yours.
+    expect((await call(t, "DELETE", `/api/me/download-devices/${mac!.id}`, band.token)).status).toBe(404);
+    expect((await call(t, "DELETE", `/api/me/download-devices/${mac!.id}`, listener.token)).status).toBe(204);
+
+    const listed = (await call<DownloadDevice[]>(t, "GET", "/api/me/download-devices", listener.token)).body;
+    expect(listed.find((d) => d.name === "Mac")).toMatchObject({ removedBy: "listener" });
+    expect((await authorize(listener, laptop.id, [track.A!])).status).toBe(409);
+    // Four new devices fit without pushing out the phone: the removed Mac doesn't count towards the five.
+    for (const n of [11, 12, 13, 14]) await sync(listener, { device: device(n), collections: [{ type: "liked" }] });
+    expect((await sync(listener, { device: device(8), collections: [{ type: "liked" }] })).body.status).toBe("ok");
+
+    const told = await sync(listener, { device: laptop, collections: [{ type: "liked" }], trackIds: [track.A!] });
+    expect(told.body).toMatchObject({ status: "device_removed", removedBy: "listener", removedTrackIds: [track.A] });
+    const after = (await call<DownloadDevice[]>(t, "GET", "/api/me/download-devices", listener.token)).body;
+    expect(after.map((d) => d.name)).not.toContain("Mac");
+  });
+
+  it("says when the five-device limit pushed a device out instead", async () => {
+    // Phone 8 checked in after 11 to 14, so a sixth device pushes out Phone 11.
+    await sync(listener, { device: device(15), collections: [{ type: "liked" }] });
+    const listed = (await call<DownloadDevice[]>(t, "GET", "/api/me/download-devices", listener.token)).body;
+    expect(listed.find((d) => d.name === "Phone 11")).toMatchObject({ removedBy: "limit" });
+    const told = await sync(listener, { device: device(11), collections: [{ type: "liked" }] });
+    expect(told.body).toMatchObject({ status: "device_removed", removedBy: "limit" });
   });
 });

@@ -110,9 +110,15 @@ Put these in `apps/mobile/.env` (see `.env.example`) and restart `pnpm mobile` a
   claimant's details and two signed statements, so that choice opens the website's form.
 - **Where plays start**: every play says where it was started (an album, a playlist, an artist's page, search,
   Liked songs, radio, recommendations or the queue), so artists' stats are right.
-- **Tracks that go**: tracks being processed, that failed to convert or that were taken down never show to
-  listeners. If one is taken down while it's in your queue, the app says "… isn't available any more, so it was
-  skipped" and plays the next one.
+- **Tracks that go**: tracks being processed, that failed to convert, that were taken down or whose artist is
+  suspended never show to listeners. If one goes while it's in your queue, the app says "… isn't available any more,
+  so it was skipped" and plays the next one. A link to anything that's gone opens a "This … isn't available" screen
+  rather than an error.
+- **Your own tracks that aren't live**: their uploader can still open them, and is told why, as on the website:
+  still converting (the screen updates by itself), converting failed (with **Try again** when the upload can be
+  converted again), removed, hidden while the account is suspended, or taken down (with a link to the takedown on
+  the website, where counter-notices are sent). Artist pages and playlists that were taken down say so to their
+  owner, and can't be shared. Taken-down artwork needs signing in on the website, so the app shows a placeholder.
 
 ## Subscriptions and previews
 
@@ -135,7 +141,8 @@ Subscribers can download albums, EPs, singles, playlists and their liked songs t
   account and the phone: signing out deletes them, and so does the subscription ending. The app checks them with
   Trusic whenever it's online (at least every 12 hours); after 30 days without a check they stop playing until it
   can. Tracks that have been taken down are deleted at the next check. One account can keep downloads on up to five
-  phones and computers.
+  phones and computers. A phone removed under Settings › Your devices on the website deletes its downloads at its
+  next check, and Library › Downloads says why.
 - **Backups.** Downloaded music is kept in the app's cache folder, which iCloud and Android's backups leave out:
   Apple asks apps not to back up files that can be downloaded again, and a backup full of music would be slow and
   could use up someone's iCloud space. Expo's file system has no way to mark a file elsewhere as "don't back up"

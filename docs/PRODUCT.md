@@ -44,6 +44,9 @@ This document is the source of truth for the rules. The code that implements the
 - **Every track sounds consistent.** Whatever was uploaded is streamed as 160 kbps AAC at an even volume (about −14
   LUFS, as on Spotify). A new upload goes live once it's converted, usually a minute or two later. The artist's
   original file is kept privately.
+- **If converting fails** (after three tries), the artist sees why in Studio and on the track's page, in plain words,
+  with **Try again**, which converts the kept original afresh. Admins see every failed upload, with the converter's
+  own message, and can try again too. Nobody else can see a track that isn't live.
 - **Embedded players** on other websites (a band's own site, say) play the same 30-second previews to everyone,
   subscribers included: nobody signs in inside someone else's website. They always show the AI label and link to
   Trusic to listen in full. Only these players can appear inside other websites; every other Trusic page refuses.
@@ -54,6 +57,12 @@ This document is the source of truth for the rules. The code that implements the
   Slack, Discord, X, Facebook…): the title, who it's by, the artwork and the AI label, on a picture Trusic draws
   itself.
 - Previews never show private playlists, anything taken down after a report, or deleted accounts.
+- **Pictures follow the same rule.** Artwork and artist photos are public while a release or profile anyone can see
+  shows them. Once that's taken down (or the picture is taken down on its own), or the account is deleted, only the
+  owner and Trusic's admins can load it, even from an address handed out earlier. Browsers and anything in between
+  keep public pictures for an hour at most before checking again, so a takedown reaches people who'd already seen
+  them within the hour. A track has no picture of its own: it shows its release's, which stays public while the
+  release does.
 
 ### Listening offline
 
@@ -65,6 +74,9 @@ This document is the source of truth for the rules. The code that implements the
 - **Removed when they should be.** All downloads are deleted when the subscription ends or the listener signs out.
   Tracks that are taken down or suspended are deleted at the next check. A phone can be set to download on Wi-Fi only
   (the default).
+- **Your devices.** Settings on the website lists the phones and computers keeping downloads, with when each last
+  checked in and how many tracks it had. Removing one (a lost phone, say) frees its place straight away; its
+  downloads are deleted the next time it goes online, and it says why. Turning downloads on there again adds it back.
 - **Offline plays count.** The apps keep each listen in a queue and send it when they're back online. A play counts
   if the listener was subscribed when they played it, it reaches us within 30 days, and the track is still up. Each
   listen carries an id made up by the app, so sending it twice (a retry, or the phone reporting a listen early when it
@@ -205,10 +217,18 @@ artist's declaration will remain the main evidence; see [research/ai-detection.m
   links handed out earlier), and earns nothing in months that aren't finalised yet: its listeners' money goes to
   whatever else they played. Finalised months aren't reopened. A release takes its tracks down with it; an artist takes
   its releases and tracks; a playlist is hidden from everyone but its owner; artwork comes off every release or profile
-  showing it.
+  showing it. Pictures of anything taken down stop loading for everyone but the owner and admins (see Sharing).
+  Nothing new can be uploaded to a taken-down artist, and no new releases made for it, until it's put back.
+- **What people see.** Anyone opening something they can't see (taken down, removed, private, deleted, or a wrong
+  link) gets a plain "This track isn't available" page (or release, artist, playlist), never an error code. The
+  uploader opening their own track instead sees why it isn't live and what to do: still being converted; converting
+  failed, why, and Try again; hidden while their account is suspended; or taken down, with Trusic's reason and a link
+  to send a counter-notice while they still can. Owners of a taken-down artist page or playlist see a note saying so.
 - **Counter-notices.** The uploader is emailed the reason and can send one counter-notice per takedown. It goes, with
   their name and email address (with their consent), to the person who reported it, who is asked to reply within 10
-  working days if they've started legal action. An admin then puts the content back or keeps it down.
+  working days if they've started legal action. An admin then puts the content back or keeps it down. A track taken
+  down while its upload was still being converted goes back to being converted (and goes live when that's done), or
+  to "failed" if converting it failed meanwhile: it never goes live playing the raw upload.
 - **Repeat infringers.** Each upheld copyright takedown is a **copyright strike**. Three suspend the account through
   the same suspension as AI strikes, and an admin can reinstate it. Putting content back withdraws its strike.
   Copyright strikes and strikes for false AI declarations are counted separately and shown separately everywhere.
@@ -264,7 +284,10 @@ for.
 - **What's shown:** streams, listeners, followers and new likes for the last 7, 28 or 365 days, compared with the
   time just before; a chart by day (by week for 365 days); top tracks; where listeners pressed play; and the same
   for each track on its own page.
-- **Followers over time** counts the people who follow now, by the day they followed. Unfollows aren't recorded yet.
+- **Followers over time** is everyone following at the end of each day: follows less unfollows, so it can go down as
+  well as up. The summary says how many followed and unfollowed in the time chosen, and the change overall. Trusic
+  records when follows and unfollows happen, not who made them. Deleting an account counts as unfollowing. Follows
+  made before 21 October 2026 count from the day they were made; unfollows before then weren't recorded.
 - **Money is always the viewer's own:** their share of each track, month by month, from the payout runs, with any
   clawbacks from their balance. Band members see the whole band's listening but only their own money.
 - **Where plays start:** the apps send it with each play: an album, EP or single; a playlist; the artist's page;
@@ -316,6 +339,15 @@ for.
 | 2026-10-21 | A preview is a separate file of a track's first 30 seconds.                                                                           | A preview link can never play more, and players show the preview's real length.                                                             |
 | 2026-10-21 | New uploads aren't public until they've been converted for streaming.                                                                 | Everyone hears the same quality and volume, and nobody downloads a 40 MB WAV.                                                               |
 | 2026-10-21 | Audio and artwork are sent through Trusic's own links, not straight from file storage.                                                | Previews stay limited, the desktop app works unchanged and storage stays private. The cost is the site's own bandwidth.                     |
+| 2026-10-21 | Pictures are public only while something public shows them; otherwise only their owner and admins can load them.                      | A takedown or a deleted account must take its pictures down too, including for people who kept the address.                                 |
+| 2026-10-21 | Public pictures are cached for an hour, then checked again, instead of for a year.                                                    | Long enough to save bandwidth (a re-check is tiny), short enough that a takedown reaches people within the hour.                            |
+| 2026-10-21 | A track's picture is its release's: taking down one track leaves its release's artwork public.                                        | The release page still shows it to everyone, so hiding the same picture elsewhere would protect nothing.                                    |
+| 2026-10-21 | Suspended tracks are hidden from everyone but their uploader and admins, like taken-down ones.                                        | Suspension already hides them from browsing and stops playback; a page anyone could open said otherwise.                                    |
+| 2026-10-21 | A restored track that was still being converted goes back to processing, or to failed if converting failed.                           | Nothing goes live playing the raw upload: everyone hears the same quality and volume.                                                       |
+| 2026-10-21 | Artists and admins can retry a failed conversion from the kept original. The reason is given in plain words.                          | Most failures are temporary (a busy or restarted server), and re-uploading is a chore. Admins can spot patterns.                            |
+| 2026-10-21 | Follows and unfollows are recorded with when they happened, not who made them. Deleting an account is an unfollow.                    | Artists see losses as well as gains, without Trusic keeping a history of what each person followed.                                         |
+| 2026-10-21 | Removing a device in Settings frees its place at once; its downloads are deleted when it next checks in.                              | Downloads on a lost phone can only be deleted once it's online, as on Spotify. The place shouldn't wait for that.                           |
+| 2026-10-21 | Nothing new can be uploaded to, or released by, a taken-down artist until it's put back.                                              | New tracks would otherwise be public while the artist they belong to is hidden.                                                             |
 
 ## 6. Open questions
 

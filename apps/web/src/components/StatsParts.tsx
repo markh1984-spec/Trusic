@@ -50,22 +50,32 @@ export const ROLE_NOTES: Record<StatsRole, string> = {
   admin: "You're looking as a Trusic admin. Money shows only what you're paid yourself.",
 };
 
-/** A headline number, compared with the same length of time just before. */
+/** How much a running total (like followers) went up or down over the range. */
+export function netChange(change: number): { text: string; className: string } {
+  if (change === 0) return { text: "No change overall", className: "" };
+  return change > 0
+    ? { text: `▲ ${change.toLocaleString("en-GB")} more overall`, className: "delta--up" }
+    : { text: `▼ ${Math.abs(change).toLocaleString("en-GB")} fewer overall`, className: "delta--down" };
+}
+
+/** A headline number, compared with the same length of time just before (or given its own `change`). */
 export function StatTile({
   label,
   value,
   previous,
   range,
   note,
+  change,
 }: {
   label: string;
   value: number;
   previous?: number;
   range: StatsRange;
   note?: string;
+  change?: { text: string; className: string };
 }) {
   const before = RANGES.find((r) => r.value === range)!.previous;
-  let delta: { text: string; className: string } | null = null;
+  let delta: { text: string; className: string } | null = change ?? null;
   if (previous !== undefined) {
     if (previous === 0) delta = value > 0 ? { text: `New: none in ${before}`, className: "delta--up" } : null;
     else {
@@ -113,12 +123,20 @@ const METRICS: Record<Metric, { name: string; unit: string; kind: "columns" | "l
   likes: { name: "New likes", unit: "new likes", kind: "columns" },
 };
 
+/** "3 followed, 1 unfollowed", for the follower chart's tooltips and table. */
+const followChanges = (p: StatsPoint) =>
+  p.followersGained || p.followersLost
+    ? ` · ${p.followersGained.toLocaleString("en-GB")} followed, ${p.followersLost.toLocaleString("en-GB")} unfollowed`
+    : "";
+
 function chartPoints(stats: ListeningStats, metric: Metric): ChartPoint[] {
   const last = stats.series.length - 1;
   return stats.series.map((p: StatsPoint, i) => ({
     short: dayShort(p.start),
     label:
-      (stats.bucket === "day" ? dayLong(p.start) : `Week from ${dayLong(p.start)}`) + (i === last ? " (so far)" : ""),
+      (stats.bucket === "day" ? dayLong(p.start) : `Week from ${dayLong(p.start)}`) +
+      (i === last ? " (so far)" : "") +
+      (metric === "followers" ? followChanges(p) : ""),
     value: p[metric],
   }));
 }
@@ -153,7 +171,9 @@ export function ListeningChart({ stats, withFollowers }: { stats: ListeningStats
         A stream is a play of 30 seconds or more by a subscriber: exactly what Trusic pays on. Listeners are different
         subscribers who streamed at least once. Days run midnight to midnight UTC (UK winter time), like the payout
         months.
-        {metric === "followers" ? " Followers counts people who follow now, by the day they followed." : ""}
+        {metric === "followers"
+          ? ` Followers is everyone following at the end of each ${per}: new follows less unfollows. Point at a ${per} to see both.`
+          : ""}
       </p>
     </section>
   );

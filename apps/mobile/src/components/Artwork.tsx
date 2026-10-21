@@ -1,5 +1,6 @@
 import { imageSources, sizedImageUrl } from "@trusic/client";
 import type { AiLabel } from "@trusic/core";
+import { useState } from "react";
 import { Image, PixelRatio, Platform, StyleSheet, Text, View, type DimensionValue } from "react-native";
 import { mediaUrl } from "../lib/api";
 import { artworkTints, colors } from "../theme";
@@ -30,12 +31,23 @@ export function Artwork({
   round?: boolean;
 }) {
   const uri = mediaUrl(url);
+  // Artwork that won't load (taken-down artwork needs a sign-in the image can't send, say) shows the placeholder.
+  const [failed, setFailed] = useState<string | null>(null);
   const box = {
     width: size,
     aspectRatio: 1,
     borderRadius: round ? 9999 : typeof size === "number" ? Math.max(4, size * 0.08) : 8,
   } as const;
-  if (uri) return <Image source={sources(uri, size)} style={[styles.image, box]} accessibilityIgnoresInvertColors />;
+  if (uri && failed !== uri) {
+    return (
+      <Image
+        source={sources(uri, size)}
+        style={[styles.image, box]}
+        onError={() => setFailed(uri)}
+        accessibilityIgnoresInvertColors
+      />
+    );
+  }
   const fontSize = typeof size === "number" ? Math.max(12, size * 0.4) : 48;
   return (
     <View style={[styles.placeholder, box, { backgroundColor: artworkTints[label ?? "none"] }]} aria-hidden>
