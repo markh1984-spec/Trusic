@@ -1,4 +1,4 @@
-import type { TrackSummary } from "@trusic/client";
+import type { PlaySource, ReportTargetType, TrackSummary } from "@trusic/client";
 import { usePathname, useRouter } from "expo-router";
 import { useCallback } from "react";
 import { usePlayer } from "../state/player";
@@ -9,6 +9,7 @@ export const routes = {
   release: (id: string) => `/release/${id}`,
   artist: (slug: string) => `/artist/${encodeURIComponent(slug)}`,
   playlist: (id: string) => `/playlist/${id}`,
+  report: (type: ReportTargetType, id: string) => `/report/${type}/${encodeURIComponent(id)}`,
   liked: "/liked",
   nowPlaying: "/now-playing",
   account: "/account",
@@ -30,11 +31,15 @@ export function useGo() {
   );
 }
 
-/** Play a list of tracks. Anyone can: visitors and non-subscribers hear 30-second previews. */
+/**
+ * Play a list of tracks. Anyone can: visitors and non-subscribers hear 30-second previews. `source` says where
+ * the list is (an album, a playlist, search…), which artists see in their stats.
+ */
 export function usePlayTracks() {
   const player = usePlayer();
   return useCallback(
-    (tracks: TrackSummary[], startIndex: number, label?: string) => player.playQueue(tracks, startIndex, label),
+    (tracks: TrackSummary[], startIndex: number, label?: string, source?: PlaySource) =>
+      player.playQueue(tracks, startIndex, label, source),
     [player],
   );
 }

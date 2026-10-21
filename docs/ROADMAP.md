@@ -75,6 +75,8 @@
 - Lyrics: plain or synced to the music, added in Studio by the uploader or anyone in the band split, with a
   tap-along tool for syncing. Shown on track pages and in a Lyrics panel that follows the song. Not shown for covers
   (see open question 19).
+- The phone app has sharing (the phone's share sheet with the website's link) and lyrics too: on track screens, and
+  in Now Playing, where synced lyrics follow the song and a tap on a line jumps to it.
 
 **Desktop app**
 
@@ -82,14 +84,15 @@
   system's "now playing" controls. The server is chosen in the app. Unsigned installers come from a manual GitHub
   workflow.
 
-**Discovery and artist stats** (web and desktop; rules in [PRODUCT.md](PRODUCT.md) section 4)
+**Discovery and artist stats** (web, desktop and phone; rules in [PRODUCT.md](PRODUCT.md) section 4)
 
-- "Human-made only" switch, kept on the listener's account.
+- "Human-made only" switch, kept on the listener's account (visitors' choice stays in their browser or phone).
 - Personalised home page, "More like this", "Fans also like" and endless radio from a track, an artist or a
-  playlist, all built in-house from listening on Trusic, each saying why it was picked.
+  playlist, all built in-house from listening on Trusic, each saying why it was picked. The phone app has them all.
 - "Trusic for Artists" in Studio: streams, listeners, followers and likes over 7, 28 and 365 days, top tracks, where
   listeners pressed play, per-track pages, and each person's own money by track and month.
-- Every play records where it started. The demo data has six months of listening by 35 subscribers.
+- Every play records where it started, from the website, the desktop app and the phone app. The demo data has six
+  months of listening by 35 subscribers.
 
 **Offline listening**
 
@@ -97,7 +100,8 @@
   Downloads are checked online at least every 30 days, deleted when the subscription ends or on signing out, and
   taken-down tracks are removed at the next check. The phone app has an offline mode, a Downloads section with
   storage used and a Wi-Fi-only setting; the desktop app has a Downloads page and keeps playing when the server
-  can't be reached.
+  can't be reached. Phones keep downloaded music out of iCloud and Android backups, and download it again if the
+  phone clears it to free space.
 - Both apps queue every play with an id made up on the device and send them when back online, so offline listening
   pays artists and a play sent twice counts once. Plays that arrive after their month is finalised count in the next
   month calculated, and listeners' statements say so.
@@ -109,8 +113,7 @@
   one artist ever has millions of plays a year (see `apps/api/src/stats-service.ts`).
 - Accounts: sign in with Apple/Google, two-step sign-in.
 - Releases: pre-release scheduling.
-- Lyrics and sharing in the phone app (the server and the shared client already support them). A lyric licence
-  for covers, if the founder wants one (open question 19).
+- A lyric licence for covers, if the founder wants one (open question 19). Lyrics for listening offline.
 - Audio: a "data saver" setting with a lower bitrate, HLS with several bitrates, and a CDN in front of storage. A
   button for an artist to retry an upload that failed to convert.
 - Social: collaborative playlists.
@@ -122,12 +125,11 @@
 - **Desktop (Mac/Windows/Linux):** the app exists (see Done). Still to do: code signing (Apple Developer Program
   and a Windows certificate) and automatic updates.
 - **iPhone and Android:** first version in `apps/mobile` (Expo), reusing `@trusic/core`, `@trusic/client` and the
-  shared queue in `@trusic/player`. It has browse, search, AI labels, the player with background audio, library,
-  "your money" and accounts, downloads for listening offline, and can be tried on a phone with Expo Go. Next: test
-  builds with EAS Build, trying downloads on real phones (see apps/mobile/README.md), and the app-store decisions
-  below. Also: say where each play started (the shared queue already knows), and add the home shelves, radio, "More
-  like this" and a "Human-made only" switch. The phone app already gets Human-made only in browse and search when
-  it's switched on in the account.
+  shared queue in `@trusic/player`. It has the personalised home page, browse, search, AI labels, the "Human-made
+  only" switch, the player with background audio, radio, "More like this" and "Fans also like", lyrics, sharing,
+  reporting, library, "your money" and accounts, downloads for listening offline, and says where each play started.
+  It can be tried on a phone with Expo Go. Next: test builds with EAS Build, trying it on real phones (see
+  apps/mobile/README.md for what only a phone can show), and the app-store decisions below.
 - **App-store billing:** Apple and Google take 15–30% of in-app subscriptions. Revenue in the payout engine is
   _net_ revenue, so this is handled, but it changes what each subscriber is worth. Note that PRS calculates its fee
   on revenue before those fees. Many services send sign-ups to the web instead; that's a business decision.

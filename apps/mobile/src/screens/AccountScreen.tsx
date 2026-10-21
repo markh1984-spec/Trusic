@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Linking, StyleSheet, Text, TextInput, View, type TextInputProps } from "react-native";
+import { HumanOnlySwitch } from "../components/HumanOnly";
 import { SubscriptionCard } from "../components/SubscriptionCard";
 import { Button, Card, ErrorNote, Heading, Loading, Muted, Screen } from "../components/ui";
 import { errorMessage } from "../lib/api";
@@ -15,7 +16,14 @@ export function AccountScreen() {
   return (
     <Screen>
       {connectionError ? <ErrorNote message={connectionError} /> : null}
-      {me ? <SignedIn /> : <SignInForms />}
+      {me ? (
+        <SignedIn />
+      ) : (
+        <View style={{ gap: space.lg }}>
+          <SignInForms />
+          <HumanOnlySwitch detailed />
+        </View>
+      )}
       <Muted small style={styles.server}>
         Server: {API_URL}
       </Muted>
@@ -52,6 +60,7 @@ function SignedIn() {
         </View>
       </View>
       <SubscriptionCard />
+      <HumanOnlySwitch detailed />
       {me.artists.length ? (
         <Card style={{ gap: space.sm }}>
           <Heading style={{ marginBottom: 0 }}>Your artist profiles</Heading>

@@ -24,6 +24,8 @@ export function OfflineCollectionScreen({
   const play = usePlayTracks();
   const player = usePlayer();
   const playingThis = player.playing && player.contextLabel === collection.title;
+  // Downloaded plays say where they started too, for artists' stats.
+  const source = collection.type;
 
   return (
     <Screen>
@@ -45,11 +47,16 @@ export function OfflineCollectionScreen({
           <PlayButton
             playing={playingThis}
             label={`Play ${collection.title}`}
-            onPress={() => (playingThis ? player.toggle() : play(tracks, 0, collection.title))}
+            onPress={() => (playingThis ? player.toggle() : play(tracks, 0, collection.title, source))}
           />
         ) : null}
       </View>
-      <TrackList tracks={tracks} label={collection.title} empty="Nothing from here is downloaded yet." />
+      <TrackList
+        tracks={tracks}
+        label={collection.title}
+        source={source}
+        empty="Nothing from here is downloaded yet."
+      />
     </Screen>
   );
 }

@@ -3,6 +3,8 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { LabelChip } from "../components/AiBadge";
 import { Artwork } from "../components/Artwork";
 import { DownloadToggle } from "../components/DownloadToggle";
+import { OpenedYourselfNote } from "../components/HumanOnly";
+import { PageButtons, PageMenuButton, usePageActions } from "../components/PageActions";
 import { TrackList } from "../components/TrackList";
 import { ErrorScreen, Loading, PlayButton, Screen } from "../components/ui";
 import { api } from "../lib/api";
@@ -21,6 +23,14 @@ export function ReleaseScreen({ id }: { id: string }) {
   const player = usePlayer();
   const go = useGo();
   const downloaded = useDownloadedCollection({ type: "release", id });
+  const actions = usePageActions({
+    title: release?.title ?? "",
+    subtitle: release?.artist.name,
+    artwork: { url: release?.artworkUrl ?? null },
+    share: release ? { kind: "release", key: release.id, title: `${release.title} · ${release.artist.name}` } : null,
+    report: release && !release.isOwner ? { type: "release", id: release.id } : null,
+    extra: release ? [{ label: "Go to artist", onSelect: () => go(routes.artist(release.artist.slug)) }] : [],
+  });
 
   if (error) return downloaded ? <OfflineCollectionScreen {...downloaded} /> : <ErrorScreen message={error} />;
   if (loading || !release) return <Loading />;
@@ -49,14 +59,16 @@ export function ReleaseScreen({ id }: { id: string }) {
           {label ? <LabelChip label={label.label} text={label.text} /> : null}
           <Text style={styles.summary}>{releaseAiSummary(release)}</Text>
         </View>
+        <PageMenuButton actions={actions} label={release.title} />
         {release.tracks.length ? (
           <PlayButton
             playing={playingThis}
             label={`Play ${release.title}`}
-            onPress={() => (playingThis ? player.toggle() : play(release.tracks, 0, release.title))}
+            onPress={() => (playingThis ? player.toggle() : play(release.tracks, 0, release.title, "release"))}
           />
         ) : null}
       </View>
+      <PageButtons actions={actions} />
       <DownloadToggle
         collection={{
           type: "release",
@@ -67,7 +79,8 @@ export function ReleaseScreen({ id }: { id: string }) {
           trackIds: release.tracks.map((t) => t.id),
         }}
       />
-      <TrackList tracks={release.tracks} label={release.title} numbered showArtist={false} />
+      <OpenedYourselfNote tracks={release.tracks} what="this release" />
+      <TrackList tracks={release.tracks} label={release.title} source="release" numbered showArtist={false} />
     </Screen>
   );
 }

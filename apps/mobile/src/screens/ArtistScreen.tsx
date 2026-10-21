@@ -2,6 +2,9 @@ import { aiLabel } from "@trusic/core";
 import { Stack } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 import { Artwork } from "../components/Artwork";
+import { OpenedYourselfNote } from "../components/HumanOnly";
+import { PageButtons, PageMenuButton, usePageActions } from "../components/PageActions";
+import { ArtistShelf } from "../components/Shelves";
 import { ReleaseTile, Shelf } from "../components/Tiles";
 import { TrackList } from "../components/TrackList";
 import { Button, ErrorScreen, Heading, Loading, Muted, PlayButton, Screen } from "../components/ui";
@@ -11,6 +14,7 @@ import { useAsync } from "../lib/hooks";
 import { labelName } from "../lib/labels";
 import { usePlayTracks } from "../lib/navigation";
 import { useAuth } from "../state/auth";
+import { useHumanOnly } from "../state/human-only";
 import { useLibrary } from "../state/library";
 import { usePlayer } from "../state/player";
 import { useToast } from "../state/toast";
@@ -23,11 +27,20 @@ export function ArtistScreen({ slug }: { slug: string }) {
   const play = usePlayTracks();
   const player = usePlayer();
   const toast = useToast();
+  const artist = data?.artist;
+  const actions = usePageActions({
+    title: artist?.name ?? "",
+    subtitle: "Artist",
+    artwork: { url: artist?.imageUrl ?? null, round: true },
+    radio: artist && data.tracks.length ? { type: "artist", id: artist.id } : null,
+    share: artist ? { kind: "artist", key: artist.slug, title: artist.name } : null,
+    report: artist && !data.isOwner ? { type: "artist", id: artist.id } : null,
+  });
 
   if (error) return <ErrorScreen message={error} />;
-  if (loading || !data) return <Loading />;
+  if (loading || !data || !artist) return <Loading />;
 
-  const { artist, tracks, releases } = data;
+  const { tracks, releases } = data;
   const human = tracks.filter((t) => aiLabel(t.aiScore) === "human").length;
   const following = library.isFollowing(artist.id);
   // Keep the count in step when the listener follows or unfollows here.
@@ -59,14 +72,16 @@ export function ArtistScreen({ slug }: { slug: string }) {
           />
         ) : null}
         <View style={{ flex: 1 }} />
+        <PageMenuButton actions={actions} label={artist.name} />
         {tracks.length ? (
           <PlayButton
             playing={playingThis}
             label={`Play ${artist.name}`}
-            onPress={() => (playingThis ? player.toggle() : play(tracks, 0, artist.name))}
+            onPress={() => (playingThis ? player.toggle() : play(tracks, 0, artist.name, "artist"))}
           />
         ) : null}
       </View>
+      <PageButtons actions={actions} />
 
       {artist.bio ? <Text style={styles.bio}>{artist.bio}</Text> : null}
 
@@ -83,10 +98,21 @@ export function ArtistScreen({ slug }: { slug: string }) {
 
       <View style={styles.section}>
         <Heading>Tracks</Heading>
-        <TrackList tracks={tracks} showArtist={false} label={artist.name} />
+        <OpenedYourselfNote tracks={tracks} what="this artist's page" />
+        <TrackList tracks={tracks} showArtist={false} label={artist.name} source="artist" />
       </View>
+
+      <FansAlsoLike artistId={artist.id} />
     </Screen>
   );
+}
+
+/** Artists streamed and liked by the same people. */
+function FansAlsoLike({ artistId }: { artistId: string }) {
+  const { humanOnly } = useHumanOnly();
+  const { data } = useAsync(() => api.similarArtists(artistId, { humanOnly }), [artistId, humanOnly]);
+  if (!data?.artists.length) return null;
+  return <ArtistShelf title="Fans also like" why={data.why} items={data.artists} />;
 }
 
 const styles = StyleSheet.create({

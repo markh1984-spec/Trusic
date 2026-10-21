@@ -76,6 +76,13 @@ export const audioFiles: OfflineFiles & { localUri(trackId: string): Promise<str
     }
   },
 
+  // Browsers can clear a site's storage to free space, as phones can clear an app's cache folder.
+  async missing(trackIds) {
+    const cache = await caches.open(CACHE);
+    const kept = new Set((await cache.keys()).map((r) => new URL(r.url).pathname.split("/").pop() ?? ""));
+    return trackIds.filter((id) => !kept.has(id));
+  },
+
   async localUri(trackId) {
     const known = objectUrls.get(trackId);
     if (known) return known;

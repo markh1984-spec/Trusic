@@ -1,4 +1,4 @@
-import type { TrackSummary } from "@trusic/client";
+import type { PlaySource, TrackSummary } from "@trusic/client";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { duration } from "../lib/format";
 import { routes, useGo, usePlayTracks } from "../lib/navigation";
@@ -16,6 +16,8 @@ export interface TrackListProps {
   tracks: TrackSummary[];
   /** Shown in Now Playing as "Playing from …". */
   label?: string;
+  /** Where these tracks are (an album, search…), recorded with each play for artists' stats. */
+  source?: PlaySource;
   showArtist?: boolean;
   /** Track numbers instead of artwork, for albums. */
   numbered?: boolean;
@@ -30,6 +32,7 @@ export interface TrackListProps {
 export function TrackList({
   tracks,
   label,
+  source = "other",
   showArtist = true,
   numbered = false,
   empty,
@@ -45,7 +48,7 @@ export function TrackList({
   const canPlay = (track: TrackSummary) => !offline.isOffline || offline.isPlayable(track.id);
   const playFrom = (i: number) => {
     const queue = offline.isOffline ? playableQueue(tracks, i, canPlay) : { tracks, startIndex: i };
-    if (queue) play(queue.tracks, queue.startIndex, label);
+    if (queue) play(queue.tracks, queue.startIndex, label, source);
   };
 
   if (tracks.length === 0) return <Muted style={{ paddingVertical: space.md }}>{empty ?? "No tracks yet."}</Muted>;

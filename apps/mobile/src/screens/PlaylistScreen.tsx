@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { Alert, Platform, StyleSheet, Text, View } from "react-native";
 import { PlaylistCover } from "../components/Artwork";
 import { DownloadToggle } from "../components/DownloadToggle";
+import { OpenedYourselfNote } from "../components/HumanOnly";
+import { PageButtons, PageMenuButton, usePageActions } from "../components/PageActions";
 import { LikedCover } from "../components/Tiles";
 import { TrackList } from "../components/TrackList";
 import { Button, ErrorScreen, Loading, Muted, PlayButton, Screen, SignInPrompt } from "../components/ui";
@@ -39,6 +41,19 @@ export function PlaylistScreen({ id }: { id: string }) {
   const toast = useToast();
   const router = useRouter();
   const downloaded = useDownloadedCollection({ type: "playlist", id });
+  const hasTracks = Boolean(playlist?.entries.length);
+  const actions = usePageActions({
+    title: playlist?.name ?? "",
+    subtitle: playlist ? `Playlist · ${playlist.owner.displayName}` : undefined,
+    artwork: { url: playlist?.artworkUrls[0] ?? null },
+    radio: playlist && hasTracks ? { type: "playlist", id: playlist.id } : null,
+    // Private playlists have no page anyone else can open, so there's nothing to share.
+    share:
+      playlist?.isPublic === true
+        ? { kind: "playlist", key: playlist.id, title: `${playlist.name} · ${playlist.owner.displayName}` }
+        : null,
+    report: playlist && !playlist.isOwner ? { type: "playlist", id: playlist.id } : null,
+  });
 
   useEffect(() => setPlaylist(data), [data]);
 
@@ -92,14 +107,16 @@ export function PlaylistScreen({ id }: { id: string }) {
       <View style={styles.actions}>
         {playlist.isOwner ? <Button title="Delete" variant="ghost" onPress={() => void remove()} /> : null}
         <View style={{ flex: 1 }} />
+        <PageMenuButton actions={actions} label={playlist.name} />
         {tracks.length ? (
           <PlayButton
             playing={playingThis}
             label={`Play ${playlist.name}`}
-            onPress={() => (playingThis ? player.toggle() : play(tracks, 0, playlist.name))}
+            onPress={() => (playingThis ? player.toggle() : play(tracks, 0, playlist.name, "playlist"))}
           />
         ) : null}
       </View>
+      <PageButtons actions={actions} />
       <DownloadToggle
         collection={{
           type: "playlist",
@@ -110,10 +127,12 @@ export function PlaylistScreen({ id }: { id: string }) {
           trackIds: [...new Set(tracks.map((t) => t.id))],
         }}
       />
+      <OpenedYourselfNote tracks={tracks} what="this playlist" />
       <TrackList
         tracks={tracks}
         keys={playlist.entries.map((e) => e.entryId)}
         label={playlist.name}
+        source="playlist"
         empty={
           playlist.isOwner
             ? "This playlist is empty. Use the ⋯ button on any track to add it here."
@@ -175,7 +194,7 @@ function Liked() {
           <PlayButton
             playing={playingThis}
             label="Play liked songs"
-            onPress={() => (playingThis ? player.toggle() : play(tracks, 0, "Liked songs"))}
+            onPress={() => (playingThis ? player.toggle() : play(tracks, 0, "Liked songs", "liked"))}
           />
         ) : null}
       </View>
@@ -189,7 +208,12 @@ function Liked() {
           trackIds: tracks.map((t) => t.id),
         }}
       />
-      <TrackList tracks={tracks} label="Liked songs" empty="Tap the heart on any track to save it here." />
+      <TrackList
+        tracks={tracks}
+        label="Liked songs"
+        source="liked"
+        empty="Tap the heart on any track to save it here."
+      />
     </Screen>
   );
 }

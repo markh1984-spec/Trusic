@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, radius } from "../theme";
+import { colors } from "../theme";
 
 /** Clear of the tab bar and mini player. */
 const BOTTOM_OFFSET = 140;
@@ -37,14 +37,16 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 export const useToast = () => useContext(ToastContext);
 
 const styles = StyleSheet.create({
-  wrap: { position: "absolute", left: 0, right: 0, alignItems: "center" },
+  // Longer messages (a skipped track, say) wrap, clear of the screen's edges.
+  wrap: { position: "absolute", left: 16, right: 16, alignItems: "center" },
   toast: {
     backgroundColor: colors.text,
     color: colors.bg,
     fontWeight: "700",
+    textAlign: "center",
     paddingHorizontal: 16,
     paddingVertical: 10,
-    borderRadius: radius.pill,
+    borderRadius: 20,
     overflow: "hidden",
   },
 });

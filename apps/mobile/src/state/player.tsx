@@ -1,8 +1,10 @@
-import type { TrackSummary } from "@trusic/client";
+import type { PlaySource, RadioSeed, TrackSummary } from "@trusic/client";
 import {
+  currentPlaySource,
   hasNext,
   initialQueue,
   queueReducer,
+  radioNeedsMore,
   upcomingFromContext,
   type QueueAction,
   type QueueState,
@@ -21,11 +23,13 @@ import {
   type ReactNode,
 } from "react";
 import { AppState, type AppStateStatus } from "react-native";
-import { api, errorMessage, mediaUrl } from "../lib/api";
+import { api, errorMessage, isUnavailableError, mediaUrl } from "../lib/api";
 import { DEFAULT_PREVIEW_MS } from "../lib/config";
 import { ListenTracker } from "../lib/listen-tracker";
 import { useAuth } from "./auth";
+import { useHumanOnly } from "./human-only";
 import { useOffline } from "./offline";
+import { useToast } from "./toast";
 
 interface PlayerState {
   current: TrackSummary | null;
@@ -45,7 +49,12 @@ interface PlayerState {
   upNext: TrackSummary[];
   /** The rest of the album, playlist or list that's playing. */
   upcoming: { track: TrackSummary; orderIndex: number }[];
-  playQueue(tracks: TrackSummary[], startIndex: number, label?: string): void;
+  /** What the radio is based on, while radio is playing. */
+  radio: RadioSeed | null;
+  /** `source` says where the tracks were picked from (an album, search…), for artists' stats. */
+  playQueue(tracks: TrackSummary[], startIndex: number, label?: string, source?: PlaySource): void;
+  /** Start an endless radio station from a track, an artist or a playlist. Resolves to the station's name. */
+  startRadio(seed: RadioSeed): Promise<string>;
   playNext(track: TrackSummary): void;
   addToQueue(track: TrackSummary): void;
   removeFromQueue(index: number): void;
@@ -82,6 +91,9 @@ const ProgressContext = createContext<Progress>({ positionMs: 0, durationMs: 0 }
  * server counts it once.
  *
  * Downloaded tracks play from the phone's storage, with or without signal.
+ *
+ * Each play says where it started (an album, a playlist, radio…), for artists' stats. A track that's been
+ * taken down since it was queued is skipped, with a message, and taken out of the queue.
  */
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const player = useAudioPlayer(null, { updateInterval: 250 });
@@ -99,15 +111,32 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [previewEnded, setPreviewEnded] = useState(false);
 
   const tracker = useRef(new ListenTracker()).current;
-  /** The stream that's loaded: which play of which track, and its preview limit. */
-  const loaded = useRef<{ playId: number; previewMs: number | null } | null>(null);
+  /** The stream that's loaded: which play of which track, its preview limit, and whether it's a download. */
+  const loaded = useRef<{ playId: number; previewMs: number | null; local: boolean } | null>(null);
   const finishedPlayId = useRef<number | null>(null);
+  /** The play whose error we've already looked into. */
+  const checkedPlayId = useRef<number | null>(null);
   const wasPlaying = useRef(false);
   const appState = useRef<AppStateStatus>(AppState.currentState);
 
   const offline = useOffline();
   const offlineRef = useRef(offline);
   offlineRef.current = offline;
+  const { humanOnly } = useHumanOnly();
+  const humanOnlyRef = useRef(humanOnly);
+  humanOnlyRef.current = humanOnly;
+  const toast = useToast();
+
+  /** The track has been taken down (or removed) since it was queued: say so, and move on without it. */
+  const dropUnavailable = useCallback(
+    (track: TrackSummary) => {
+      // A listen of a track that's gone can't count, so there's nothing to report.
+      tracker.take();
+      toast(`“${track.title}” isn't available any more, so it was skipped.`);
+      dispatch({ type: "dropTrack", trackId: track.id });
+    },
+    [toast, tracker],
+  );
 
   /** End the listen and queue it to be sent (now, or when back online). */
   const report = useCallback(async () => {
@@ -145,7 +174,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             : trackMs;
       setProgress({ positionMs, durationMs });
       setPlaying(status.playing);
-      if (status.error) setError("This track couldn't be played.");
+      if (status.error) {
+        setError("This track couldn't be played.");
+        // A track taken down mid-song stops streaming at once. Ask the server whether that's why, once per play.
+        const track = queueRef.current.current;
+        if (loadedStream && !loadedStream.local && track && checkedPlayId.current !== loadedStream.playId) {
+          checkedPlayId.current = loadedStream.playId;
+          api.streamUrl(track.id).then(
+            () => undefined,
+            (e: unknown) => {
+              if (isUnavailableError(e) && queueRef.current.current?.id === track.id) dropUnavailable(track);
+            },
+          );
+        }
+      }
 
       // Previews stop at the limit.
       if (loadedStream?.previewMs != null && positionMs >= loadedStream.previewMs) {
@@ -170,7 +212,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
       wasPlaying.current = status.playing;
     },
-    [player, report, tracker],
+    [player, report, tracker, dropUnavailable],
   );
 
   useEffect(() => {
@@ -204,24 +246,24 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setPreviewEnded(false);
     setProgress({ positionMs: 0, durationMs: current.durationMs });
     // A downloaded copy plays from the phone. Otherwise it's streamed (a preview for non-subscribers).
-    const source = async (): Promise<{ uri: string; previewMs: number | null }> => {
+    const source = async (): Promise<{ uri: string; previewMs: number | null; local: boolean }> => {
       const local = await offlineRef.current.localUri(current.id);
-      if (local) return { uri: local, previewMs: null };
+      if (local) return { uri: local, previewMs: null, local: true };
       if (offlineRef.current.isOffline) throw new Error("You're offline, and this track isn't downloaded.");
       const stream = await api.streamUrl(current.id);
       return {
         uri: api.resolveUrl(stream.url),
         previewMs: stream.preview ? (stream.previewMs ?? DEFAULT_PREVIEW_MS) : null,
+        local: false,
       };
     };
     source()
-      .then(({ uri, previewMs: limit }) => {
+      .then(({ uri, previewMs: limit, local }) => {
         if (cancelled) return;
-        loaded.current = { playId, previewMs: limit };
+        loaded.current = { playId, previewMs: limit, local };
         setPreviewMs(limit);
-        const q = queueRef.current;
-        const source = q.currentFrom === "queue" ? "queue" : q.contextSource;
-        tracker.start(current.id, { counts: limit === null, source });
+        // Where this play started (an album, search, radio…), for artists' stats.
+        tracker.start(current.id, { counts: limit === null, source: currentPlaySource(queueRef.current) });
         player.replace({ uri });
         player.play();
         const artworkUrl = mediaUrl(current.artworkUrl);
@@ -237,12 +279,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         );
       })
       .catch((e: unknown) => {
-        if (!cancelled) setError(errorMessage(e, "This track couldn't be played."));
+        if (cancelled) return;
+        if (isUnavailableError(e)) dropUnavailable(current);
+        else setError(errorMessage(e, "This track couldn't be played."));
       });
     return () => {
       cancelled = true;
     };
-  }, [current, playId, player, tracker]);
+  }, [current, playId, player, tracker, dropUnavailable]);
 
   // Report the last listen if the app shuts the player down.
   useEffect(() => () => void report(), [report]);
@@ -263,17 +307,50 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [signedIn, tracker]);
 
   const playQueue = useCallback(
-    (tracks: TrackSummary[], startIndex: number, label?: string) => {
+    (tracks: TrackSummary[], startIndex: number, label?: string, source?: PlaySource) => {
       const target = tracks[startIndex];
       if (target && target.id === queueRef.current.current?.id && !player.playing && !previewEnded) {
         player.play();
         return;
       }
       report();
-      dispatch({ type: "playContext", tracks, startIndex, label: label ?? null });
+      dispatch({ type: "playContext", tracks, startIndex, label: label ?? null, source: source ?? "other" });
     },
     [player, previewEnded, report],
   );
+
+  // Radio: an endless queue of similar tracks, topped up from the server whenever it runs low (as on the website).
+  const startRadio = useCallback(
+    async (seed: RadioSeed) => {
+      if (offlineRef.current.isOffline) throw new Error("Radio needs a connection. Try again when you're back online.");
+      const batch = await api.radio(seed, { humanOnly: humanOnlyRef.current });
+      if (batch.tracks.length === 0) throw new Error("There's nothing to play on this radio yet.");
+      report();
+      const tracks = batch.tracks.map((r) => r.track);
+      dispatch({ type: "playContext", tracks, startIndex: 0, label: batch.name, source: "radio", radio: seed });
+      return batch.name;
+    },
+    [report],
+  );
+  const radioFetching = useRef(false);
+  const isOffline = offline.isOffline;
+  useEffect(() => {
+    if (!radioNeedsMore(queue) || radioFetching.current || isOffline) return;
+    const seed = queue.radio!;
+    radioFetching.current = true;
+    api
+      .radio(seed, { humanOnly, exclude: queue.context.slice(-100).map((t) => t.id) })
+      .then((batch) => {
+        // Only if the same station is still playing.
+        if (queueRef.current.radio === seed) {
+          dispatch({ type: "extendContext", tracks: batch.tracks.map((r) => r.track) });
+        }
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        radioFetching.current = false;
+      });
+  }, [queue, humanOnly, isOffline]);
 
   const toggle = useCallback(() => {
     if (!queueRef.current.current) return;
@@ -346,7 +423,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       contextLabel: queue.contextLabel,
       upNext: queue.upNext,
       upcoming: upcomingFromContext(queue),
+      radio: queue.radio,
       playQueue,
+      startRadio,
       playNext: (track) => dispatch({ type: "playNext", track }),
       addToQueue: (track) => dispatch({ type: "addToQueue", track }),
       removeFromQueue: (index) => dispatch({ type: "removeFromQueue", index }),
@@ -368,6 +447,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       previewEnded,
       queue,
       playQueue,
+      startRadio,
       jumpToQueued,
       jumpToUpcoming,
       toggle,

@@ -1,10 +1,14 @@
-import type { TrackDetail } from "@trusic/client";
+import type { TrackDetail, UploadStatus } from "@trusic/client";
 import { AI_LABELS, aiLabel } from "@trusic/core";
 import { Stack } from "expo-router";
+import { useEffect } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { AiBadge } from "../components/AiBadge";
 import { Artwork } from "../components/Artwork";
 import { LikeButton } from "../components/LikeButton";
+import { TrackLyricsCard } from "../components/Lyrics";
+import { PageButtons, usePageActions } from "../components/PageActions";
+import { TrackShelf } from "../components/Shelves";
 import { useTrackActions } from "../components/TrackActions";
 import { ScoreBreakdown, ScoreDial } from "../components/Transparency";
 import {
@@ -19,12 +23,27 @@ import {
   PlayButton,
   Screen,
 } from "../components/ui";
-import { api } from "../lib/api";
+import { api, isUnavailableError } from "../lib/api";
 import { duration } from "../lib/format";
 import { useAsync } from "../lib/hooks";
 import { routes, useGo, usePlayTracks } from "../lib/navigation";
+import { useHumanOnly } from "../state/human-only";
 import { usePlayer } from "../state/player";
 import { colors, space } from "../theme";
+
+/** Shown to an uploader while their new track isn't live yet. Nobody else can see it. */
+const PROCESSING_NOTES: Record<UploadStatus, string> = {
+  processing:
+    "Getting this track ready: we're converting it for streaming and evening out its volume. It usually takes a " +
+    "minute or two, and this screen updates by itself. Until then, only you can see it.",
+  failed:
+    "We couldn't prepare this file for streaming. Try exporting it again as WAV, FLAC or MP3, then upload it again " +
+    "on the Trusic website. Only you can see this track.",
+};
+
+/** Listeners never see tracks that are processing, failed or taken down: the server says they're not found. */
+const UNAVAILABLE_TRACK =
+  "This track isn't available. It may have been removed or taken down, or it isn't ready to play yet.";
 
 const TOOL_NAMES: Record<string, string> = {
   mastering: "Mastering",
@@ -42,19 +61,39 @@ const SOURCE_TEXT = {
 } as const;
 
 export function TrackScreen({ id }: { id: string }) {
-  const { data: track, error, loading, reload } = useAsync(() => api.track(id), [id]);
+  const { data: track, error, cause, loading, reload } = useAsync(() => api.track(id), [id]);
   const play = usePlayTracks();
   const player = usePlayer();
   const go = useGo();
   const openActions = useTrackActions();
+  const processing = track?.processing ?? null;
+  const actions = usePageActions({
+    title: track?.title ?? "",
+    radio: track && !processing ? { type: "track", id: track.id } : null,
+    share:
+      track && !processing ? { kind: "track", key: track.id, title: `${track.title} · ${track.artist.name}` } : null,
+  });
 
-  if (error) return <ErrorScreen message={error} />;
+  // An upload being prepared goes live by itself: check every few seconds.
+  useEffect(() => {
+    if (processing !== "processing") return;
+    const timer = setInterval(() => {
+      api
+        .track(id)
+        .then((t) => t.processing !== "processing" && reload())
+        .catch(() => undefined);
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [id, processing, reload]);
+
+  if (error) return <ErrorScreen message={isUnavailableError(cause) ? UNAVAILABLE_TRACK : error} />;
   if (loading || !track) return <Loading />;
 
   const isCurrent = player.current?.id === track.id;
   return (
     <Screen onRefresh={reload}>
       <Stack.Screen options={{ title: track.title }} />
+      {processing ? <Note tone="warn">{PROCESSING_NOTES[processing]}</Note> : null}
       <View style={styles.hero}>
         <Artwork url={track.artworkUrl} title={track.title} label={track.aiLabel} size={220} />
         <Text style={styles.title}>{track.title}</Text>
@@ -71,17 +110,30 @@ export function TrackScreen({ id }: { id: string }) {
         <View style={styles.spacer} />
         <LikeButton trackId={track.id} />
         <IconButton icon="more" label="More options" onPress={() => openActions(track)} color={colors.muted} />
-        <PlayButton
-          playing={isCurrent && player.playing}
-          label={`Play ${track.title}`}
-          onPress={() => (isCurrent ? player.toggle() : play([track], 0))}
-        />
+        {processing ? null : (
+          <PlayButton
+            playing={isCurrent && player.playing}
+            label={`Play ${track.title}`}
+            onPress={() => (isCurrent ? player.toggle() : play([track], 0))}
+          />
+        )}
       </View>
+      <PageButtons actions={actions} />
 
       <TransparencyCard track={track} />
       <HowPaidCard track={track} />
+      <TrackLyricsCard track={track} />
+      {processing ? null : <MoreLikeThis trackId={track.id} />}
     </Screen>
   );
+}
+
+/** Tracks streamed and liked by the same people. */
+function MoreLikeThis({ trackId }: { trackId: string }) {
+  const { humanOnly } = useHumanOnly();
+  const { data } = useAsync(() => api.similarTracks(trackId, { humanOnly }), [trackId, humanOnly]);
+  if (!data?.tracks.length) return null;
+  return <TrackShelf title="More like this" why={data.why} items={data.tracks} />;
 }
 
 function TransparencyCard({ track }: { track: TrackDetail }) {
