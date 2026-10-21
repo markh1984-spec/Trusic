@@ -1,9 +1,14 @@
 /**
- * Where the phone keeps offline things, using Expo's file system in the app's private storage (its
- * documents folder, which other apps and the Files app can't see):
+ * Where the phone keeps offline things, using Expo's file system in the app's private storage, which other apps
+ * and the Files app can't see:
  *
- *   offline/<name>.json        small documents: the list of downloads, queued plays, settings
- *   offline/audio/<id>.<ext>   downloaded tracks, named by track id
+ *   documents/offline/<name>.json        small documents: the list of downloads, queued plays, settings
+ *   cache/offline-audio/<id>.<ext>       downloaded tracks, named by track id
+ *
+ * Downloaded tracks are in the cache folder so they're left out of iCloud and Android backups: Apple asks apps
+ * not to back up files that can be downloaded again, and Expo's file system has no way to mark a file in the
+ * documents folder as "don't back up". The catch is that a phone very short of space may clear the cache folder.
+ * The download manager notices at the next check-in (see `missing`) and downloads those tracks again.
  *
  * The browser build has its own version of this file (offline-storage.web.ts).
  */
@@ -14,7 +19,17 @@ import { api } from "./api";
 import { AUDIO_EXTENSIONS, audioExtension, trackIdOfFile } from "./offline";
 
 const root = () => new Directory(Paths.document, "offline");
-const audioDir = () => new Directory(root(), "audio");
+const audioDir = () => new Directory(Paths.cache, "offline-audio");
+
+/** Where earlier versions of the app kept downloads, which iCloud backed up. Deleted once; they download again. */
+function removeOldAudio() {
+  try {
+    const old = new Directory(root(), "audio");
+    if (old.exists) old.delete();
+  } catch {
+    // Not worth stopping for: the folder is tried again next time the app opens.
+  }
+}
 
 function ensure(dir: Directory) {
   if (!dir.exists) dir.create({ intermediates: true, idempotent: true });
@@ -89,12 +104,17 @@ export const audioFiles: OfflineFiles & { localUri(trackId: string): Promise<str
   },
 
   async prune(keep) {
+    removeOldAudio();
     const dir = audioDir();
     if (!dir.exists) return;
     for (const entry of dir.list()) {
       const id = trackIdOfFile(entry.name);
       if (!id || !keep.has(id)) entry.delete();
     }
+  },
+
+  async missing(trackIds) {
+    return trackIds.filter((id) => !findAudio(id));
   },
 
   async localUri(trackId) {

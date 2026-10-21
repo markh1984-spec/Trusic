@@ -52,6 +52,11 @@ export interface OfflineFiles {
   removeAll(): Promise<void>;
   /** Delete any stray files that aren't in `keep` (say, from a download interrupted by the app closing). */
   prune?(keep: Set<string>): Promise<void>;
+  /**
+   * Which of these downloaded tracks no longer have a file, for apps that keep downloads somewhere the phone may
+   * clear to free space. They're forgotten, and downloaded again at the next check-in.
+   */
+  missing?(trackIds: string[]): Promise<string[]>;
 }
 
 export interface ManifestStore {
@@ -174,7 +179,15 @@ export class DownloadManager {
     }
     this.manifest = saved ?? emptyManifest(accountId);
     await this.options.files.prune?.(new Set(Object.keys(this.manifest.tracks))).catch(() => undefined);
+    if (await this.forgetLost(this.manifest)) await this.save();
     this.emit();
+  }
+
+  /** Forget downloads whose files the phone has deleted, so they're downloaded again. True if any were. */
+  private async forgetLost(m: OfflineManifest): Promise<boolean> {
+    const lost = (await this.options.files.missing?.(Object.keys(m.tracks)).catch(() => [])) ?? [];
+    for (const id of lost) delete m.tracks[id];
+    return lost.length > 0;
   }
 
   /** Delete every download: on signing out, or when the server says so. */
@@ -345,6 +358,7 @@ export class DownloadManager {
     }
     const wanted = new Set(m.collections.flatMap((c) => c.trackIds).filter((id) => allowed.has(id)));
     await this.removeUnwanted(wanted);
+    await this.forgetLost(m);
     await this.save();
     this.emit();
 

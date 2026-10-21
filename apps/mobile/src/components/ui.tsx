@@ -85,6 +85,7 @@ export function Button({
   variant = "primary",
   disabled = false,
   icon,
+  small = false,
   style,
 }: {
   title: string;
@@ -92,6 +93,8 @@ export function Button({
   variant?: "primary" | "ghost";
   disabled?: boolean;
   icon?: IconName;
+  /** A compact button, for a row of secondary actions such as Radio and Share. */
+  small?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
   const ghost = variant === "ghost";
@@ -101,15 +104,21 @@ export function Button({
       disabled={disabled}
       accessibilityRole="button"
       accessibilityState={{ disabled }}
+      hitSlop={small ? 4 : undefined}
       style={({ pressed }) => [
         styles.button,
+        small && styles.buttonSmall,
         ghost ? styles.buttonGhost : styles.buttonPrimary,
         (pressed || disabled) && { opacity: disabled ? 0.5 : 0.8 },
         style,
       ]}
     >
-      {icon ? <Icon name={icon} size={18} color={ghost ? colors.text : colors.primaryInk} /> : null}
-      <Text style={[styles.buttonText, { color: ghost ? colors.text : colors.primaryInk }]}>{title}</Text>
+      {icon ? <Icon name={icon} size={small ? 16 : 18} color={ghost ? colors.text : colors.primaryInk} /> : null}
+      <Text
+        style={[styles.buttonText, small && styles.buttonTextSmall, { color: ghost ? colors.text : colors.primaryInk }]}
+      >
+        {title}
+      </Text>
     </Pressable>
   );
 }
@@ -270,6 +279,8 @@ const styles = StyleSheet.create({
   buttonPrimary: { backgroundColor: colors.primary },
   buttonGhost: { borderWidth: 1, borderColor: colors.border, backgroundColor: "transparent" },
   buttonText: { fontSize: 15, fontWeight: "700" },
+  buttonSmall: { minHeight: 36, paddingHorizontal: 14, gap: 6 },
+  buttonTextSmall: { fontSize: 14 },
   iconButton: { padding: 6, alignItems: "center", justifyContent: "center" },
   playButton: { backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" },
   chips: { gap: space.sm, paddingVertical: space.xs },

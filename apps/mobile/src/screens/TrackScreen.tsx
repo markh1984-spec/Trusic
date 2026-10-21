@@ -1,12 +1,17 @@
 import type { TrackDetail } from "@trusic/client";
 import { AI_LABELS, aiLabel } from "@trusic/core";
 import { Stack } from "expo-router";
+import { useEffect } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { AiBadge } from "../components/AiBadge";
 import { Artwork } from "../components/Artwork";
 import { LikeButton } from "../components/LikeButton";
+import { TrackLyricsCard } from "../components/Lyrics";
+import { PageButtons, usePageActions } from "../components/PageActions";
+import { TrackShelf } from "../components/Shelves";
 import { useTrackActions } from "../components/TrackActions";
 import { ScoreBreakdown, ScoreDial } from "../components/Transparency";
+import { TrackStatusNotice, UnavailableScreen } from "../components/Unavailable";
 import {
   Body,
   Card,
@@ -19,10 +24,11 @@ import {
   PlayButton,
   Screen,
 } from "../components/ui";
-import { api } from "../lib/api";
+import { api, isUnavailableError } from "../lib/api";
 import { duration } from "../lib/format";
 import { useAsync } from "../lib/hooks";
 import { routes, useGo, usePlayTracks } from "../lib/navigation";
+import { useHumanOnly } from "../state/human-only";
 import { usePlayer } from "../state/player";
 import { colors, space } from "../theme";
 
@@ -42,19 +48,41 @@ const SOURCE_TEXT = {
 } as const;
 
 export function TrackScreen({ id }: { id: string }) {
-  const { data: track, error, loading, reload } = useAsync(() => api.track(id), [id]);
+  const { data: track, error, cause, loading, reload } = useAsync(() => api.track(id), [id]);
   const play = usePlayTracks();
   const player = usePlayer();
   const go = useGo();
   const openActions = useTrackActions();
+  // Not live (still converting, taken down…): only its uploader and admins can open it, and it can't be played or
+  // shared. Older servers don't send `unavailable`, so `processing` counts too.
+  const live = Boolean(track && !track.unavailable && !track.processing);
+  const converting = (track?.unavailable?.status ?? track?.processing) === "processing";
+  const actions = usePageActions({
+    title: track?.title ?? "",
+    radio: track && live ? { type: "track", id: track.id } : null,
+    share: track && live ? { kind: "track", key: track.id, title: `${track.title} · ${track.artist.name}` } : null,
+  });
 
-  if (error) return <ErrorScreen message={error} />;
+  // An upload being prepared goes live by itself: check every few seconds.
+  useEffect(() => {
+    if (!converting) return;
+    const timer = setInterval(() => {
+      api
+        .track(id)
+        .then((t) => (t.unavailable?.status ?? t.processing) !== "processing" && reload())
+        .catch(() => undefined);
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [id, converting, reload]);
+
+  if (error) return isUnavailableError(cause) ? <UnavailableScreen kind="track" /> : <ErrorScreen message={error} />;
   if (loading || !track) return <Loading />;
 
   const isCurrent = player.current?.id === track.id;
   return (
     <Screen onRefresh={reload}>
       <Stack.Screen options={{ title: track.title }} />
+      <TrackStatusNotice track={track} onChange={reload} />
       <View style={styles.hero}>
         <Artwork url={track.artworkUrl} title={track.title} label={track.aiLabel} size={220} />
         <Text style={styles.title}>{track.title}</Text>
@@ -71,17 +99,30 @@ export function TrackScreen({ id }: { id: string }) {
         <View style={styles.spacer} />
         <LikeButton trackId={track.id} />
         <IconButton icon="more" label="More options" onPress={() => openActions(track)} color={colors.muted} />
-        <PlayButton
-          playing={isCurrent && player.playing}
-          label={`Play ${track.title}`}
-          onPress={() => (isCurrent ? player.toggle() : play([track], 0))}
-        />
+        {live ? (
+          <PlayButton
+            playing={isCurrent && player.playing}
+            label={`Play ${track.title}`}
+            onPress={() => (isCurrent ? player.toggle() : play([track], 0))}
+          />
+        ) : null}
       </View>
+      <PageButtons actions={actions} />
 
       <TransparencyCard track={track} />
       <HowPaidCard track={track} />
+      <TrackLyricsCard track={track} />
+      {live ? <MoreLikeThis trackId={track.id} /> : null}
     </Screen>
   );
+}
+
+/** Tracks streamed and liked by the same people. */
+function MoreLikeThis({ trackId }: { trackId: string }) {
+  const { humanOnly } = useHumanOnly();
+  const { data } = useAsync(() => api.similarTracks(trackId, { humanOnly }), [trackId, humanOnly]);
+  if (!data?.tracks.length) return null;
+  return <TrackShelf title="More like this" why={data.why} items={data.tracks} />;
 }
 
 function TransparencyCard({ track }: { track: TrackDetail }) {

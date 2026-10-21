@@ -33,3 +33,6 @@ export function errorMessage(e: unknown, fallback = "Something went wrong."): st
 }
 
 export const isAuthError = (e: unknown) => e instanceof ApiError && (e.status === 401 || e.status === 403);
+
+/** The track (or page) has gone: taken down, removed, or its artist suspended. */
+export const isUnavailableError = (e: unknown) => e instanceof ApiError && (e.status === 404 || e.status === 410);

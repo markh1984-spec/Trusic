@@ -69,7 +69,9 @@ export type QueueAction =
   | { type: "jumpToQueued"; index: number }
   | { type: "jumpToContext"; orderIndex: number }
   | { type: "toggleShuffle" }
-  | { type: "cycleRepeat" };
+  | { type: "cycleRepeat" }
+  /** A track can't be played any more (taken down, say): take it out of the queue, and move on if it's playing. */
+  | { type: "dropTrack"; trackId: string };
 
 const range = (n: number) => Array.from({ length: n }, (_, i) => i);
 
@@ -218,5 +220,47 @@ export function queueReducer(state: QueueState, action: QueueAction, random: () 
       const nextMode: Record<RepeatMode, RepeatMode> = { off: "all", all: "one", one: "off" };
       return { ...state, repeat: nextMode[state.repeat] };
     }
+
+    case "dropTrack":
+      return dropTrack(state, action.trackId);
   }
+}
+
+/**
+ * Take every copy of a track out of the queue. If it was playing, the next track starts (never the same one
+ * again, even on "repeat one"); if nothing's left, the queue stops. Each drop shrinks the queue, so a queue of
+ * nothing but unavailable tracks always comes to an end.
+ */
+function dropTrack(state: QueueState, trackId: string): QueueState {
+  const gone = (t: TrackSummary) => t.id === trackId;
+  const playingGone = state.current !== null && gone(state.current);
+  if (!playingGone && !state.context.some(gone) && !state.upNext.some(gone)) return state;
+
+  // Old context index → new one, or -1 for the dropped track.
+  let kept = 0;
+  const newIndex = state.context.map((t) => (gone(t) ? -1 : kept++));
+  const order: number[] = [];
+  // Still the last context track played: the one at the old position, or the one before it if that was dropped.
+  let position = -1;
+  for (const [i, contextIndex] of state.order.entries()) {
+    const index = newIndex[contextIndex]!;
+    if (index >= 0) order.push(index);
+    if (i === state.position) position = order.length - 1;
+  }
+  const context = state.context.filter((t) => !gone(t));
+  const upNext = state.upNext.filter((t) => !gone(t));
+  const next: QueueState = { ...state, context, order, position, upNext };
+  if (!playingGone) return next;
+
+  const playId = state.playId + 1;
+  if (upNext.length > 0) {
+    const [track, ...rest] = upNext;
+    return { ...next, upNext: rest, current: track!, currentFrom: "queue", playId };
+  }
+  const following = position + 1 < order.length ? position + 1 : state.repeat === "all" && order.length ? 0 : -1;
+  if (following >= 0) {
+    return { ...next, position: following, current: context[order[following]!]!, currentFrom: "context", playId };
+  }
+  // Nothing left to play. Radio stops too, rather than fetching more for a queue that has ended.
+  return { ...next, current: null, currentFrom: null, radio: null, playId };
 }

@@ -357,3 +357,54 @@ describe("DownloadManager", () => {
     expect(storageSize(1_250_000_000)).toBe("1.3 GB");
   });
 });
+
+describe("downloads the phone has cleared away", () => {
+  /** Files kept where the phone may delete them to free space (an app's cache folder). */
+  function clearable() {
+    const server = fakeServer();
+    const device = fakeDevice(server);
+    const files: OfflineFiles = {
+      ...device.files,
+      missing: async (ids) => ids.filter((id) => !device.disk.has(id)),
+    };
+    const make = () =>
+      new DownloadManager({
+        api: server.api,
+        files,
+        store: device.store,
+        device: { id: "device-1234", name: "Test phone", platform: "ios" },
+        now: () => server.now,
+      });
+    return { server, device, make };
+  }
+
+  it("are forgotten when the app opens, then downloaded again at the next check-in", async () => {
+    const { server, device, make } = clearable();
+    const first = make();
+    await first.open("user-1");
+    await first.setCollection(release, true);
+    device.disk.clear();
+
+    server.online = false;
+    const next = make();
+    await next.open("user-1");
+    expect(next.isDownloaded("a")).toBe(false);
+    expect(next.snapshot.bytes).toBe(0);
+    expect(device.saved.manifest?.tracks).toEqual({});
+
+    server.online = true;
+    await next.sync();
+    expect([...device.disk.keys()].sort()).toEqual(["a", "b"]);
+    expect(next.isPlayable("a")).toBe(true);
+  });
+
+  it("are noticed at a check-in while the app is open", async () => {
+    const { device, make } = clearable();
+    const manager = make();
+    await manager.open("user-1");
+    await manager.setCollection(release, true);
+    device.disk.delete("b");
+    await manager.sync();
+    expect([...device.disk.keys()].sort()).toEqual(["a", "b"]);
+  });
+});

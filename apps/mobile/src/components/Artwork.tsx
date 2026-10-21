@@ -1,8 +1,19 @@
-import { imageSources } from "@trusic/client";
+import { imageSources, sizedImageUrl } from "@trusic/client";
 import type { AiLabel } from "@trusic/core";
-import { Image, StyleSheet, Text, View, type DimensionValue } from "react-native";
+import { useState } from "react";
+import { Image, PixelRatio, Platform, StyleSheet, Text, View, type DimensionValue } from "react-native";
 import { mediaUrl } from "../lib/api";
 import { artworkTints, colors } from "../theme";
+
+/**
+ * Every size the server keeps, so a phone picks the one that suits the view and the screen. The browser build's
+ * <Image> only takes one, so it gets the size that covers the view.
+ */
+function sources(uri: string, size: number | DimensionValue) {
+  if (Platform.OS !== "web") return imageSources(uri);
+  const points = typeof size === "number" ? size : 320;
+  return { uri: sizedImageUrl(uri, PixelRatio.getPixelSizeForLayoutSize(points)) };
+}
 
 /** Cover art, or a tinted placeholder with the title's first letter. */
 export function Artwork({
@@ -20,13 +31,23 @@ export function Artwork({
   round?: boolean;
 }) {
   const uri = mediaUrl(url);
+  // Artwork that won't load (taken-down artwork needs a sign-in the image can't send, say) shows the placeholder.
+  const [failed, setFailed] = useState<string | null>(null);
   const box = {
     width: size,
     aspectRatio: 1,
     borderRadius: round ? 9999 : typeof size === "number" ? Math.max(4, size * 0.08) : 8,
   } as const;
-  // Every size the server keeps: React Native picks the one that suits the view and the screen.
-  if (uri) return <Image source={imageSources(uri)} style={[styles.image, box]} accessibilityIgnoresInvertColors />;
+  if (uri && failed !== uri) {
+    return (
+      <Image
+        source={sources(uri, size)}
+        style={[styles.image, box]}
+        onError={() => setFailed(uri)}
+        accessibilityIgnoresInvertColors
+      />
+    );
+  }
   const fontSize = typeof size === "number" ? Math.max(12, size * 0.4) : 48;
   return (
     <View style={[styles.placeholder, box, { backgroundColor: artworkTints[label ?? "none"] }]} aria-hidden>
@@ -52,7 +73,7 @@ export function PlaylistCover({
       aria-hidden
     >
       {urls.slice(0, 4).map((u) => (
-        <Image key={u} source={imageSources(mediaUrl(u)!)} style={styles.tile} />
+        <Image key={u} source={sources(mediaUrl(u)!, typeof size === "number" ? size / 2 : size)} style={styles.tile} />
       ))}
     </View>
   );

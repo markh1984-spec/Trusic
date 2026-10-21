@@ -4,10 +4,13 @@ import { useEffect, useState } from "react";
 import { Alert, Platform, StyleSheet, Text, View } from "react-native";
 import { PlaylistCover } from "../components/Artwork";
 import { DownloadToggle } from "../components/DownloadToggle";
+import { OpenedYourselfNote } from "../components/HumanOnly";
+import { PageButtons, PageMenuButton, usePageActions } from "../components/PageActions";
 import { LikedCover } from "../components/Tiles";
 import { TrackList } from "../components/TrackList";
 import { Button, ErrorScreen, Loading, Muted, PlayButton, Screen, SignInPrompt } from "../components/ui";
-import { api, errorMessage } from "../lib/api";
+import { TakenDownNotice, UnavailableScreen } from "../components/Unavailable";
+import { api, errorMessage, isUnavailableError } from "../lib/api";
 import { duration, plural } from "../lib/format";
 import { useAsync } from "../lib/hooks";
 import { usePlayTracks } from "../lib/navigation";
@@ -31,7 +34,7 @@ function confirm(title: string, message: string, action: string): Promise<boolea
 }
 
 export function PlaylistScreen({ id }: { id: string }) {
-  const { data, error, loading, reload } = useAsync(() => api.playlist(id), [id]);
+  const { data, error, cause, loading, reload } = useAsync(() => api.playlist(id), [id]);
   const [playlist, setPlaylist] = useState<PlaylistDetail | null>(null);
   const play = usePlayTracks();
   const player = usePlayer();
@@ -39,10 +42,28 @@ export function PlaylistScreen({ id }: { id: string }) {
   const toast = useToast();
   const router = useRouter();
   const downloaded = useDownloadedCollection({ type: "playlist", id });
+  const hasTracks = Boolean(playlist?.entries.length);
+  const takenDown = playlist?.takenDown === true;
+  const actions = usePageActions({
+    title: playlist?.name ?? "",
+    subtitle: playlist ? `Playlist · ${playlist.owner.displayName}` : undefined,
+    artwork: { url: playlist?.artworkUrls[0] ?? null },
+    radio: playlist && hasTracks && !takenDown ? { type: "playlist", id: playlist.id } : null,
+    // A private or taken-down playlist has no page anyone else can open, so there's nothing to share.
+    share:
+      playlist?.isPublic === true && !takenDown
+        ? { kind: "playlist", key: playlist.id, title: `${playlist.name} · ${playlist.owner.displayName}` }
+        : null,
+    report: playlist && !playlist.isOwner && !takenDown ? { type: "playlist", id: playlist.id } : null,
+  });
 
   useEffect(() => setPlaylist(data), [data]);
 
-  if (error) return downloaded ? <OfflineCollectionScreen {...downloaded} /> : <ErrorScreen message={error} />;
+  if (error) {
+    // Gone, made private or taken down (its downloads go at the next check-in), or just no signal.
+    if (isUnavailableError(cause)) return <UnavailableScreen kind="playlist" />;
+    return downloaded ? <OfflineCollectionScreen {...downloaded} /> : <ErrorScreen message={error} />;
+  }
   if (loading || !playlist) return <Loading />;
 
   const tracks = playlist.entries.map((e) => e.track);
@@ -80,6 +101,7 @@ export function PlaylistScreen({ id }: { id: string }) {
   return (
     <Screen onRefresh={reload}>
       <Stack.Screen options={{ title: playlist.name }} />
+      {takenDown ? <TakenDownNotice kind="playlist" isOwner={playlist.isOwner} /> : null}
       <View style={styles.hero}>
         <PlaylistCover urls={playlist.artworkUrls} title={playlist.name} size={220} />
         <Text style={styles.title}>{playlist.name}</Text>
@@ -92,14 +114,16 @@ export function PlaylistScreen({ id }: { id: string }) {
       <View style={styles.actions}>
         {playlist.isOwner ? <Button title="Delete" variant="ghost" onPress={() => void remove()} /> : null}
         <View style={{ flex: 1 }} />
+        <PageMenuButton actions={actions} label={playlist.name} />
         {tracks.length ? (
           <PlayButton
             playing={playingThis}
             label={`Play ${playlist.name}`}
-            onPress={() => (playingThis ? player.toggle() : play(tracks, 0, playlist.name))}
+            onPress={() => (playingThis ? player.toggle() : play(tracks, 0, playlist.name, "playlist"))}
           />
         ) : null}
       </View>
+      <PageButtons actions={actions} />
       <DownloadToggle
         collection={{
           type: "playlist",
@@ -110,10 +134,12 @@ export function PlaylistScreen({ id }: { id: string }) {
           trackIds: [...new Set(tracks.map((t) => t.id))],
         }}
       />
+      <OpenedYourselfNote tracks={tracks} what="this playlist" />
       <TrackList
         tracks={tracks}
         keys={playlist.entries.map((e) => e.entryId)}
         label={playlist.name}
+        source="playlist"
         empty={
           playlist.isOwner
             ? "This playlist is empty. Use the ⋯ button on any track to add it here."
@@ -175,7 +201,7 @@ function Liked() {
           <PlayButton
             playing={playingThis}
             label="Play liked songs"
-            onPress={() => (playingThis ? player.toggle() : play(tracks, 0, "Liked songs"))}
+            onPress={() => (playingThis ? player.toggle() : play(tracks, 0, "Liked songs", "liked"))}
           />
         ) : null}
       </View>
@@ -189,7 +215,12 @@ function Liked() {
           trackIds: tracks.map((t) => t.id),
         }}
       />
-      <TrackList tracks={tracks} label="Liked songs" empty="Tap the heart on any track to save it here." />
+      <TrackList
+        tracks={tracks}
+        label="Liked songs"
+        source="liked"
+        empty="Tap the heart on any track to save it here."
+      />
     </Screen>
   );
 }

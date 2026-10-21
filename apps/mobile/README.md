@@ -1,9 +1,11 @@
 # Trusic for iPhone and Android
 
-The Trusic phone app. It does what the website does for listeners: browse new releases and tracks, search, see
-every track's AI label and score, play music with a queue (shuffle, repeat, play next), keep a library of playlists,
-liked songs and followed artists, see where your money went, and log in or sign up. Subscribers can also download
-music to listen without signal (see [Listening offline](#listening-offline)).
+The Trusic phone app. It does what the website does for listeners: a home page picked for you, browse and search,
+see every track's AI label and score, a "Human-made only" switch, play music with a queue (shuffle, repeat, play
+next), endless radio, lyrics that follow the song, keep a library of playlists, liked songs and followed artists,
+share links, report problems, see where your money went, and log in or sign up. Subscribers can also download music
+to listen without signal (see [Listening offline](#listening-offline)). What each part does is described in
+[What's in the app](#whats-in-the-app).
 
 It's one app for both iPhone and Android, built with [Expo](https://expo.dev) (React Native). The same code also runs
 in a web browser, which is handy for quick checks.
@@ -80,10 +82,43 @@ For a static copy you can host anywhere, `pnpm --filter @trusic/mobile export:we
 
 Put these in `apps/mobile/.env` (see `.env.example`) and restart `pnpm mobile` after changing them.
 
-| Setting                | What it is                                                                                        |
-| ---------------------- | ------------------------------------------------------------------------------------------------- |
-| `EXPO_PUBLIC_API_URL`  | The Trusic API. Defaults to `http://localhost:3001/api`.                                          |
-| `EXPO_PUBLIC_SITE_URL` | The Trusic website, where people subscribe. Defaults to the API's address, which serves the site. |
+| Setting                | What it is                                                                                                                                                                                                       |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `EXPO_PUBLIC_API_URL`  | The Trusic API. Defaults to `http://localhost:3001/api`.                                                                                                                                                         |
+| `EXPO_PUBLIC_SITE_URL` | The Trusic website, where people subscribe and where share links point. Defaults to the API's address, which serves the site. Share links use the server's public address (its `PUBLIC_URL`) unless this is set. |
+
+## What's in the app
+
+- **Home** has shelves picked from listening on Trusic. Listeners get Jump back in, Made for you, New from artists
+  you follow and Because you liked…; everyone gets Popular on Trusic, New releases, Fresh human-made music and
+  Artists to discover. Each track says why it's there, and each shelf has a "Why am I seeing this?" note. Below
+  them is every new track, which can be filtered by AI label.
+- **"Human-made only"** is a switch at the top of Home and in Account. When it's on, tracks labelled Partly AI and AI
+  Slop are left out of Home, search, "More like this", "Fans also like" and radio. Albums, playlists and artists you
+  open yourself still play everything, with a note saying how many tracks aren't Human-made. Signed in, it's kept on
+  your account, so it's the same on the website; visitors' choice is kept on the phone.
+- **Radio** starts from a track (in its "⋯" sheet or on its screen), an artist or a playlist (on their screens) and
+  never ends: more is added as it runs low, as on the website.
+- **Track screens** show "More like this", and **artist screens** "Fans also like".
+- **Lyrics**: the **Lyrics** button in Now Playing swaps the artwork for the words. Synced lyrics light up line by
+  line and keep the line being sung in view; tap a line to jump to it (not past the end of a 30-second preview).
+  Plain lyrics just scroll. Track screens show lyrics too. Lyrics for covers are never shown, as on the website.
+- **Share** is in the "⋯" sheets and on track, release, artist and public playlist screens. It opens the phone's
+  share sheet with the website's link, which shows a preview wherever it's pasted.
+- **Report…** is in the "⋯" sheets and on release, artist and playlist screens (not on your own). Offensive or
+  illegal content, impersonation and wrong AI labels are reported from the app. Copyright notices need the
+  claimant's details and two signed statements, so that choice opens the website's form.
+- **Where plays start**: every play says where it was started (an album, a playlist, an artist's page, search,
+  Liked songs, radio, recommendations or the queue), so artists' stats are right.
+- **Tracks that go**: tracks being processed, that failed to convert, that were taken down or whose artist is
+  suspended never show to listeners. If one goes while it's in your queue, the app says "… isn't available any more,
+  so it was skipped" and plays the next one. A link to anything that's gone opens a "This … isn't available" screen
+  rather than an error.
+- **Your own tracks that aren't live**: their uploader can still open them, and is told why, as on the website:
+  still converting (the screen updates by itself), converting failed (with **Try again** when the upload can be
+  converted again), removed, hidden while the account is suspended, or taken down (with a link to the takedown on
+  the website, where counter-notices are sent). Artist pages and playlists that were taken down say so to their
+  owner, and can't be shared. Taken-down artwork needs signing in on the website, so the app shows a placeholder.
 
 ## Subscriptions and previews
 
@@ -106,7 +141,15 @@ Subscribers can download albums, EPs, singles, playlists and their liked songs t
   account and the phone: signing out deletes them, and so does the subscription ending. The app checks them with
   Trusic whenever it's online (at least every 12 hours); after 30 days without a check they stop playing until it
   can. Tracks that have been taken down are deleted at the next check. One account can keep downloads on up to five
-  phones and computers.
+  phones and computers. A phone removed under Settings › Your devices on the website deletes its downloads at its
+  next check, and Library › Downloads says why.
+- **Backups.** Downloaded music is kept in the app's cache folder, which iCloud and Android's backups leave out:
+  Apple asks apps not to back up files that can be downloaded again, and a backup full of music would be slow and
+  could use up someone's iCloud space. Expo's file system has no way to mark a file elsewhere as "don't back up"
+  (that would need native code, which Expo Go can't run). The catch: a phone that's very short of space may empty
+  an app's cache folder, and on Android "Clear cache" in the phone's settings does too. The app notices at its next
+  check and downloads those tracks again (on Wi-Fi, if that's the setting). The list of downloads and the plays
+  waiting to be sent stay in the app's documents folder, so nothing that counts towards paying artists is lost.
 - Every listen goes into a queue on the phone and is sent when there's a connection, so offline listening pays
   artists. Plays more than 30 days old aren't accepted.
 
@@ -125,8 +168,20 @@ browser's own storage). These need a real iPhone and Android phone, ideally with
 - Turning on aeroplane mode: the offline banner, greyed-out tracks and playing downloads.
 - The listen being reported when the app goes to the background mid-song, then once more when it ends, without
   counting twice.
-- iPhone backups: downloads are in the app's documents folder, which iCloud backs up by default. Before the App Store,
-  they should be excluded from backups (Apple asks this of files that can be downloaded again).
+- Backups: that an iPhone backup (Settings › your name › iCloud › Manage storage › Backups) doesn't include
+  Trusic's downloads, and that downloads come back by themselves after the phone clears the app's cache. On
+  Android, Settings › Apps › Trusic › Storage › Clear cache does that. A phone that was already used with an earlier
+  version of the app deletes its old downloads once and downloads them again into the new place.
+
+The new features have been tested the same way. These also need a real phone:
+
+- **Share**: the iPhone and Android share sheets (the browser test checked the link and title the app hands them).
+  On iPhones the share sheet opens just after the "⋯" sheet has closed, which only a real iPhone can show.
+- **Lyrics**: that synced lyrics scroll smoothly and keep the line being sung in view, that scrolling them yourself
+  pauses that for a few seconds, and that tapping a line jumps the music there.
+- **Report**: that "Copyright infringement" opens the website's form in the phone's browser.
+- **A track taken down while queued**: tested by removing a track mid-queue; it should be checked once on a phone,
+  including with the screen locked.
 
 ## Publishing to the App Store and Google Play (later)
 
@@ -161,6 +216,9 @@ the link may need to be hidden in some countries.
 - **Not yet tried on real phones.** It has been tested in a browser at phone size. iPhone and Android builds need
   the steps above. For downloads, see [what can only be checked on a real phone](#what-can-only-be-checked-on-a-real-phone).
 - **Artwork offline.** Downloads keep the music but not the cover art, so covers may be blank without signal.
+- **Lyrics offline.** Lyrics need a connection, even for downloaded tracks. Now Playing says so.
+- **Share options.** The phone shares links only. Embed codes and QR codes for posters are on the website.
+- **Copyright notices** are sent from the website's form, which the app opens.
 
 ## For developers
 
@@ -177,8 +235,21 @@ the link may need to be hidden in some countries.
   up on the phone and the API keeps one play per id, so it's never counted twice. The queue is sent to
   `POST /api/plays/batch` whenever the server can be reached.
 - Downloads: the rules are shared with the desktop app in `@trusic/player` (`downloads.ts` and `outbox.ts`, with
-  tests). `src/lib/offline-storage.ts` keeps files with Expo's file system; `offline-storage.web.ts` is the browser
-  version.
+  tests). `src/lib/offline-storage.ts` keeps files with Expo's file system (audio in `Paths.cache`, see Backups
+  above); `offline-storage.web.ts` is the browser version. Both tell the download manager which files have gone
+  (`missing`), so cleared downloads come back.
+- Play sources: lists pass `source` to `TrackList` and `usePlayTracks` (`"release"`, `"playlist"`, `"artist"`,
+  `"search"`, `"liked"`, `"recommendations"`; radio is `"radio"`), and the player reports `currentPlaySource` from
+  `@trusic/player`, which makes tracks queued by hand `"queue"`.
+- Radio uses the shared queue's `radio` seed and `radioNeedsMore`, topped up from `GET /api/radio` as on the website
+  (`src/state/player.tsx`). A track the server no longer has (404) is taken out of the queue with the queue's
+  `dropTrack` action.
+- "Human-made only" is in `src/state/human-only.tsx`: the account's setting, or the phone's for visitors, sent as
+  `humanOnly` with every request that uses it.
+- Lyrics (`src/components/Lyrics.tsx`, rules in `src/lib/lyrics.ts`), shelves (`src/components/Shelves.tsx`),
+  sharing (`src/lib/share.ts` and `share-sheet.ts`), the page "⋯" sheets with Radio and Share
+  (`src/components/PageActions.tsx`) and reporting (`src/screens/ReportScreen.tsx`, `src/lib/report.ts`). The pure
+  rules have tests next to them.
 - The sign-in token is kept in the phone's secure storage (`expo-secure-store`), or `localStorage` in a browser.
 - `pnpm --filter @trusic/mobile typecheck` and `pnpm --filter @trusic/mobile test` run with the rest of the repo's
   checks.

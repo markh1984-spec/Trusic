@@ -18,6 +18,9 @@ export const API_URL = (process.env.EXPO_PUBLIC_API_URL || DEFAULT_API_URL).repl
  */
 export const SITE_URL = (process.env.EXPO_PUBLIC_SITE_URL || new URL(API_URL).origin).replace(/\/+$/, "");
 
+/** Set when EXPO_PUBLIC_SITE_URL names the website. Otherwise share links use the address the server gives. */
+export const SITE_URL_CONFIGURED = Boolean(process.env.EXPO_PUBLIC_SITE_URL);
+
 /** The website page with the subscribe button. */
 export const SUBSCRIBE_URL = `${SITE_URL}/money`;
 
