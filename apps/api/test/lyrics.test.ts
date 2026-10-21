@@ -8,7 +8,9 @@ import {
   type TrackDetail,
   type TrackLyrics,
 } from "@trusic/client";
+import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { trackLyrics } from "../src/db/schema";
 import { call, createTestApp, declaration, register, sendFile, wav, type TestApp } from "./helpers";
 
 describe("parsing lyrics", () => {
@@ -190,5 +192,36 @@ describe("lyrics", () => {
     await call(t, "DELETE", `/api/tracks/${trackId}`, band.token);
     expect((await call(t, "GET", url())).status).toBe(404);
     expect((await call(t, "PUT", url(), band.token, { format: "plain", text: "x" })).status).toBe(404);
+  });
+
+  it("are in the account's data download, and deleted with the account", async () => {
+    const singer = await register(t, "singer@trusic.test");
+    const artist = (await call<{ id: string }>(t, "POST", "/api/artists", singer.token, { name: "Singer" })).body;
+    const upload = await sendFile(
+      t,
+      "POST",
+      "/api/tracks",
+      singer.token,
+      { artistId: artist.id, title: "Mine", declaration: JSON.stringify(declaration()) },
+      { name: "audio", filename: "mine.wav", data: wav({ seconds: 6 }) },
+    );
+    const id = (upload.body as TrackDetail).id;
+    await call(t, "PUT", `/api/tracks/${id}/lyrics`, singer.token, { format: "plain", text: "My own words" });
+
+    const exported = await t.app.inject({
+      method: "GET",
+      url: "/api/me/export",
+      headers: { authorization: `Bearer ${singer.token}` },
+    });
+    const lyrics = exported.json<{ lyrics: { trackId: string; text: string }[] }>().lyrics;
+    expect(lyrics).toEqual([expect.objectContaining({ trackId: id, text: "My own words" })]);
+
+    const deleted = await call(t, "POST", "/api/me/delete", singer.token, {
+      password: "correct horse battery",
+      confirm: "DELETE",
+    });
+    expect(deleted.status).toBe(204);
+    const left = await t.database.db.select().from(trackLyrics).where(eq(trackLyrics.trackId, id));
+    expect(left).toEqual([]);
   });
 });

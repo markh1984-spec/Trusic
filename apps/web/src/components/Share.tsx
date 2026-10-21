@@ -4,6 +4,7 @@ import { qrCode, qrPath } from "../qr";
 import { copyText, origin, shareLink, shareUrl, usesShareSheet, type ShareTarget } from "../share";
 import { useToast } from "../toast";
 import { Icon } from "./Icon";
+import { MoreMenu, type MoreMenuItem } from "./MoreMenu";
 import "../share.css";
 
 export interface ShareAction {
@@ -82,6 +83,25 @@ export function ShareButton({ target }: { target: ShareTarget }) {
       ) : null}
       {dialog}
     </div>
+  );
+}
+
+/** A page's "⋯" menu with the Share choices first, alongside its own items (such as "Report…"). */
+export function MoreMenuWithShare({
+  target,
+  label,
+  items,
+}: {
+  target: ShareTarget;
+  label: string;
+  items: MoreMenuItem[];
+}) {
+  const { actions, dialog } = useShareActions(target);
+  return (
+    <>
+      <MoreMenu label={label} items={[...actions, ...items]} />
+      {dialog}
+    </>
   );
 }
 

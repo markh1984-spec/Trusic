@@ -7,6 +7,7 @@ import { Icon, type IconName } from "./Icon";
 import { LyricsPanel } from "./Lyrics";
 import { PlayerBar } from "./PlayerBar";
 import { QueuePanel } from "./QueuePanel";
+import { VerifyBanner } from "./VerifyBanner";
 
 function NavItem({ to, icon, children }: { to: string; icon: IconName; children: string }) {
   return (
@@ -67,6 +68,9 @@ export function Layout() {
                   Admin
                 </NavItem>
               ) : null}
+              <NavItem to="/settings" icon="person">
+                Settings
+              </NavItem>
             </>
           ) : null}
         </nav>
@@ -98,9 +102,9 @@ export function Layout() {
                 <Link to="/money" className={`plan-pill plan-pill--${me.user.plan}`}>
                   {me.user.plan === "premium" ? "Premium" : "Not subscribed"}
                 </Link>
-                <span className="topbar__name">
+                <Link to="/settings" className="topbar__name" title="Settings">
                   <Icon name="person" size={18} /> {me.user.displayName}
-                </span>
+                </Link>
                 <button className="icon-button" onClick={() => void logout()} aria-label="Log out" title="Log out">
                   <Icon name="logout" />
                 </button>
@@ -118,7 +122,14 @@ export function Layout() {
           </div>
         </header>
         <main className="content">
+          <VerifyBanner />
           <Outlet />
+          <footer className="site-footer">
+            <Link to="/legal/copyright">Copyright</Link>
+            <Link to="/report">Report something</Link>
+            <Link to="/legal/terms">Terms</Link>
+            {me ? <Link to="/settings">Settings and your data</Link> : null}
+          </footer>
         </main>
       </div>
 

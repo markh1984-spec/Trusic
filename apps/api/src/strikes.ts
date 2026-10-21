@@ -85,22 +85,7 @@ export async function issueStrike(
     let suspended = false;
     if (n >= STRIKES_TO_SUSPEND) {
       suspended = true;
-      await tx.update(users).set({ suspendedAt: new Date() }).where(eq(users.id, track.ownerUserId));
-      const owned = await tx.select({ id: artists.id }).from(artists).where(eq(artists.ownerUserId, track.ownerUserId));
-      if (owned.length) {
-        await tx
-          .update(tracks)
-          .set({ status: "suspended" })
-          .where(
-            and(
-              inArray(
-                tracks.artistId,
-                owned.map((a) => a.id),
-              ),
-              eq(tracks.status, "live"),
-            ),
-          );
-      }
+      await suspendAccount(tx, track.ownerUserId);
     }
     return { strike: strike!, strikeCount: n, suspended };
   });
@@ -108,6 +93,29 @@ export async function issueStrike(
   // Months not yet finalised are simply recalculated with the corrected score.
   for (const period of openPeriods) await runPayouts(db, period, input.currency);
   return outcome;
+}
+
+/**
+ * Suspend an account after its third strike (for false AI declarations, or upheld copyright takedowns): its live
+ * tracks come down and it can't upload until an admin reinstates it.
+ */
+export async function suspendAccount(tx: Db | Tx, userId: string): Promise<void> {
+  await tx.update(users).set({ suspendedAt: new Date() }).where(eq(users.id, userId));
+  const owned = await tx.select({ id: artists.id }).from(artists).where(eq(artists.ownerUserId, userId));
+  if (owned.length) {
+    await tx
+      .update(tracks)
+      .set({ status: "suspended" })
+      .where(
+        and(
+          inArray(
+            tracks.artistId,
+            owned.map((a) => a.id),
+          ),
+          eq(tracks.status, "live"),
+        ),
+      );
+  }
 }
 
 /** Lift a suspension and put the artist's tracks back. Their strikes stay on record. */

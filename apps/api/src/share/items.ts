@@ -1,9 +1,9 @@
 import type { ShareKind } from "@trusic/client";
 import { AI_LABELS, aiLabel, type AiLabel } from "@trusic/core";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "../db/client";
-import { artists, tracks } from "../db/schema";
+import { artists, tracks, users } from "../db/schema";
 import { loadPlaylistDetail } from "../routes/playlists";
 import { loadReleaseSummaries, selectTrackSummariesWith, toArtist, toTrackSummary } from "../views";
 
@@ -78,8 +78,10 @@ function trackCountSentence(counts: Record<AiLabel, number>): string {
 }
 
 /**
- * The item behind a shared link, or null if it doesn't exist or isn't public. Private playlists, removed tracks
- * and suspended artists' tracks never get a preview.
+ * The item behind a shared link, or null if it doesn't exist or isn't public. Private playlists, anything taken
+ * down after a report, removed tracks, suspended artists' tracks and deleted accounts never get a preview. (A
+ * takedown of an artist or release also takes down its tracks, and deleting an account removes its tracks and
+ * deletes its releases and playlists.)
  */
 export async function loadShareItem(db: Db, kind: ShareKind, key: string): Promise<ShareItem | null> {
   if (kind === "artist") {
@@ -139,9 +141,15 @@ async function loadRelease(db: Db, id: string): Promise<ShareItem | null> {
 }
 
 async function loadArtist(db: Db, slug: string): Promise<ShareItem | null> {
-  const [row] = await db.select().from(artists).where(eq(artists.slug, slug)).limit(1);
+  const [row] = await db
+    .select({ artist: artists })
+    .from(artists)
+    .innerJoin(users, eq(users.id, artists.ownerUserId))
+    // Not taken down after a report, and its owner hasn't deleted their account.
+    .where(and(eq(artists.slug, slug), isNull(artists.takenDownAt), isNull(users.deletedAt)))
+    .limit(1);
   if (!row) return null;
-  const artist = toArtist(row);
+  const artist = toArtist(row.artist);
   const scores = await db
     .select({ aiScore: tracks.aiScore })
     .from(tracks)

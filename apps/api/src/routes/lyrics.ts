@@ -43,8 +43,10 @@ export async function loadLyrics(db: Db, trackId: string, viewer: { id: string }
     .where(eq(tracks.id, trackId))
     .limit(1);
   if (!track) return null;
-  const canEdit = viewer ? (await lyricsRole(db, trackId, viewer.id)) !== null : false;
-  if (track.status !== "live" && !canEdit) return null;
+  const role = viewer ? await lyricsRole(db, trackId, viewer.id) : null;
+  // Removed or taken-down tracks are hidden from everyone but whoever uploaded them, lyrics included.
+  if (track.status !== "live" && role !== "uploader") return null;
+  const canEdit = role !== null;
 
   const hidden = track.credits?.isCover ? "cover" : null;
   const stored = track.lyrics;
@@ -119,7 +121,11 @@ export const lyricsRoutes =
       })
         .leftJoin(trackLyrics, eq(trackLyrics.trackId, tracks.id))
         .where(
-          and(ne(tracks.status, "removed"), or(eq(artists.ownerUserId, user.id), inArray(tracks.id, splitTrackIds))),
+          or(
+            // Uploaders still see their taken-down or suspended tracks; split members only see live ones.
+            and(eq(artists.ownerUserId, user.id), ne(tracks.status, "removed")),
+            and(inArray(tracks.id, splitTrackIds), eq(tracks.status, "live")),
+          ),
         )
         .orderBy(desc(tracks.createdAt));
       return rows.map((r): LyricsTrack => ({
@@ -138,7 +144,10 @@ export const lyricsRoutes =
         .where(eq(tracks.id, trackId))
         .limit(1);
       if (!track || track.status === "removed") throw new HttpError(404, "Track not found.");
-      if (!(await lyricsRole(db, trackId, userId))) {
+      const role = await lyricsRole(db, trackId, userId);
+      // A taken-down track is hidden from everyone but its uploader, who can still fix it.
+      if (track.status !== "live" && role !== "uploader") throw new HttpError(404, "Track not found.");
+      if (!role) {
         throw new HttpError(403, "Only the person who uploaded this track and its band split can change its lyrics.");
       }
       return track;

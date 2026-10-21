@@ -25,6 +25,12 @@ const app = await buildApp(
   { logger: true },
 );
 
+app.log.info(
+  config.mail.smtp
+    ? `Sending email through ${config.mail.smtp.host}`
+    : "No SMTP server set (SMTP_HOST), so emails are printed to this log instead of sent",
+);
+
 // In production, serve the built web app from the same origin as the API, with link previews for shared pages.
 const webDist = process.env.WEB_DIST ?? webDistDir;
 if (existsSync(path.join(webDist, "index.html"))) {

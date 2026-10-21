@@ -108,9 +108,6 @@ export function TrackMenu({ track, extraItems = [] }: { track: TrackSummary; ext
               <button role="menuitem" onClick={signedIn(() => void library.toggleLike(track.id))}>
                 {liked ? "Remove from Liked songs" : "Add to Liked songs"}
               </button>
-              <button role="menuitem" onClick={() => setView("share")}>
-                Share…
-              </button>
               <hr />
               <button role="menuitem" onClick={() => (close(), navigate(`/artist/${track.artist.slug}`))}>
                 Go to artist
@@ -122,6 +119,13 @@ export function TrackMenu({ track, extraItems = [] }: { track: TrackSummary; ext
               ) : null}
               <button role="menuitem" onClick={() => (close(), navigate(`/track/${track.id}`))}>
                 AI transparency
+              </button>
+              <hr />
+              <button role="menuitem" onClick={() => setView("share")}>
+                Share…
+              </button>
+              <button role="menuitem" onClick={() => (close(), navigate(`/report/track/${track.id}`))}>
+                Report…
               </button>
               {extraItems.length ? <hr /> : null}
               {extraItems.map((item) => (

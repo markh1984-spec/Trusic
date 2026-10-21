@@ -9,7 +9,7 @@ import { loadConfig } from "../src/config";
 import { escapeHtml, injectHead } from "../src/share/html";
 import { collectionLabel } from "../src/share/items";
 import { serveWebApp } from "../src/web-app";
-import { call, createTestApp, declaration, png, register, sendFile, wav, type TestApp } from "./helpers";
+import { ADMIN_EMAIL, call, createTestApp, declaration, png, register, sendFile, wav, type TestApp } from "./helpers";
 
 const INDEX = `<!doctype html>
 <html lang="en">
@@ -40,7 +40,8 @@ beforeAll(async () => {
   await writeFile(path.join(webDist, "index.html"), INDEX);
   await writeFile(path.join(webDist, "embed.html"), EMBED);
   await writeFile(path.join(webDist, "app.js"), "console.log('hi')");
-  await serveWebApp(t.app, { db: t.database.db, config: loadConfig({ TRUSIC_DATA_DIR: webDist }) }, webDist);
+  const config = loadConfig({ TRUSIC_DATA_DIR: webDist, PUBLIC_URL: "https://trusic.test" });
+  await serveWebApp(t.app, { db: t.database.db, config }, webDist);
 
   band = await register(t, "band@trusic.test");
   fan = await register(t, "fan@trusic.test");
@@ -101,12 +102,12 @@ describe("link previews", () => {
     expect(html).toContain("<title>Chalk Paths · The Hollow Pines · Trusic</title>");
     expect(html).toContain('<meta property="og:title" content="Chalk Paths · The Hollow Pines" />');
     expect(html).toContain(`${AI_LABELS.human.name}, AI score 0 out of 100`);
-    expect(html).toContain(`<meta property="og:url" content="http://localhost:80/track/${track.id}" />`);
+    expect(html).toContain(`<meta property="og:url" content="https://trusic.test/track/${track.id}" />`);
     expect(html).toMatch(
-      new RegExp(`og:image" content="http://localhost:80/api/share/track/${track.id}/image.jpg\\?v=`),
+      new RegExp(`og:image" content="https://trusic.test/api/share/track/${track.id}/image.jpg\\?v=`),
     );
     expect(html).toContain('<meta name="twitter:card" content="summary_large_image" />');
-    expect(html).toContain(`<meta property="music:album" content="http://localhost:80/release/${release.id}" />`);
+    expect(html).toContain(`<meta property="music:album" content="https://trusic.test/release/${release.id}" />`);
     expect(html).toContain("application/json+oembed");
     // The app's own description is replaced, not repeated.
     expect(html).not.toContain("pays the humans who make it");
@@ -177,20 +178,20 @@ describe("link previews", () => {
     expect(embed.headers["content-security-policy"]).toBe("frame-ancestors *");
     expect(embed.body).toContain('<div id="embed"></div>');
     expect(embed.body).toContain('<meta name="robots" content="noindex" />');
-    expect(embed.body).toContain(`<link rel="canonical" href="http://localhost:80/track/${track.id}" />`);
+    expect(embed.body).toContain(`<link rel="canonical" href="https://trusic.test/track/${track.id}" />`);
     // Playlists have no embed.
     expect((await page(`/embed/playlist/${publicPlaylist.id}`)).body).not.toContain("Road trip");
   });
 });
 
 describe("share images", () => {
-  it("draws a 1200×630 JPEG, cached for good at its versioned address", async () => {
+  it("draws a 1200×630 JPEG, cached for a day at its versioned address", async () => {
     const html = (await page(`/track/${track.id}`)).body;
-    const imageUrl = /og:image" content="http:\/\/localhost:80([^"]+)"/.exec(html)![1]!.replace(/&amp;/g, "&");
+    const imageUrl = /og:image" content="https:\/\/trusic.test([^"]+)"/.exec(html)![1]!.replace(/&amp;/g, "&");
     const res = await page(imageUrl);
     expect(res.statusCode).toBe(200);
     expect(res.headers["content-type"]).toBe("image/jpeg");
-    expect(res.headers["cache-control"]).toBe("public, max-age=31536000, immutable");
+    expect(res.headers["cache-control"]).toBe("public, max-age=86400");
     const decoded = jpeg.decode(res.rawPayload, { useTArray: true });
     expect([decoded.width, decoded.height]).toEqual([1200, 630]);
 
@@ -241,7 +242,7 @@ describe("oEmbed and share links", () => {
       width: 400,
       height: 176,
     });
-    expect(res.body.html).toContain(`src="http://localhost:80/embed/track/${track.id}"`);
+    expect(res.body.html).toContain(`src="https://trusic.test/embed/track/${track.id}"`);
 
     const playlistLink = encodeURIComponent(`https://trusic.example/playlist/${publicPlaylist.id}`);
     expect((await call(t, "GET", `/api/oembed?url=${playlistLink}`)).status).toBe(404);
@@ -249,10 +250,94 @@ describe("oEmbed and share links", () => {
   });
 
   it("tells apps where the site is", async () => {
-    expect((await call(t, "GET", "/api/share/site")).body).toEqual({ url: "http://localhost:80" });
+    expect((await call(t, "GET", "/api/share/site")).body).toEqual({ url: "https://trusic.test" });
   });
 
   it("only replaces the head it's given", () => {
     expect(injectHead(INDEX, '<meta name="robots" content="noindex" />')).toContain("<title>Trusic</title>");
+  });
+});
+
+describe("taken-down content", () => {
+  let reports = 0;
+  /** Report something, then have an admin take it down. */
+  async function takeDown(targetType: string, targetId: string) {
+    reports += 1;
+    // Each report from its own address, so the limit on reports per address doesn't get in the way.
+    const report = await t.app.inject({
+      method: "POST",
+      url: "/api/reports",
+      headers: { "x-forwarded-for": `10.9.0.${reports}`, authorization: `Bearer ${fan.token}` },
+      payload: { targetType, targetId, reason: "offensive", details: "This is hateful and shouldn't be here." },
+    });
+    const id = report.json<{ id: string }>().id;
+    const done = await call(t, "POST", `/api/admin/reports/${id}/take-down`, adminToken, { note: "Hateful." });
+    expect(done.status).toBe(200);
+  }
+
+  let adminToken: string;
+  let rogue: { token: string; id: string };
+  let goneTrack: string;
+  let otherTrack: string;
+  let badPlaylist: PlaylistDetail;
+
+  beforeAll(async () => {
+    adminToken = (await register(t, ADMIN_EMAIL)).token;
+    rogue = await register(t, "rogue@trusic.test");
+    const artist = (await call<{ id: string }>(t, "POST", "/api/artists", rogue.token, { name: "Rogue Band" })).body;
+    const upload = async (title: string) =>
+      (
+        (
+          await sendFile(
+            t,
+            "POST",
+            "/api/tracks",
+            rogue.token,
+            { artistId: artist.id, title, declaration: JSON.stringify(declaration()) },
+            { name: "audio", filename: "t.wav", data: wav({ seconds: 6 }) },
+          )
+        ).body as TrackDetail
+      ).id;
+    goneTrack = await upload("Gone Song");
+    otherTrack = await upload("Other Song");
+    await call(t, "PUT", `/api/tracks/${goneTrack}/lyrics`, rogue.token, { format: "plain", text: "Hateful words" });
+    badPlaylist = (await call<PlaylistDetail>(t, "POST", "/api/playlists", fan.token, { name: "Bad playlist" })).body;
+  });
+
+  it("drops a taken-down track from previews, images, oEmbed, embeds and lyrics", async () => {
+    expect((await page(`/track/${goneTrack}`)).body).toContain("Gone Song");
+    await takeDown("track", goneTrack);
+
+    const html = (await page(`/track/${goneTrack}`)).body;
+    expect(html).toBe(INDEX);
+    expect((await page(`/api/share/track/${goneTrack}/image.jpg`)).statusCode).toBe(404);
+    const link = encodeURIComponent(`https://trusic.test/track/${goneTrack}`);
+    expect((await call(t, "GET", `/api/oembed?url=${link}`)).status).toBe(404);
+    const embed = (await page(`/embed/track/${goneTrack}`)).body;
+    expect(embed).not.toContain("Gone Song");
+    expect(embed).not.toContain("canonical");
+    expect((await call(t, "GET", `/api/tracks/${goneTrack}/lyrics`)).status).toBe(404);
+    expect((await call(t, "GET", `/api/tracks/${goneTrack}/lyrics`, fan.token)).status).toBe(404);
+    // Its uploader can still see (and fix) them.
+    expect((await call(t, "GET", `/api/tracks/${goneTrack}/lyrics`, rogue.token)).status).toBe(200);
+  });
+
+  it("drops a taken-down artist and their tracks", async () => {
+    expect((await page("/artist/rogue-band")).body).toContain("Rogue Band");
+    await takeDown(
+      "artist",
+      (await call<{ artist: { id: string } }>(t, "GET", "/api/artists/rogue-band")).body.artist.id,
+    );
+    expect((await page("/artist/rogue-band")).body).toBe(INDEX);
+    expect((await page("/api/share/artist/rogue-band/image.jpg")).statusCode).toBe(404);
+    expect((await page(`/track/${otherTrack}`)).body).toBe(INDEX);
+    expect((await page("/embed/artist/rogue-band")).body).not.toContain("Rogue Band");
+  });
+
+  it("drops a taken-down playlist", async () => {
+    expect((await page(`/playlist/${badPlaylist.id}`)).body).toContain("Bad playlist");
+    await takeDown("playlist", badPlaylist.id);
+    expect((await page(`/playlist/${badPlaylist.id}`)).body).toBe(INDEX);
+    expect((await page(`/api/share/playlist/${badPlaylist.id}/image.jpg`)).statusCode).toBe(404);
   });
 });

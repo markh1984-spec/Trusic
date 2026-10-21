@@ -95,8 +95,9 @@ export const shareRoutes =
           .header("content-length", image.length)
           .header(
             "cache-control",
-            // The address changes whenever the picture does, so a current one can be kept for good.
-            request.query.v === version ? "public, max-age=31536000, immutable" : "public, max-age=300",
+            // The address changes whenever the picture does, so a current one can be kept for a day. Not longer:
+            // if the item is taken down, its picture should stop being served soon after.
+            request.query.v === version ? "public, max-age=86400" : "public, max-age=300",
           )
           .send(image);
       },

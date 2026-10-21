@@ -1,6 +1,6 @@
 import { aiLabel, payoutRatePercent, scoreDeclaration } from "@trusic/core";
 import type { Appeal, Artist, ReleaseSummary, TrackDetail, TrackSummary, User } from "@trusic/client";
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { SelectedFields } from "drizzle-orm/pg-core";
 import type { Db } from "./db/client";
 import { appeals, artists, releases, tracks, users } from "./db/schema";
@@ -98,7 +98,8 @@ export async function loadTrackDetail(
   if (!row) return null;
 
   const isOwner = viewer?.id === row.ownerUserId;
-  if (row.track.status === "removed" && !isOwner && !viewer?.isAdmin) return null;
+  const hidden = row.track.status === "removed" || row.track.status === "taken_down";
+  if (hidden && !isOwner && !viewer?.isAdmin) return null;
 
   let appeal: Appeal | null = null;
   if (isOwner || viewer?.isAdmin) {
@@ -162,6 +163,8 @@ export async function loadReleaseSummaries(
   where: { artistId?: string; ids?: string[]; withTracks?: boolean; limit?: number },
 ) {
   const conditions = [
+    // Taken down after a report: hidden everywhere.
+    isNull(releases.takenDownAt),
     where.artistId ? eq(releases.artistId, where.artistId) : undefined,
     where.ids ? inArray(releases.id, where.ids) : undefined,
     where.withTracks
@@ -213,7 +216,10 @@ export async function loadReleaseSummaries(
 }
 
 export function toUser(
-  u: Pick<typeof users.$inferSelect, "id" | "email" | "displayName" | "isAdmin" | "plan" | "suspendedAt">,
+  u: Pick<
+    typeof users.$inferSelect,
+    "id" | "email" | "displayName" | "isAdmin" | "plan" | "suspendedAt" | "emailVerifiedAt"
+  >,
 ): User {
   return {
     id: u.id,
@@ -222,6 +228,7 @@ export function toUser(
     isAdmin: u.isAdmin,
     plan: u.plan === "premium" ? "premium" : "free",
     suspended: u.suspendedAt !== null,
+    emailVerified: u.emailVerifiedAt !== null,
   };
 }
 

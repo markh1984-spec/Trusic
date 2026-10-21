@@ -38,6 +38,12 @@ export interface Config {
    * Render sets RENDER_EXTERNAL_URL by itself.
    */
   siteUrl?: string;
+  /** Email. Without an SMTP server, emails are printed to the server log instead of sent (see docs/EMAIL.md). */
+  mail: {
+    /** Who emails come from, e.g. "Trusic <hello@example.com>". Must be an address the SMTP service lets you use. */
+    from: string;
+    smtp: { host: string; port: number; secure: boolean; user?: string; pass?: string } | null;
+  };
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -58,7 +64,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     vatRateBps: Number(env.VAT_RATE_BPS ?? 2000),
     stripeSecretKey: env.STRIPE_SECRET_KEY || undefined,
     stripeWebhookSecret: env.STRIPE_WEBHOOK_SECRET || undefined,
-    publicUrl: (env.PUBLIC_URL ?? "http://localhost:5173").replace(/\/$/, ""),
+    // Render tells each service its own address, so a hosted demo's email links work without setting PUBLIC_URL.
+    publicUrl: (env.PUBLIC_URL || env.RENDER_EXTERNAL_URL || "http://localhost:5173").replace(/\/$/, ""),
     payoutMinimumMinor: Number(env.PAYOUT_MINIMUM_MINOR ?? 1000),
     adminEmails: list(env.ADMIN_EMAILS),
     corsOrigins: list(env.CORS_ORIGINS),
@@ -66,6 +73,19 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     registrationOpen: env.REGISTRATION !== "closed",
     demoPassword: env.DEMO_PASSWORD || "trusic-demo",
     siteUrl: (env.PUBLIC_URL || env.RENDER_EXTERNAL_URL || "").replace(/\/$/, "") || undefined,
+    mail: {
+      from: env.MAIL_FROM || "Trusic <no-reply@trusic.local>",
+      smtp: env.SMTP_HOST
+        ? {
+            host: env.SMTP_HOST,
+            port: Number(env.SMTP_PORT ?? 587),
+            // Port 465 talks TLS from the start; 587 and 2525 upgrade to it (STARTTLS).
+            secure: env.SMTP_SECURE ? env.SMTP_SECURE === "true" : Number(env.SMTP_PORT) === 465,
+            user: env.SMTP_USER || undefined,
+            pass: env.SMTP_PASS || undefined,
+          }
+        : null,
+    },
   };
 }
 

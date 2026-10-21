@@ -6,7 +6,7 @@ import { Artwork } from "../components/Artwork";
 import { CardGrid, ReleaseCard } from "../components/Cards";
 import { ErrorNote, Loading } from "../components/Guards";
 import { Icon } from "../components/Icon";
-import { ShareButton } from "../components/Share";
+import { MoreMenuWithShare, ShareButton } from "../components/Share";
 import { TrackList } from "../components/TrackList";
 import { plural } from "../format";
 import { useAsync } from "../hooks";
@@ -63,6 +63,11 @@ export function ArtistPage() {
           </button>
         ) : null}
         <ShareButton target={{ kind: "artist", key: artist.slug, title: artist.name }} />
+        <MoreMenuWithShare
+          target={{ kind: "artist", key: artist.slug, title: artist.name }}
+          label={artist.name}
+          items={data.isOwner ? [] : [{ label: "Report…", to: `/report/artist/${artist.id}` }]}
+        />
       </div>
 
       {releases.length ? (

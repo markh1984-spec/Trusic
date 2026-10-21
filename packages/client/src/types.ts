@@ -24,6 +24,8 @@ export interface User {
   plan: "free" | "premium";
   /** Suspended after three strikes: can't upload, and their tracks are hidden. */
   suspended: boolean;
+  /** Has the owner clicked the link we emailed? Needed to upload or set up payouts, not to listen. */
+  emailVerified: boolean;
 }
 
 export interface ArtistRef {
@@ -41,6 +43,8 @@ export interface Artist extends ArtistRef {
 export interface Me {
   user: User;
   artists: Artist[];
+  /** A new email address waiting to be confirmed; the account keeps its old one until then. */
+  pendingEmail: string | null;
 }
 
 export interface AuthResponse {
@@ -329,7 +333,10 @@ export interface SuspendedAccount {
   email: string;
   displayName: string;
   suspendedAt: string;
+  /** Strikes for false AI declarations. */
   strikes: number;
+  /** Upheld copyright takedowns that haven't been withdrawn. */
+  copyrightStrikes: number;
 }
 
 export type LedgerEntryType = "earnings" | "clawback" | "payout" | "adjustment";
@@ -421,3 +428,184 @@ export interface LyricsTrack {
 export interface SiteInfo {
   url: string;
 }
+// ---------------------------------------------------------------------------
+// Account settings, reports and takedowns.
+
+export interface SettingsResult {
+  user: User;
+  pendingEmail: string | null;
+}
+
+export type ReportTargetType = "track" | "release" | "artist" | "playlist" | "artwork";
+
+/** "ai_label" reports go to the score review with appeals; the others go to the takedown queue. */
+export type ReportReason = "copyright" | "offensive" | "impersonation" | "ai_label";
+
+export type ReportStatus =
+  /** Waiting for an admin. */
+  | "open"
+  /** An admin asked the reporter for more information. */
+  | "needs_info"
+  /** The content is down. The uploader can send a counter-notice. */
+  | "taken_down"
+  /** Not taken down. */
+  | "rejected"
+  /** The uploader disputes the takedown; an admin decides whether to put it back. */
+  | "counter_notice"
+  /** Taken down, then put back. */
+  | "restored"
+  /** A wrong-label report that's been reviewed. */
+  | "resolved";
+
+export type ReportMessageKind =
+  | "info_request"
+  | "reporter_reply"
+  | "taken_down"
+  | "rejected"
+  | "counter_notice"
+  | "restored"
+  | "kept_down"
+  | "label_reviewed";
+
+/** What a valid copyright notice needs. */
+export interface CopyrightNotice {
+  /** The claimant owns the rights, or is authorised to act for whoever does. */
+  role: "owner" | "agent";
+  claimantName: string;
+  organisation?: string;
+  address: string;
+  phone?: string;
+  /** The original work: its title, who made it, and where it's published. */
+  work: string;
+  /** "I believe in good faith that this use isn't authorised by the owner, their agent or the law." */
+  goodFaith: boolean;
+  /** "The information in this notice is accurate, and I own the rights or may act for the owner." */
+  accurate: boolean;
+  /** The claimant's full name, typed as a signature. */
+  signature: string;
+}
+
+export interface CounterNotice {
+  /** The uploader's full name, typed as a signature. */
+  name: string;
+  explanation: string;
+  /** "I believe in good faith this was taken down by mistake or because it was misidentified." */
+  goodFaith: boolean;
+  /** Agrees that Trusic may pass the counter-notice, with their name and email, to the person who reported it. */
+  consentToShare: boolean;
+  sentAt: string;
+}
+
+export interface ReportInput {
+  targetType: ReportTargetType;
+  targetId: string;
+  reason: ReportReason;
+  details: string;
+  /** Needed when not signed in, so we can reply. */
+  reporterName?: string;
+  reporterEmail?: string;
+  copyright?: CopyrightNotice;
+}
+
+export interface ReportReceipt {
+  id: string;
+  /** Short reference to quote, e.g. "3F2A9C1B". */
+  reference: string;
+}
+
+/** Something that can be reported, as the report form shows it. */
+export interface ReportTarget {
+  type: ReportTargetType;
+  id: string;
+  title: string;
+  /** e.g. "Track by The Hollow Pines". */
+  description: string;
+  /** Where it is in the web app. */
+  path: string | null;
+  /** Its artwork or photo, which can be reported on its own. */
+  artwork: { name: string; url: string } | null;
+}
+
+export interface ReportMessage {
+  id: string;
+  kind: ReportMessageKind;
+  from: "reporter" | "uploader" | "trusic";
+  body: string;
+  createdAt: string;
+}
+
+export interface AdminReport {
+  id: string;
+  reference: string;
+  targetType: ReportTargetType;
+  targetId: string;
+  targetTitle: string;
+  targetPath: string | null;
+  /** Whether the reported content can be seen right now. */
+  targetState: "live" | "taken_down" | "gone";
+  reason: ReportReason;
+  details: string;
+  status: ReportStatus;
+  reporter: { userId: string | null; name: string | null; email: string | null };
+  owner: { id: string; displayName: string; email: string; copyrightStrikes: number } | null;
+  copyright: CopyrightNotice | null;
+  counterNotice: CounterNotice | null;
+  messages: ReportMessage[];
+  /** For wrong-label reports: the track as it is now. */
+  track: (TrackSummary & { declaredScore: number }) | null;
+  createdAt: string;
+  decidedAt: string | null;
+}
+
+/** A takedown of something the signed-in user uploaded. */
+export interface MyTakedown {
+  id: string;
+  reference: string;
+  targetType: ReportTargetType;
+  targetTitle: string;
+  reason: ReportReason;
+  status: ReportStatus;
+  /** For copyright: who complained and about which work. Their contact details stay private. */
+  claimant: { name: string; organisation: string | null; work: string } | null;
+  counterNotice: CounterNotice | null;
+  /** What Trusic told the uploader: the reason for the takedown and any later decisions. */
+  messages: ReportMessage[];
+  createdAt: string;
+  decidedAt: string | null;
+}
+
+/** An upheld copyright takedown. Separate from strikes for false AI declarations. */
+export interface CopyrightStrike {
+  id: string;
+  reportId: string;
+  targetTitle: string;
+  reason: string;
+  /** Withdrawn when the content was put back after a counter-notice. */
+  withdrawn: boolean;
+  createdAt: string;
+}
+
+export interface MyTakedowns {
+  takedowns: MyTakedown[];
+  copyrightStrikes: CopyrightStrike[];
+  /** How many copyright strikes (not withdrawn) suspend an account. */
+  strikesToSuspend: number;
+}
+
+export interface AdminCopyrightStrike {
+  strike: CopyrightStrike;
+  user: { id: string; email: string; displayName: string };
+}
+
+/** What a reporter sees when answering from the link in their email. */
+export interface ReporterView {
+  reference: string;
+  targetTitle: string;
+  status: ReportStatus;
+  /** The latest question from Trusic, or the uploader's counter-notice. */
+  question: string | null;
+  canReply: boolean;
+}
+
+/** Everything Trusic holds about an account, as downloaded from Settings. */
+export type DataExport = Record<string, unknown> & { exportedAt: string };

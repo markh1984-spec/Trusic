@@ -2,9 +2,10 @@ import type { AuthResponse, Me } from "@trusic/client";
 import { eq } from "drizzle-orm";
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
-import type { AppDeps } from "../app";
+import type { FullAppDeps } from "../app";
 import { bearerToken, createSession, deleteSession, hashPassword, requireUser, verifyPassword } from "../auth";
 import { artists, users } from "../db/schema";
+import { pendingEmail, sendVerificationEmail } from "../email-tokens";
 import { HttpError } from "../errors";
 import { toArtist, toUser } from "../views";
 
@@ -22,7 +23,7 @@ const LoginBody = z.object({
 const authRateLimit = { rateLimit: { max: 20, timeWindow: "1 minute" } };
 
 export const accountRoutes =
-  ({ db, config }: AppDeps): FastifyPluginAsync =>
+  ({ db, config, mailer }: FullAppDeps): FastifyPluginAsync =>
   async (app) => {
     app.post("/auth/register", { config: authRateLimit }, async (request, reply) => {
       if (!config.registrationOpen) throw new HttpError(403, "Sign-ups aren't open yet.");
@@ -41,6 +42,8 @@ export const accountRoutes =
         })
         .returning();
       const token = await createSession(db, user!.id);
+      // Listening works straight away; uploading and payouts wait until the address is confirmed.
+      await sendVerificationEmail(db, mailer, config.publicUrl, user!);
       return reply.code(201).send({ token, user: toUser(user!) } satisfies AuthResponse);
     });
 
@@ -63,6 +66,10 @@ export const accountRoutes =
     app.get("/me", async (request) => {
       const user = await requireUser(db, request);
       const mine = await db.select().from(artists).where(eq(artists.ownerUserId, user.id)).orderBy(artists.createdAt);
-      return { user: toUser(user), artists: mine.map(toArtist) } satisfies Me;
+      return {
+        user: toUser(user),
+        artists: mine.map(toArtist),
+        pendingEmail: await pendingEmail(db, user.id),
+      } satisfies Me;
     });
   };
