@@ -57,6 +57,13 @@
       "when": 1792610973639,
       "tag": "0007_offline_downloads",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792611295033,
+      "tag": "0008_lyrics",
+      "breakpoints": true
     }
   ]
 }

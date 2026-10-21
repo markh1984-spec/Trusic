@@ -33,6 +33,11 @@ export interface Config {
   registrationOpen: boolean;
   /** Password for the demo accounts the seed script creates. */
   demoPassword: string;
+  /**
+   * The site's public address, for share links and link previews. Unset = the address each request came to.
+   * Render sets RENDER_EXTERNAL_URL by itself.
+   */
+  siteUrl?: string;
   /** Email. Without an SMTP server, emails are printed to the server log instead of sent (see docs/EMAIL.md). */
   mail: {
     /** Who emails come from, e.g. "Trusic <hello@example.com>". Must be an address the SMTP service lets you use. */
@@ -67,6 +72,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     maxUploadBytes: Number(env.MAX_UPLOAD_MB ?? 200) * 1024 * 1024,
     registrationOpen: env.REGISTRATION !== "closed",
     demoPassword: env.DEMO_PASSWORD || "trusic-demo",
+    siteUrl: (env.PUBLIC_URL || env.RENDER_EXTERNAL_URL || "").replace(/\/$/, "") || undefined,
     mail: {
       from: env.MAIL_FROM || "Trusic <no-reply@trusic.local>",
       smtp: env.SMTP_HOST

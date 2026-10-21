@@ -7,8 +7,8 @@ import { CardGrid, ReleaseCard } from "../components/Cards";
 import { ErrorNote, Loading } from "../components/Guards";
 import { OpenedYourselfNote } from "../components/HumanOnlyToggle";
 import { Icon } from "../components/Icon";
-import { MoreMenu } from "../components/MoreMenu";
 import { RadioButton } from "../components/RadioButton";
+import { MoreMenuWithShare, ShareButton } from "../components/Share";
 import { ArtistShelf } from "../components/Shelves";
 import { TrackList } from "../components/TrackList";
 import { plural } from "../format";
@@ -16,6 +16,7 @@ import { useAsync } from "../hooks";
 import { useHumanOnly } from "../human-only";
 import { useLibrary } from "../library";
 import { usePlayTracks } from "../player";
+import { usePageTitle } from "../share";
 
 export function ArtistPage() {
   const { slug = "" } = useParams();
@@ -23,6 +24,7 @@ export function ArtistPage() {
   const { me } = useAuth();
   const library = useLibrary();
   const play = usePlayTracks();
+  usePageTitle(data?.artist.name ?? null);
 
   if (error) return <ErrorNote message={error} />;
   if (loading || !data) return <Loading />;
@@ -70,7 +72,9 @@ export function ArtistPage() {
             <Icon name="chart" size={18} /> Your stats
           </Link>
         ) : null}
-        <MoreMenu
+        <ShareButton target={{ kind: "artist", key: artist.slug, title: artist.name }} />
+        <MoreMenuWithShare
+          target={{ kind: "artist", key: artist.slug, title: artist.name }}
           label={artist.name}
           items={data.isOwner ? [] : [{ label: "Report…", to: `/report/artist/${artist.id}` }]}
         />

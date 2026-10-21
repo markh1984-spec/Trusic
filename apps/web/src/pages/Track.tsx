@@ -11,8 +11,11 @@ import { LikeButton } from "../components/LikeButton";
 import { CreditsFields, fromDraft, toDraft, type CreditsDraft } from "../components/CreditsFields";
 import { RadioButton } from "../components/RadioButton";
 import { ScoreBreakdown } from "../components/ScoreBreakdown";
+import { ShareButton } from "../components/Share";
+import { TrackLyrics } from "../components/Lyrics";
 import { TrackShelf } from "../components/Shelves";
 import { TrackMenu } from "../components/TrackMenu";
+import { usePageTitle } from "../share";
 import { duration, money } from "../format";
 import { useAuth } from "../auth";
 import { useAsync } from "../hooks";
@@ -40,6 +43,7 @@ export function TrackPage() {
   const play = usePlayTracks();
   const player = usePlayer();
   const { me } = useAuth();
+  usePageTitle(track ? `${track.title} · ${track.artist.name}` : null);
 
   if (error) return <ErrorNote message={error} />;
   if (loading || !track) return <Loading />;
@@ -83,6 +87,7 @@ export function TrackPage() {
             </button>
             <AiBadge score={track.aiScore} />
             <LikeButton trackId={track.id} title={track.title} size={24} />
+            <ShareButton target={{ kind: "track", key: track.id, title: `${track.title} · ${track.artist.name}` }} />
             <RadioButton seed={{ type: "track", id: track.id }} name={track.title} />
             {track.isOwner ? (
               <Link to={`/studio/track/${track.id}`} className="button button--ghost">
@@ -147,6 +152,7 @@ export function TrackPage() {
         </div>
       </section>
 
+      <TrackLyrics track={track} />
       <MoreLikeThis trackId={track.id} />
     </>
   );

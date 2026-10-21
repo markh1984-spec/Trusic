@@ -7,6 +7,7 @@ import { TrackStatsPage } from "./pages/TrackStats";
 import { LoginPage, RegisterPage } from "./pages/Auth";
 import { HomePage } from "./pages/Home";
 import { LibraryPage, LikedPage } from "./pages/Library";
+import { LyricsEditorPage } from "./pages/LyricsEditor";
 import { MoneyPage } from "./pages/Money";
 import { NotFoundPage } from "./pages/NotFound";
 import { DownloadsPage } from "./offline/DownloadsPage";
@@ -42,6 +43,7 @@ export function App() {
         <Route path="money" element={<MoneyPage />} />
         <Route path="studio" element={<StudioPage />} />
         <Route path="studio/release/:id" element={<ReleaseEditorPage />} />
+        <Route path="studio/lyrics/:id" element={<LyricsEditorPage />} />
         <Route path="studio/artist/:id" element={<ArtistStatsPage />} />
         <Route path="studio/track/:id" element={<TrackStatsPage />} />
         <Route path="upload" element={<UploadPage />} />

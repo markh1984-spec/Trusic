@@ -31,6 +31,7 @@ import {
   revenueEntries,
   sessions,
   strikes,
+  trackLyrics,
   trackSplits,
   tracks,
   users,
@@ -220,6 +221,21 @@ export async function exportAccountData(db: Db, userId: string): Promise<DataExp
       createdAt: t.createdAt,
     })),
     bandSplits: splitRows,
+    // Lyrics on their own tracks, and any they last edited on tracks they're in the band split for.
+    lyrics: await db
+      .select()
+      .from(trackLyrics)
+      .where(
+        ownedTracks.length
+          ? or(
+              inArray(
+                trackLyrics.trackId,
+                ownedTracks.map((t) => t.id),
+              ),
+              eq(trackLyrics.updatedByUserId, userId),
+            )
+          : eq(trackLyrics.updatedByUserId, userId),
+      ),
     plays: playRows,
     likes: likeRows,
     follows: followRows,
@@ -349,6 +365,15 @@ export async function deleteAccount(deps: DeletionDeps, userId: string): Promise
         .from(tracks)
         .where(inArray(tracks.artistId, artistIds));
       files.push(...ownedTracks.map((t) => t.audioKey));
+      // Lyrics go with the rest of their content.
+      await tx
+        .delete(trackLyrics)
+        .where(
+          inArray(
+            trackLyrics.trackId,
+            tx.select({ id: tracks.id }).from(tracks).where(inArray(tracks.artistId, artistIds)),
+          ),
+        );
       // The rows stay, because statements and payouts name them. Taken-down tracks keep that status.
       await tx.update(tracks).set({ credits: null }).where(inArray(tracks.artistId, artistIds));
       await tx

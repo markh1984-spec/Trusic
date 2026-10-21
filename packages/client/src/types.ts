@@ -393,6 +393,47 @@ export interface RightsSummary {
   covers: number;
 }
 
+// Lyrics and sharing
+
+/** Plain text, or time-synced LRC so lines can follow the music. */
+export type LyricsFormat = "plain" | "synced";
+
+export interface LyricLine {
+  /** When the line starts, in milliseconds. Null for plain lyrics. */
+  timeMs: number | null;
+  /** Empty for a gap between verses, or an instrumental break in synced lyrics. */
+  text: string;
+}
+
+export interface TrackLyrics {
+  trackId: string;
+  /** Null when the track has no lyrics, or they can't be shown (see `hidden`). */
+  format: LyricsFormat | null;
+  lines: LyricLine[];
+  /** Exactly what was entered (LRC for synced lyrics). Only sent to people who can edit them. */
+  source: string | null;
+  /** Why lyrics aren't shown to listeners. Covers need a lyric licence Trusic doesn't have yet. */
+  hidden: "cover" | null;
+  /** The uploader and the track's split members can edit its lyrics. */
+  canEdit: boolean;
+  updatedAt: string | null;
+}
+
+/** A track whose lyrics the signed-in user can edit. */
+export interface LyricsTrack {
+  track: TrackSummary;
+  format: LyricsFormat | null;
+  isCover: boolean;
+  /** Declared as having no lyrics (an instrumental). */
+  instrumental: boolean;
+  /** Uploaded it, or is in its band split. */
+  role: "uploader" | "split";
+}
+
+/** Where this Trusic site lives, for share links made in apps that don't run on it (the desktop app). */
+export interface SiteInfo {
+  url: string;
+}
 // Offline listening (downloads in the phone and desktop apps)
 
 /** One listen, reported by an app's play queue. Reporting the same id again never counts it twice. */

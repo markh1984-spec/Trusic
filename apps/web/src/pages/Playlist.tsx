@@ -7,6 +7,7 @@ import { ErrorNote, Loading } from "../components/Guards";
 import { OpenedYourselfNote } from "../components/HumanOnlyToggle";
 import { RadioButton } from "../components/RadioButton";
 import { Icon } from "../components/Icon";
+import { MoreMenuWithShare, ShareButton } from "../components/Share";
 import { MoreMenu } from "../components/MoreMenu";
 import { TrackList } from "../components/TrackList";
 import { duration, plural } from "../format";
@@ -14,6 +15,7 @@ import { useAsync } from "../hooks";
 import { useLibrary } from "../library";
 import { DownloadButton } from "../offline/DownloadButton";
 import { usePlayTracks } from "../player";
+import { usePageTitle } from "../share";
 import { useToast } from "../toast";
 
 export function PlaylistPage() {
@@ -27,6 +29,7 @@ export function PlaylistPage() {
   const navigate = useNavigate();
 
   useEffect(() => setPlaylist(data), [data]);
+  usePageTitle(playlist?.name ?? null);
 
   if (error) return <ErrorNote message={error} />;
   if (loading || !playlist) return <Loading />;
@@ -98,6 +101,11 @@ export function PlaylistPage() {
             <Icon name="play" size={26} />
           </button>
         ) : null}
+        {playlist.isPublic ? (
+          <ShareButton
+            target={{ kind: "playlist", key: playlist.id, title: `${playlist.name} · ${playlist.owner.displayName}` }}
+          />
+        ) : null}
         {tracks.length ? <RadioButton seed={{ type: "playlist", id: playlist.id }} name={playlist.name} /> : null}
         {playlist.isOwner && !editing ? (
           <>
@@ -119,10 +127,18 @@ export function PlaylistPage() {
             trackIds: [...new Set(tracks.map((t) => t.id))],
           }}
         />
-        <MoreMenu
-          label={playlist.name}
-          items={playlist.isOwner ? [] : [{ label: "Report…", to: `/report/playlist/${playlist.id}` }]}
-        />
+        {playlist.isPublic ? (
+          <MoreMenuWithShare
+            target={{ kind: "playlist", key: playlist.id, title: `${playlist.name} · ${playlist.owner.displayName}` }}
+            label={playlist.name}
+            items={playlist.isOwner ? [] : [{ label: "Report…", to: `/report/playlist/${playlist.id}` }]}
+          />
+        ) : (
+          <MoreMenu
+            label={playlist.name}
+            items={playlist.isOwner ? [] : [{ label: "Report…", to: `/report/playlist/${playlist.id}` }]}
+          />
+        )}
       </div>
 
       <OpenedYourselfNote tracks={tracks} what="this playlist" />

@@ -1,6 +1,5 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
-import fastifyStatic from "@fastify/static";
 import { buildApp } from "./app";
 import { loadConfig } from "./config";
 import { openDatabase } from "./db/client";
@@ -9,6 +8,7 @@ import { MetadataDetector } from "./detection";
 import { webDistDir } from "./paths";
 import { createStripeClient } from "./routes/billing";
 import { LocalMediaStorage } from "./storage";
+import { serveWebApp } from "./web-app";
 
 const config = loadConfig();
 const database = await openDatabase({ url: config.databaseUrl, dataDir: path.join(config.dataDir, "pglite") });
@@ -31,16 +31,10 @@ app.log.info(
     : "No SMTP server set (SMTP_HOST), so emails are printed to this log instead of sent",
 );
 
-// In production, serve the built web app from the same origin as the API.
+// In production, serve the built web app from the same origin as the API, with link previews for shared pages.
 const webDist = process.env.WEB_DIST ?? webDistDir;
 if (existsSync(path.join(webDist, "index.html"))) {
-  await app.register(fastifyStatic, { root: webDist });
-  app.setNotFoundHandler((request, reply) => {
-    if (request.method !== "GET" || request.url.startsWith("/api/")) {
-      return reply.code(404).send({ error: "Not found." });
-    }
-    return reply.sendFile("index.html");
-  });
+  await serveWebApp(app, { db: database.db, config }, webDist);
   app.log.info(`Serving the web app from ${webDist}`);
 }
 

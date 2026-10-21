@@ -51,6 +51,19 @@
   tracks, releases, artists and playlists, by anyone. An admin takedown queue with counter-notices and restoring,
   copyright strikes (three suspend the account), and a page explaining copyright notices. Terms are a placeholder.
 
+**Sharing and lyrics**
+
+- Share links: a link to a track, release, artist or public playlist shows a preview with its title, artist,
+  artwork and AI label in WhatsApp, iMessage, Slack, Discord, X, Facebook and the rest, with a 1200×630 share image
+  drawn by the server (no outside service). "Share" copies the link, or opens the share sheet on phones.
+- QR codes for share links, to download for posters and flyers.
+- Embeddable players for tracks, releases and artists, light or dark, for bands' own websites. They play 30-second
+  previews (which never count as plays), always show the AI label and link to Trusic. Pages also advertise the
+  player through oEmbed, so tools that look for it can turn a pasted Trusic link into the player.
+- Lyrics: plain or synced to the music, added in Studio by the uploader or anyone in the band split, with a
+  tap-along tool for syncing. Shown on track pages and in a Lyrics panel that follows the song. Not shown for covers
+  (see open question 19).
+
 **Desktop app**
 
 - Mac, Windows and Linux app (Electron, `apps/desktop`) that runs the web app unchanged, with media keys and the
@@ -83,11 +96,13 @@
 - Stats: keep a record of unfollows and unlikes so followers over time can show losses too; a daily summary table if
   one artist ever has millions of plays a year (see `apps/api/src/stats-service.ts`).
 - Accounts: sign in with Apple/Google, two-step sign-in.
-- Releases: lyrics, pre-release scheduling.
+- Releases: pre-release scheduling.
+- Lyrics and sharing in the phone app (the server and the shared client already support them). A lyric licence
+  for covers, if the founder wants one (open question 19).
 - Audio: transcode uploads to HLS/AAC at several bitrates and serve them from object storage behind a CDN
   (the `MediaStorage` interface and signed URLs are already in place for this). Loudness normalisation. Resize
   artwork to standard sizes.
-- Social: shareable links with previews, collaborative playlists.
+- Social: collaborative playlists.
 - Downloads: a "Your devices" page to see and remove devices, downloading over mobile data per collection, and
   saving artwork on phones for offline browsing.
 

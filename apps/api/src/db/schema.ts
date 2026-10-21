@@ -459,6 +459,22 @@ export const ledgerEntries = pgTable(
   (t) => [index("ledger_user_idx").on(t.userId)],
 );
 
+/**
+ * A track's lyrics, added in Studio by its uploader or split members. Kept exactly as entered (LRC for synced
+ * lyrics) and parsed when read, so the parser can improve without touching stored data.
+ */
+export const trackLyrics = pgTable("track_lyrics", {
+  trackId: uuid("track_id")
+    .primaryKey()
+    .references(() => tracks.id, { onDelete: "cascade" }),
+  format: text("format").$type<"plain" | "synced">().notNull(),
+  text: text("text").notNull(),
+  updatedByUserId: uuid("updated_by_user_id")
+    .notNull()
+    .references(() => users.id),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: createdAt(),
+});
 // ---------------------------------------------------------------------------
 // Account emails, reports and takedowns.
 

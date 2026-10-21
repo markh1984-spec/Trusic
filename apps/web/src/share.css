@@ -1,0 +1,234 @@
+/* Sharing (Share menu, embed and QR dialogs) and lyrics (track page, player panel, Studio editor). */
+
+.dialog {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--text);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+}
+.dialog::backdrop {
+  background: rgba(0, 0, 0, 0.6);
+}
+.dialog__body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px 22px 22px;
+}
+.dialog__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.dialog__head h2 {
+  margin: 0;
+}
+.dialog p {
+  margin: 0;
+}
+
+.embed-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.embed-options legend {
+  margin-bottom: 6px;
+  font-weight: 700;
+}
+.embed-options label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.embed-preview {
+  width: 100%;
+  border: 0;
+  border-radius: 12px;
+  background: var(--bg-raised);
+}
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 600;
+}
+textarea.code {
+  font:
+    0.8rem/1.5 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Consolas,
+    monospace;
+  resize: vertical;
+}
+
+.qr {
+  display: block;
+  width: min(260px, 70vw);
+  margin: 4px auto;
+  border-radius: 8px;
+  shape-rendering: crispEdges;
+}
+.qr__url {
+  text-align: center;
+  color: var(--muted);
+  word-break: break-all;
+}
+
+/* Lyrics */
+
+.lyrics-card {
+  margin-top: 20px;
+}
+.lyrics {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+.lyrics__line {
+  padding: 2px 0;
+  transition: color 0.2s;
+}
+.lyrics__gap {
+  height: 0.9em;
+}
+.lyrics__line button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.lyrics__line button:hover {
+  text-decoration: underline;
+}
+/* While synced lyrics follow the music, lines yet to come are dimmed and the line being sung stands out. */
+.lyrics--following .lyrics__line {
+  color: var(--muted);
+}
+.lyrics--following .lyrics__line.is-past {
+  color: #c4c9d2;
+}
+.lyrics--following .lyrics__line.is-active {
+  color: var(--primary);
+}
+
+.lyrics-panel {
+  display: flex;
+  flex-direction: column;
+}
+.lyrics-panel .lyrics {
+  margin-top: 12px;
+  padding-bottom: 40vh;
+  font-size: 1.3rem;
+}
+
+.lyrics-editor__head {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 20px;
+}
+.lyrics-editor__head h1 {
+  margin-bottom: 4px;
+}
+.lyrics-editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 380px);
+  gap: 20px;
+  align-items: start;
+}
+.lyrics-editor__side {
+  position: sticky;
+  top: 80px;
+  max-height: calc(100vh - var(--player-height) - 120px);
+  overflow-y: auto;
+}
+.lyrics-editor__side .lyrics {
+  font-size: 1rem;
+}
+.segmented--2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--primary);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.sync-tool {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.sync-tool h2,
+.sync-tool p {
+  margin: 0;
+}
+.sync-tool__lines {
+  list-style: none;
+  margin: 0;
+  padding: 14px;
+  border-radius: 10px;
+  background: var(--bg-raised);
+  font-weight: 700;
+  color: var(--muted);
+  min-height: 120px;
+}
+.sync-tool__lines li {
+  padding: 3px 0;
+}
+.sync-tool__lines .is-past {
+  font-weight: 400;
+  font-size: 0.85rem;
+}
+.sync-tool__lines .is-active {
+  font-size: 1.25rem;
+  color: var(--text);
+}
+.sync-tool__time {
+  font-variant-numeric: tabular-nums;
+  color: var(--primary);
+}
+kbd {
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-raised);
+  font:
+    0.8rem ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Consolas,
+    monospace;
+}
+
+@media (max-width: 860px) {
+  .lyrics-editor {
+    grid-template-columns: 1fr;
+  }
+  .lyrics-editor__side {
+    position: static;
+    max-height: none;
+  }
+}
