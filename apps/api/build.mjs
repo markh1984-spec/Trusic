@@ -8,7 +8,7 @@ const pkg = JSON.parse(await readFile(new URL("package.json", import.meta.url), 
 const external = Object.keys(pkg.dependencies).filter((name) => !name.startsWith("@trusic/"));
 
 await build({
-  entryPoints: ["src/server.ts", "src/seed.ts", "src/migrate.ts"],
+  entryPoints: ["src/server.ts", "src/seed.ts", "src/migrate.ts", "src/load-demo.ts"],
   outdir: "dist",
   outExtension: { ".js": ".mjs" },
   bundle: true,

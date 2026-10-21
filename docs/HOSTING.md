@@ -63,7 +63,8 @@ If the site is asleep, the first screen takes about a minute to load.
 - **5 GB of downloads a month.** Music is sent at 160 kbps, about 1.2 MB a minute, so that's roughly 1,000 plays of
   a four-minute track, or 8,000 previews. If the limit is reached, Render pauses the site until the next month.
   Without a card on file, it **can't** charge you for more.
-- **512 MB of memory.** Trusic uses about 300 MB, and under 400 MB while it converts an upload.
+- **512 MB of memory.** Trusic uses about 300 MB, and under 420 MB while it converts an upload. With Supabase (see
+  below) it uses much less, about 100 MB, because the database runs there instead.
 - **A tenth of a computer's processor.** New uploads are converted for streaming (an even volume, and a much smaller
   file) one at a time in the background, which takes a minute or two for a four-minute track. Until then only the
   artist can see the track, marked **Processing** in Studio.
@@ -142,9 +143,9 @@ Checked on 21 October 2026 (plans change, so look at [supabase.com/pricing](http
 
 ### What happens next
 
-- **The first start loads the demo data into Supabase, once.** The site opens straight away, but filling it takes
-  about FIRST_BOOT, because converting the demo audio is slow on the free plan. The **Logs** tab says
-  `Done. Log in with…` when it's finished. The demo accounts' password is still the one in **DEMO_PASSWORD**.
+- **The first start copies the demo data into Supabase, once.** That makes it a minute or two slower than usual.
+  The **Logs** tab says `Demo data loaded` when it's done. The demo accounts' password is still the one in
+  **DEMO_PASSWORD**.
 - **From then on, everything is kept** through restarts, sleeps and updates. The demo data is never loaded again,
   because the database isn't empty.
 - **To check:** like a track or upload one, then restart the site (in Render, **Manual Deploy** → **Restart
