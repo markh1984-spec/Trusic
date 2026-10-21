@@ -85,7 +85,8 @@ export class MediaProcessor {
   ) {
     this.maxAttempts = options.maxAttempts ?? 3;
     this.retryDelayMs = options.retryDelayMs ?? 60_000;
-    this.leaseMs = options.leaseMs ?? 2 * 60_000;
+    // Three missed check-ins. A restart takes longer than that on free hosting, so interrupted work resumes soon after.
+    this.leaseMs = options.leaseMs ?? 3 * HEARTBEAT_MS;
   }
 
   /** Whether uploaded audio is converted (if not, it's streamed as uploaded). */

@@ -37,6 +37,9 @@ This document is the source of truth for the rules. The code that implements the
 - **Subscribers only. No free tier and no adverts.** Premium is £10.99 a month including VAT.
 - Anyone can browse the whole catalogue and hear **30-second previews**. Previews never count as plays, so only
   subscribers' listening moves money.
+- **Every track sounds consistent.** Whatever was uploaded is streamed as 160 kbps AAC at an even volume (about −14
+  LUFS, as on Spotify). A new upload goes live once it's converted, usually a minute or two later. The artist's
+  original file is kept privately.
 
 ### Worked example
 
@@ -199,6 +202,10 @@ artist's declaration will remain the main evidence; see [research/ai-detection.m
 | 2026-10-21 | Putting content back withdraws its copyright strike, but doesn't lift a suspension by itself.                                        | An admin decides on reinstating, as with AI strikes, because the account may have other strikes too.                                       |
 | 2026-10-21 | Wrong-label reports go to the score review with appeals, using the same tools.                                                       | One process for AI scores, and the same strikes and clawbacks for false declarations however they're found.                                |
 | 2026-10-21 | Uploaders see a copyright claimant's name and the work claimed, not their contact details. Counter-notices go to the claimant.       | Uploaders need to know what's claimed to respond; claimants' addresses are private. Uploaders agree to their details being passed on.      |
+| 2026-10-21 | Tracks are turned up or down towards −14 LUFS, but a quiet track only as far as its peaks allow. Nothing is compressed.              | An even volume from track to track, without changing how an artist's music sounds.                                                         |
+| 2026-10-21 | A preview is a separate file of a track's first 30 seconds.                                                                          | A preview link can never play more, and players show the preview's real length.                                                            |
+| 2026-10-21 | New uploads aren't public until they've been converted for streaming.                                                                | Everyone hears the same quality and volume, and nobody downloads a 40 MB WAV.                                                              |
+| 2026-10-21 | Audio and artwork are sent through Trusic's own links, not straight from file storage.                                               | Previews stay limited, the desktop app works unchanged and storage stays private. The cost is the site's own bandwidth.                    |
 
 ## 5. Open questions
 
