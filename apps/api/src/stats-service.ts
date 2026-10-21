@@ -24,7 +24,7 @@ import type {
   TrackSummary,
 } from "@trusic/client";
 import { DEFAULT_PAYOUT_CONFIG } from "@trusic/core";
-import { and, count, desc, eq, gte, inArray, lt, sql, type AnyColumn, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, lt, ne, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import type { Db } from "./db/client";
 import {
   artists,
@@ -303,9 +303,21 @@ export async function studioArtists(db: Db, userId: string): Promise<StudioArtis
   ];
 }
 
-/** Every track the artist has ever had, including removed ones: their plays still count. */
-export async function artistTrackIds(db: Db, artistId: string): Promise<string[]> {
-  const rows = await db.select({ id: tracks.id }).from(tracks).where(eq(tracks.artistId, artistId));
+/**
+ * The artist's tracks whose plays count: every track it has ever had, including removed and suspended ones, but not
+ * ones that have been taken down, whose plays the payout engine ignores too.
+ */
+export async function artistTrackIds(db: Db, artistId: string, onlyTrackId?: string): Promise<string[]> {
+  const rows = await db
+    .select({ id: tracks.id })
+    .from(tracks)
+    .where(
+      and(
+        eq(tracks.artistId, artistId),
+        ne(tracks.status, "taken_down"),
+        onlyTrackId ? eq(tracks.id, onlyTrackId) : undefined,
+      ),
+    );
   return rows.map((r) => r.id);
 }
 

@@ -40,13 +40,24 @@
 - One Docker image and a Render blueprint for a free public demo (sign-ups closed, shared demo password). See
   [HOSTING.md](HOSTING.md).
 
+**Accounts, reports and takedowns**
+
+- Email: printed to the server log by default, or sent through any SMTP service (Brevo's free plan is documented in
+  [EMAIL.md](EMAIL.md)).
+- Email confirmation (needed to upload or be paid, not to listen), forgotten passwords, and a Settings page: name,
+  email, password, sign out everywhere.
+- Your data: download everything as a JSON file, or delete the account, with money records kept anonymously.
+- Reports for copyright, offensive or illegal content, impersonation and wrong AI labels, from a "Report…" item on
+  tracks, releases, artists and playlists, by anyone. An admin takedown queue with counter-notices and restoring,
+  copyright strikes (three suspend the account), and a page explaining copyright notices. Terms are a placeholder.
+
 **Desktop app**
 
 - Mac, Windows and Linux app (Electron, `apps/desktop`) that runs the web app unchanged, with media keys and the
   system's "now playing" controls. The server is chosen in the app. Unsigned installers come from a manual GitHub
   workflow.
 
-**Discovery and artist stats** (web and desktop; rules in [PRODUCT.md](PRODUCT.md) section 6)
+**Discovery and artist stats** (web and desktop; rules in [PRODUCT.md](PRODUCT.md) section 7)
 
 - "Human-made only" switch, kept on the listener's account.
 - Personalised home page, "More like this", "Fans also like" and endless radio from a track, an artist or a
@@ -60,7 +71,7 @@
 - Editorial: playlists picked by people at Trusic, clearly marked as such.
 - Stats: keep a record of unfollows and unlikes so followers over time can show losses too; a daily summary table if
   one artist ever has millions of plays a year (see `apps/api/src/stats-service.ts`).
-- Accounts: email verification, password reset, sign in with Apple/Google, profile settings.
+- Accounts: sign in with Apple/Google, two-step sign-in.
 - Releases: lyrics, pre-release scheduling.
 - Audio: transcode uploads to HLS/AAC at several bitrates and serve them from object storage behind a CDN
   (the `MediaStorage` interface and signed URLs are already in place for this). Loudness normalisation. Resize
@@ -91,8 +102,9 @@
 - **Rights and licensing.** Get a PRS for Music licence for the songwriting side (its small-service licence is 16%
   of revenue, with an unverified per-stream minimum that could matter a lot), decide how that fits the 80/20 split
   (open question 10), and add ISWCs to the songwriter details already collected at upload. Also needed: an artist agreement
-  covering the declaration and penalties, a takedown and repeat-infringer process, audio fingerprinting, and an
-  Online Safety Act risk assessment within three months of launch. See
+  covering the declaration and penalties, real terms and a privacy notice (the Terms page lists what a lawyer must
+  write), a lawyer's review of the takedown and repeat-infringer process that's now built (open question 13), audio
+  fingerprinting at upload, and an Online Safety Act risk assessment within three months of launch. See
   [research/uk-licensing.md](research/uk-licensing.md) and its checklist for a music lawyer.
 - **Billing:** switch Stripe to live mode (see [STRIPE.md](STRIPE.md)), deduct Stripe's fees from booked revenue,
   and decide on app-store billing for the phone apps (or keep sending people to the website).
@@ -102,4 +114,5 @@
 - **Fraud:** per-listener stream caps, bot detection, device fingerprinting. User-centric payouts already stop
   stream farms from taking other listeners' money; they can still waste their own.
 - **Security and operations:** move web sessions to httpOnly cookies, audit logging for admin actions, backups,
-  monitoring, rate limits tuned for production, GDPR (data export and deletion).
+  monitoring, rate limits tuned for production (several servers would need a shared store for them), and an email
+  service with an authenticated domain (see [EMAIL.md](EMAIL.md)).

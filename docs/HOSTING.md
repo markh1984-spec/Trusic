@@ -78,6 +78,15 @@ cards (no real money), follow [STRIPE.md](STRIPE.md) to get test keys, then add 
 
 The webhook address is your site's address followed by `/api/billing/webhook`.
 
+## Optional: send real emails (still free)
+
+Out of the box the site doesn't send emails. Password-reset links, email confirmations and takedown notices are
+printed in the **Logs** tab of the **trusic** service instead (search for `Email (printed here`). The demo accounts
+count as already confirmed, so they can upload straight away.
+
+To send real emails, follow [EMAIL.md](EMAIL.md): Brevo's free plan sends 300 a day, with no card needed. Add its
+settings under **Environment**.
+
 ## When it's time for a real launch
 
 The demo setup throws data away by design. A real launch needs a database that keeps data (set `DATABASE_URL`),

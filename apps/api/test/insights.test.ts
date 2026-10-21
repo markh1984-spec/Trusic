@@ -1,7 +1,7 @@
 import type { ArtistMoney, ArtistStats, PayoutRunSummary, StudioArtist, TrackDetail, TrackStats } from "@trusic/client";
 import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { follows, likes, payoutTrackLines, plays } from "../src/db/schema";
+import { follows, likes, payoutTrackLines, plays, tracks } from "../src/db/schema";
 import { currentPeriod } from "../src/payout-service";
 import { statsWindow } from "../src/stats-service";
 import { ADMIN_EMAIL, call, createTestApp, declaration, register, sendFile, wav, type TestApp } from "./helpers";
@@ -194,6 +194,19 @@ describe("artist stats", () => {
     // The track page shows the same, for that track only.
     const track = (await call<TrackStats>(t, "GET", `/api/studio/tracks/${ids.anthem}/stats`, bassist.token)).body;
     expect(track.money.months[0]!.tracks).toEqual([memberAnthem]);
+  });
+
+  it("stops counting a taken-down track's plays, as payouts do, but keeps its money", async () => {
+    const db = t.database.db;
+    await db.update(tracks).set({ status: "taken_down" }).where(eq(tracks.id, ids.ballad!));
+    const artist = (await call<ArtistStats>(t, "GET", `/api/studio/artists/${artistId}/stats?range=7d`, band.token))
+      .body;
+    expect(artist.totals.streams).toBe(4);
+    expect(artist.topTracks.map((x) => x.track.title)).toEqual(["Anthem"]);
+    const ballad = (await call<TrackStats>(t, "GET", `/api/studio/tracks/${ids.ballad}/stats`, band.token)).body;
+    expect(ballad.totals.streams).toBe(0);
+    expect(ballad.money.months[0]!.tracks[0]!.streams).toBe(2);
+    await db.update(tracks).set({ status: "live" }).where(eq(tracks.id, ids.ballad!));
   });
 });
 

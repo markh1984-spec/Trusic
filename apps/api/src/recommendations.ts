@@ -139,6 +139,8 @@ async function coListening(db: Db, seedIds: string[], viewerId?: string): Promis
         select user_id, created_at from likes where track_id = s.id order by created_at desc limit ${PLAYS_PER_SEED}
       ) l
     ) a
+    -- Deleted accounts' listening still counts in payouts and stats, but no longer shapes recommendations.
+    join users u on u.id = a.user_id and u.deleted_at is null
     where true ${notViewer}
     group by a.user_id
     order by max(a.at) desc

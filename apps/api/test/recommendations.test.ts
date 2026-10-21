@@ -9,8 +9,9 @@ import type {
   TrackDetail,
   TrackList,
 } from "@trusic/client";
+import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { follows, likes, plays } from "../src/db/schema";
+import { follows, likes, plays, tracks, users as usersTable } from "../src/db/schema";
 import { call, createTestApp, declaration, register, sendFile, wav, type TestApp } from "./helpers";
 
 let t: TestApp;
@@ -168,6 +169,20 @@ describe("more like this", () => {
   it("leaves the viewer's own listening out of the explanation", async () => {
     const res = await call<SimilarTracks>(t, "GET", `/api/recommendations/tracks/${ids.P1}`, users.u5!.token);
     expect(res.body.tracks[0]!.reason).toBe("2 listeners of “P1” also play this");
+  });
+
+  it("never recommends a taken-down track, and forgets deleted accounts' listening", async () => {
+    const db = t.database.db;
+    await db.update(tracks).set({ status: "taken_down" }).where(eq(tracks.id, ids.N1!));
+    const without = await call<SimilarTracks>(t, "GET", `/api/recommendations/tracks/${ids.P1}`);
+    expect(without.body.tracks.map((r) => title(r.track.id))).not.toContain("N1");
+    expect((await call(t, "GET", `/api/radio?seed=track:${ids.N1}`)).status).toBe(404);
+    await db.update(tracks).set({ status: "live" }).where(eq(tracks.id, ids.N1!));
+
+    await db.update(usersTable).set({ deletedAt: new Date() }).where(eq(usersTable.id, users.u3!.id));
+    const res = await call<SimilarTracks>(t, "GET", `/api/recommendations/tracks/${ids.P1}`);
+    expect(res.body.tracks[0]!.reason).toBe("2 listeners of “P1” also play this");
+    await db.update(usersTable).set({ deletedAt: null }).where(eq(usersTable.id, users.u3!.id));
   });
 });
 

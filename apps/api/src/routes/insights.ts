@@ -68,9 +68,11 @@ export const insightRoutes =
       const role = await statsRole(db, row.artistId, user);
       if (!role) throw new HttpError(403, NOT_YOURS);
 
+      // A taken-down track's plays stop counting, as in payouts; its money from past months still shows.
+      const counted = await artistTrackIds(db, row.artistId, trackId);
       const window = statsWindow(range);
       const [stats, summaries, [liked], money] = await Promise.all([
-        listeningStats(db, [trackId], window, role),
+        listeningStats(db, counted, window, role),
         loadTrackSummaries(db, [trackId]),
         db.select({ n: count() }).from(likes).where(eq(likes.trackId, trackId)),
         artistMoney(db, row.artistId, user.id, config.currency, trackId),

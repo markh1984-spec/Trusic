@@ -37,6 +37,9 @@ Demo logins (password `trusic-demo`):
 
 `pnpm seed --reset` wipes local data and starts again.
 
+Emails (confirming an address, password resets, takedown notices) are printed in the API's terminal output until you
+set up an email service: see [docs/EMAIL.md](docs/EMAIL.md).
+
 ## What's in the repo
 
 ```

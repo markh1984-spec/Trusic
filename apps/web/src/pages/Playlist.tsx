@@ -7,6 +7,7 @@ import { ErrorNote, Loading } from "../components/Guards";
 import { OpenedYourselfNote } from "../components/HumanOnlyToggle";
 import { RadioButton } from "../components/RadioButton";
 import { Icon } from "../components/Icon";
+import { MoreMenu } from "../components/MoreMenu";
 import { TrackList } from "../components/TrackList";
 import { duration, plural } from "../format";
 import { useAsync } from "../hooks";
@@ -107,6 +108,10 @@ export function PlaylistPage() {
             </button>
           </>
         ) : null}
+        <MoreMenu
+          label={playlist.name}
+          items={playlist.isOwner ? [] : [{ label: "Report…", to: `/report/playlist/${playlist.id}` }]}
+        />
       </div>
 
       <OpenedYourselfNote tracks={tracks} what="this playlist" />

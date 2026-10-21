@@ -7,6 +7,7 @@ import { CardGrid, ReleaseCard } from "../components/Cards";
 import { ErrorNote, Loading } from "../components/Guards";
 import { OpenedYourselfNote } from "../components/HumanOnlyToggle";
 import { Icon } from "../components/Icon";
+import { MoreMenu } from "../components/MoreMenu";
 import { RadioButton } from "../components/RadioButton";
 import { ArtistShelf } from "../components/Shelves";
 import { TrackList } from "../components/TrackList";
@@ -69,6 +70,10 @@ export function ArtistPage() {
             <Icon name="chart" size={18} /> Your stats
           </Link>
         ) : null}
+        <MoreMenu
+          label={artist.name}
+          items={data.isOwner ? [] : [{ label: "Report…", to: `/report/artist/${artist.id}` }]}
+        />
       </div>
 
       {releases.length ? (

@@ -1,7 +1,19 @@
 import type { AiDeclaration } from "@trusic/core";
 import type {
   AdminAppeal,
+  AdminCopyrightStrike,
+  AdminReport,
   AdminStrike,
+  CounterNotice,
+  DataExport,
+  MyTakedown,
+  MyTakedowns,
+  ReporterView,
+  ReportInput,
+  ReportReceipt,
+  ReportTarget,
+  ReportTargetType,
+  SettingsResult,
   Appeal,
   Artist,
   ArtistPage,
@@ -382,6 +394,79 @@ export class TrusicClient {
   }
   trackStats(trackId: string, range: StatsRange = "28d") {
     return this.request<TrackStats>("GET", `/studio/tracks/${trackId}/stats?range=${range}`);
+  }
+
+  // Account settings, password resets and email confirmation
+  forgotPassword(email: string) {
+    return this.request<{ ok: true }>("POST", "/auth/forgot-password", { email });
+  }
+  /** Sets a new password from an emailed link, signs out every other session and signs this one in. */
+  resetPassword(token: string, password: string) {
+    return this.request<AuthResponse>("POST", "/auth/reset-password", { token, password });
+  }
+  verifyEmail(token: string) {
+    return this.request<{ email: string }>("POST", "/auth/verify-email", { token });
+  }
+  resendVerification() {
+    return this.request<{ ok: true }>("POST", "/me/verify-email/resend");
+  }
+  updateProfile(input: { displayName: string }) {
+    return this.request<SettingsResult>("PATCH", "/me", input);
+  }
+  /** The new address must be confirmed from a link we email to it; until then the old one stays. */
+  changeEmail(email: string, password: string) {
+    return this.request<SettingsResult>("POST", "/me/email", { email, password });
+  }
+  changePassword(currentPassword: string, newPassword: string) {
+    return this.request<void>("POST", "/me/password", { currentPassword, newPassword });
+  }
+  logoutEverywhere() {
+    return this.request<void>("POST", "/auth/logout-everywhere");
+  }
+  exportData() {
+    return this.request<DataExport>("GET", "/me/export");
+  }
+  deleteAccount(password: string) {
+    return this.request<void>("POST", "/me/delete", { password, confirm: "DELETE" });
+  }
+
+  // Reports and takedowns
+  reportTarget(type: ReportTargetType, id: string) {
+    return this.request<ReportTarget>("GET", `/report-targets/${type}/${encodeURIComponent(id)}`);
+  }
+  report(input: ReportInput) {
+    return this.request<ReportReceipt>("POST", "/reports", input);
+  }
+  reporterView(reportId: string, token: string) {
+    return this.request<ReporterView>("GET", `/reports/${reportId}/reply?token=${encodeURIComponent(token)}`);
+  }
+  replyToReport(reportId: string, token: string, message: string) {
+    return this.request<ReporterView>("POST", `/reports/${reportId}/reply`, { token, message });
+  }
+  myTakedowns() {
+    return this.request<MyTakedowns>("GET", "/me/takedowns");
+  }
+  counterNotice(reportId: string, input: Omit<CounterNotice, "sentAt">) {
+    return this.request<MyTakedown>("POST", `/me/takedowns/${reportId}/counter-notice`, input);
+  }
+  adminReports(params: { queue: "action" | "waiting" | "closed"; kind?: "takedown" | "ai_label" }) {
+    const kind = params.kind ? `&kind=${params.kind}` : "";
+    return this.request<AdminReport[]>("GET", `/admin/reports?queue=${params.queue}${kind}`);
+  }
+  /** Act on a report. Every action needs a note: it's what the uploader or reporter is told. */
+  actOnReport(
+    reportId: string,
+    action: "take_down" | "reject" | "request_info" | "restore" | "keep_down",
+    note: string,
+  ) {
+    return this.request<AdminReport>("POST", `/admin/reports/${reportId}/${action.replace("_", "-")}`, { note });
+  }
+  /** Settle a wrong-label report with the same tools as a score appeal. */
+  reviewLabelReport(reportId: string, input: { score?: number; strike?: boolean; note?: string }) {
+    return this.request<AdminReport>("POST", `/admin/reports/${reportId}/label-review`, input);
+  }
+  adminCopyrightStrikes() {
+    return this.request<AdminCopyrightStrike[]>("GET", "/admin/copyright-strikes");
   }
 }
 

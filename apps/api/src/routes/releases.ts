@@ -6,6 +6,7 @@ import type { AppDeps } from "../app";
 import { optionalUser, requireUser } from "../auth";
 import type { Db } from "../db/client";
 import { artists, releases, tracks } from "../db/schema";
+import { requireVerifiedEmail } from "../email-tokens";
 import { HttpError } from "../errors";
 import { resolveHumanOnly } from "../human-only";
 import { IMAGE_MIME_BY_EXT, storeImage, withUpload } from "../uploads";
@@ -161,6 +162,7 @@ export const releaseRoutes =
 
     app.put<{ Params: { id: string } }>("/releases/:id/artwork", async (request) => {
       const user = await requireUser(db, request);
+      requireVerifiedEmail(user, "upload artwork");
       const release = await ownedRelease(z.uuid().parse(request.params.id), user.id);
       const key = await withUpload(request, storage, "image", ({ filePath }) => storeImage(storage, filePath));
       await db.update(releases).set({ artworkKey: key }).where(eq(releases.id, release.id));
@@ -170,6 +172,7 @@ export const releaseRoutes =
 
     app.put<{ Params: { id: string } }>("/artists/:id/image", async (request) => {
       const user = await requireUser(db, request);
+      requireVerifiedEmail(user, "upload a photo");
       const [artist] = await db
         .select()
         .from(artists)

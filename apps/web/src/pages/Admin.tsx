@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import { api } from "../api";
 import { AiBadge } from "../components/AiBadge";
 import { ErrorNote, Loading, RequireAuth } from "../components/Guards";
+import { LabelReports, ReportsAdmin } from "../components/ReportsAdmin";
 import { money, periodName } from "../format";
 import { useAsync } from "../hooks";
 import { useToast } from "../toast";
@@ -13,6 +14,7 @@ export function AdminPage() {
     <RequireAuth admin>
       <h1>Admin</h1>
       <Payouts />
+      <ReportsAdmin />
       <Appeals />
       <Strikes />
       <Rights />
@@ -141,6 +143,7 @@ function Appeals() {
       {data?.map((a) => (
         <AppealItem key={a.id} appeal={a} onDone={reload} />
       ))}
+      <LabelReports />
     </section>
   );
 }
@@ -234,7 +237,7 @@ function Strikes() {
 
   return (
     <section className="card">
-      <h2>Strikes</h2>
+      <h2>AI declaration strikes</h2>
       {strikes.error ? <ErrorNote message={strikes.error} /> : null}
       {strikes.data?.length === 0 ? <p className="muted">No strikes yet.</p> : null}
       {strikes.data?.length ? (
@@ -278,7 +281,8 @@ function Strikes() {
             <strong>{u.displayName}</strong> <span className="muted">{u.email}</span>
           </span>
           <span className="muted small">
-            {u.strikes} strikes · suspended {new Date(u.suspendedAt).toLocaleDateString("en-GB")}
+            {u.strikes} AI declaration · {u.copyrightStrikes} copyright strikes · suspended{" "}
+            {new Date(u.suspendedAt).toLocaleDateString("en-GB")}
           </span>
           <button
             className="button button--ghost button--small"

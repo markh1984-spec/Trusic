@@ -112,7 +112,67 @@ catches careless uploads but is trivially evaded. A real audio-analysis detector
 roadmap). Even the best detectors can't reliably see _partial_ AI use, so for scores between 0 and 100 the
 artist's declaration will remain the main evidence; see [research/ai-detection.md](research/ai-detection.md).
 
-## 3. Decisions log
+## 3. Accounts, reports and takedowns
+
+### Accounts
+
+- **Confirming an email address.** Sign-up emails a link. Listening works straight away, but uploading music,
+  artwork or photos, setting up payouts and being paid all wait until the address is confirmed. The demo accounts
+  count as confirmed.
+- **Forgotten passwords.** A reset link works once and for 1 hour, and only a scrambled copy (a hash) of it is stored.
+  The form says the same thing whether or not an email address has an account. Each account gets at most 3 links an
+  hour, and each internet address can ask 5 times in 15 minutes. Setting a new password signs out every other
+  session.
+- **Settings.** Change your name; change your email address (the old one keeps working, and is warned, until the new
+  one is confirmed); change your password (needs the current one, and signs out your other devices); and sign out
+  everywhere.
+- **Email** is printed in the server's log until an email service is set up. See [EMAIL.md](EMAIL.md).
+
+### Your data (UK GDPR)
+
+- **Download:** a JSON file of everything Trusic holds about the account: profile, artist profiles, track details,
+  plays, likes, playlists, follows, statements, earnings, ledger, strikes, appeals and reports.
+- **Delete:** needs the password and typing "DELETE". Then:
+  - the name, email address, password, likes, follows, playlists, sessions and email links go;
+  - the account's tracks come down for good (taken-down tracks stay taken down), their audio, artwork and photos are
+    deleted, releases are deleted, and artist profiles are hidden and renamed "Deleted artist";
+  - the account's share of other people's tracks goes to whoever uploaded each track;
+  - plays, payments, monthly statements, payout runs, ledger entries and strikes **stay**, attached to an anonymous
+    account with no name, email or password. Other people's statements and Trusic's books are built from them, so
+    deleting them would change what other artists were paid;
+  - money still owed to the account is held, not paid out (open question 12);
+  - a subscription is cancelled straight away;
+  - the email address is free to sign up with again, as a brand-new account. Copyright notices the person sent are
+    kept as a legal record; their contact details are removed from their other reports.
+
+### Reports and takedowns
+
+- **Anyone can report** a track, release, artist, playlist, or a piece of artwork on its own, signed in or not (with
+  an email address so we can reply). Reasons: copyright infringement, offensive or illegal content, impersonation,
+  and wrong AI label.
+- **A copyright report is a notice.** It must include the claimant's name, postal address and email address, whether
+  they own the rights or act for the owner, the original work, what on Trusic copies it, a good-faith statement, a
+  statement that the notice is accurate, and a typed signature. The uploader sees the claimant's name and the work
+  claimed, not their contact details.
+- **Admins** take content down, reject the report, or ask the reporter for more (they answer from a link in the email).
+  Every decision comes with a note that's emailed to the people involved.
+- **Taken down** means: a track gets its own "taken down" status, is hidden everywhere, can't be played (even from
+  links handed out earlier), and earns nothing in months that aren't finalised yet: its listeners' money goes to
+  whatever else they played. Finalised months aren't reopened. A release takes its tracks down with it; an artist takes
+  its releases and tracks; a playlist is hidden from everyone but its owner; artwork comes off every release or profile
+  showing it.
+- **Counter-notices.** The uploader is emailed the reason and can send one counter-notice per takedown. It goes, with
+  their name and email address (with their consent), to the person who reported it, who is asked to reply within 10
+  working days if they've started legal action. An admin then puts the content back or keeps it down.
+- **Repeat infringers.** Each upheld copyright takedown is a **copyright strike**. Three suspend the account through
+  the same suspension as AI strikes, and an admin can reinstate it. Putting content back withdraws its strike.
+  Copyright strikes and strikes for false AI declarations are counted separately and shown separately everywhere.
+- **Wrong AI labels** go to the score review next to appeals, not the takedown queue. An admin changes the score,
+  changes it and issues an AI declaration strike, or leaves it.
+- **Public pages:** the web app's Copyright page (`/legal/copyright`) explains how to send a notice. Its Terms page
+  (`/legal/terms`) is a placeholder listing what a lawyer must write.
+
+## 4. Decisions log
 
 | Date       | Decision                                                                                                                             | Why                                                                                                                                        |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -134,8 +194,17 @@ artist's declaration will remain the main evidence; see [research/ai-detection.m
 | 2026-10-21 | Recommendations rank only by listening (streams and likes) and the Human-made only switch. No paid placement, no boost for a label.  | Transparency is the brand: nobody can buy a place, and every recommendation says why in plain English.                                     |
 | 2026-10-21 | Artist stats count streams exactly as payouts do. Band members see all of the artist's listening but only their own money.           | Stats that disagree with the money would confuse artists. A band shares its audience, but each member's pay is their own.                  |
 | 2026-10-21 | Apps say where each play started (an album, a playlist, radio…). It's optional, and an unknown value is kept as "other".             | Artists want to know how listeners find them, and a stats label must never cost a listener's play.                                         |
+| 2026-10-21 | Uploading and payouts need a confirmed email address; listening doesn't.                                                             | People can start listening at once, but anyone we pay, or take music down from, can be reached.                                            |
+| 2026-10-21 | A new email address only replaces the old one once it's confirmed, and the old one is warned.                                        | A typo can't lock anyone out, and someone using a stolen session can't quietly take over the account.                                      |
+| 2026-10-21 | Deleting an account anonymises its plays and money records instead of deleting them.                                                 | Other listeners' statements and artists' payouts are built from them; deleting them would change what other people were paid.              |
+| 2026-10-21 | A deleted account's share of band splits goes to the track's uploader. Money still owed to it is held, not paid out.                 | The band's track keeps paying out in full. There's nobody left to pay the deleted account (open question 12).                              |
+| 2026-10-21 | A taken-down track earns nothing in months not yet finalised. Finalised months aren't reopened.                                      | Same rule as clawbacks: corrections never rewrite a finalised month. The listener's money goes to what else they played.                   |
+| 2026-10-21 | Only upheld copyright takedowns are strikes. Three suspend, counted separately from AI declaration strikes.                          | A repeat-infringer policy is expected for the hosting defence. Keeping the two kinds apart makes each easy to explain and to appeal.       |
+| 2026-10-21 | Putting content back withdraws its copyright strike, but doesn't lift a suspension by itself.                                        | An admin decides on reinstating, as with AI strikes, because the account may have other strikes too.                                       |
+| 2026-10-21 | Wrong-label reports go to the score review with appeals, using the same tools.                                                       | One process for AI scores, and the same strikes and clawbacks for false declarations however they're found.                                |
+| 2026-10-21 | Uploaders see a copyright claimant's name and the work claimed, not their contact details. Counter-notices go to the claimant.       | Uploaders need to know what's claimed to respond; claimants' addresses are private. Uploaders agree to their details being passed on.      |
 
-## 4. Open questions
+## 5. Open questions
 
 These need a decision from the founder. The current behaviour is in brackets.
 
@@ -145,7 +214,7 @@ These need a decision from the founder. The current behaviour is in brackets.
 3. ~~Penalties for lying~~: decided, strikes and clawbacks.
 4. **Fully AI tracks.** Allowed, labelled, earn nothing. Should they also be hidden from default recommendations,
    or have their own section? [shown like any other track and ranked only by listening; listeners can turn on
-   "Human-made only" to hide them, see section 6]
+   "Human-made only" to hide them, see section 7]
 5. ~~Free tier~~: decided, subscribers only, with previews.
 6. **Price and market.** UK-first in GBP at £10.99/month? [GBP, £10.99 incl. VAT]
 7. **Score changes mid-month.** If an appeal changes a track's score on the 20th, should earlier streams use the
@@ -163,10 +232,20 @@ These need a decision from the founder. The current behaviour is in brackets.
 11. **How confident detection must be.** The research suggests only raising scores automatically when two signals
     agree that a whole track is generated, and sending partial-AI signals to a person. Adopt that? See
     [research/ai-detection.md](research/ai-detection.md). [one confident signal is enough]
-12. **"Human-made only" by default.** Should new accounts start with it switched on? [off: everything is shown, with
+12. **Money owed to deleted accounts.** Should it be paid out before an account can be deleted, kept in case the
+    person asks for it, or go to the human pot after a while? [held, not paid out; the deletion page warns about it]
+13. **Takedown rules, for a lawyer.** Are the notice and counter-notice contents right? Is waiting 10 working days
+    after a counter-notice before putting content back right for the UK? Should offensive-content or impersonation
+    takedowns also count as strikes? Should a taken-down track's earnings from finalised months be clawed back and held
+    for the rights owner? [as built: no strikes for those, no clawback]
+14. **A contact address for legal notices.** UK law expects a business website to show an email address, and some
+    rights owners prefer to email notices. [none published; notices come through the report form]
+15. **Repeat infringers who delete their account.** A suspended account can be deleted and its email address used to
+    sign up again. Should Trusic keep a scrambled copy of suspended accounts' addresses to stop that? [no]
+16. **"Human-made only" by default.** Should new accounts start with it switched on? [off: everything is shown, with
     its label]
 
-## 5. Research
+## 6. Research
 
 - [Detecting AI-generated music](research/ai-detection.md): what detection can and can't do, vendors to trial, an
   evaluation plan, and what other platforms do.
@@ -176,7 +255,7 @@ These need a decision from the founder. The current behaviour is in brackets.
 Both were compiled from web searches on 6 October 2026. Several primary sources couldn't be opened directly, so
 figures marked unverified must be checked before they go into a financial model.
 
-## 6. Discovery and artist stats
+## 7. Discovery and artist stats
 
 ### "Human-made only"
 
@@ -187,7 +266,7 @@ figures marked unverified must be checked before they go into a financial model.
 - **Albums, playlists, artist pages and tracks the listener opens themselves still show and play everything**, with
   every track labelled, and a note says how many of them aren't Human-made. A radio started from a track plays that
   track first, because the listener chose it; everything after it is Human-made.
-- It's off by default (open question 12).
+- It's off by default (open question 16).
 
 ### Recommendations
 
@@ -211,13 +290,15 @@ for.
 - **Radio** starts from a track, an artist or a playlist and never ends: more is added as it runs low. Artist and
   playlist radio play one of their own tracks every third track. Radio stays with related music and goes round
   again, rather than drifting into whatever is popular.
+- Removed, suspended and taken-down tracks are never recommended. Listening by deleted accounts no longer shapes
+  recommendations, though it still counts in stats and payouts.
 
 ### Artist stats ("Trusic for Artists", in Studio)
 
 - **Who sees them:** the account that owns the artist, band members in any of its tracks' splits, and Trusic admins.
 - **Streams are counted exactly as payouts count them:** plays of 30 seconds or more by subscribers, on UTC days, so
   a month of stats adds up to that month's payout run. Listeners are different subscribers who streamed. Previews
-  never count.
+  never count. A track that has been taken down stops counting, as it does for payouts.
 - **What's shown:** streams, listeners, followers and new likes for the last 7, 28 or 365 days, compared with the
   time just before; a chart by day (by week for 365 days); top tracks; where listeners pressed play; and the same
   for each track on its own page.
