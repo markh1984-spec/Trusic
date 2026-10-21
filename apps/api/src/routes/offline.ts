@@ -1,5 +1,6 @@
 import type {
   DownloadAuthorization,
+  DownloadDevice,
   OfflineCollection,
   OfflineCollectionRef,
   OfflineSync,
@@ -220,14 +221,14 @@ export const offlineRoutes =
       if (device?.removedAt) {
         // Told once; downloading again later registers it afresh.
         await forget();
-        return nothing("device_removed");
+        return { ...nothing("device_removed"), removedBy: device.removedReason ?? "limit" };
       }
       if (body.collections.length === 0 && stored.length === 0) {
         // Nothing kept here any more, so the device gives up its place.
         await forget();
         return { ...nothing("ok"), removedTrackIds: [] };
       }
-      await registerDevice(db, user.id, body.device, device?.id ?? null);
+      await registerDevice(db, user.id, body.device, device?.id ?? null, stored.length);
 
       const collections: OfflineCollection[] = [];
       const unavailable: OfflineCollectionRef[] = [];
@@ -285,6 +286,46 @@ export const offlineRoutes =
         refusedTrackIds: trackIds.filter((id) => !found.has(id)),
       } satisfies DownloadAuthorization;
     });
+
+    /** "Your devices" in Settings: the phones and computers keeping downloads, the most recently checked first. */
+    app.get("/me/download-devices", async (request) => {
+      const user = await requireUser(db, request);
+      const rows = await db
+        .select()
+        .from(offlineDevices)
+        .where(eq(offlineDevices.userId, user.id))
+        .orderBy(desc(offlineDevices.lastSyncAt));
+      return rows.map((d): DownloadDevice => ({
+        id: d.id,
+        name: d.name,
+        platform: d.platform as DownloadDevice["platform"],
+        lastCheckedAt: d.lastSyncAt.toISOString(),
+        trackCount: d.trackCount,
+        removedBy: d.removedAt ? (d.removedReason ?? "limit") : null,
+      }));
+    });
+
+    /**
+     * The listener removes a device: its place is free straight away, and its downloads are deleted the next time
+     * it checks in (it's told "device_removed"). Turning downloads on there again later adds it back.
+     */
+    app.delete<{ Params: { id: string } }>("/me/download-devices/:id", async (request, reply) => {
+      const user = await requireUser(db, request);
+      const id = z.uuid().parse(request.params.id);
+      const [device] = await db
+        .select({ removedAt: offlineDevices.removedAt })
+        .from(offlineDevices)
+        .where(and(eq(offlineDevices.id, id), eq(offlineDevices.userId, user.id)))
+        .limit(1);
+      if (!device) throw new HttpError(404, "That device isn't keeping downloads for your account.");
+      if (!device.removedAt) {
+        await db
+          .update(offlineDevices)
+          .set({ removedAt: new Date(), removedReason: "listener" })
+          .where(eq(offlineDevices.id, id));
+      }
+      return reply.code(204).send();
+    });
   };
 
 /**
@@ -296,12 +337,13 @@ async function registerDevice(
   userId: string,
   device: z.infer<typeof SyncBody>["device"],
   existingId: string | null,
+  trackCount: number,
 ) {
   const now = new Date();
   if (existingId) {
     await db
       .update(offlineDevices)
-      .set({ name: device.name, platform: device.platform, lastSyncAt: now })
+      .set({ name: device.name, platform: device.platform, lastSyncAt: now, trackCount })
       .where(eq(offlineDevices.id, existingId));
     return;
   }
@@ -314,7 +356,7 @@ async function registerDevice(
   if (surplus.length) {
     await db
       .update(offlineDevices)
-      .set({ removedAt: now })
+      .set({ removedAt: now, removedReason: "limit" })
       .where(
         inArray(
           offlineDevices.id,
@@ -322,12 +364,13 @@ async function registerDevice(
         ),
       );
   }
+  const details = { name: device.name, platform: device.platform, lastSyncAt: now, trackCount };
   await db
     .insert(offlineDevices)
-    .values({ userId, deviceKey: device.id, name: device.name, platform: device.platform, lastSyncAt: now })
+    .values({ userId, deviceKey: device.id, ...details })
     .onConflictDoUpdate({
       target: [offlineDevices.userId, offlineDevices.deviceKey],
-      set: { name: device.name, platform: device.platform, lastSyncAt: now, removedAt: null },
+      set: { ...details, removedAt: null, removedReason: null },
     });
 }
 

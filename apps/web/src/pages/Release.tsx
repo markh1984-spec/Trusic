@@ -2,11 +2,12 @@ import { Link, useParams } from "react-router";
 import { api } from "../api";
 import { Artwork } from "../components/Artwork";
 import { releaseAiSummary, releaseYear, TYPE_NAMES } from "../components/Cards";
-import { ErrorNote, Loading } from "../components/Guards";
+import { Loading } from "../components/Guards";
 import { OpenedYourselfNote } from "../components/HumanOnlyToggle";
 import { Icon } from "../components/Icon";
 import { MoreMenuWithShare, ShareButton } from "../components/Share";
 import { TrackList } from "../components/TrackList";
+import { LoadFailed } from "../components/Unavailable";
 import { duration, plural } from "../format";
 import { useAsync } from "../hooks";
 import { DownloadButton } from "../offline/DownloadButton";
@@ -15,11 +16,11 @@ import { usePageTitle } from "../share";
 
 export function ReleasePage() {
   const { id = "" } = useParams();
-  const { data: release, error, loading } = useAsync(() => api.release(id), [id]);
+  const { data: release, error, errorStatus, loading } = useAsync(() => api.release(id), [id]);
   const play = usePlayTracks();
   usePageTitle(release ? `${release.title} · ${TYPE_NAMES[release.type]} by ${release.artist.name}` : null);
 
-  if (error) return <ErrorNote message={error} />;
+  if (error) return <LoadFailed kind="release" error={error} status={errorStatus} />;
   if (loading || !release) return <Loading />;
 
   const allHuman = release.trackCount > 0 && release.aiLabels.human === release.trackCount;

@@ -4,8 +4,9 @@ import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import type { AppDeps } from "../app";
 import { requireUser } from "../auth";
-import { artists, follows, likes, plays, tracks } from "../db/schema";
+import { artists, follows, likes, plays, tracks, users } from "../db/schema";
 import { HttpError } from "../errors";
+import { recordFollowChanges } from "../follow-history";
 import { selectTrackSummaries, selectTrackSummariesWith, toArtist, toTrackSummary } from "../views";
 
 const HISTORY_LIMIT = 50;
@@ -68,16 +69,43 @@ export const libraryRoutes =
     app.put<{ Params: { artistId: string } }>("/me/follows/:artistId", async (request, reply) => {
       const user = await requireUser(db, request);
       const artistId = z.uuid().parse(request.params.artistId);
-      const [artist] = await db.select({ id: artists.id }).from(artists).where(eq(artists.id, artistId)).limit(1);
+      // Only artists anyone can see: not taken down, and not a deleted account's.
+      const [artist] = await db
+        .select({ id: artists.id })
+        .from(artists)
+        .innerJoin(users, eq(users.id, artists.ownerUserId))
+        .where(and(eq(artists.id, artistId), isNull(artists.takenDownAt), isNull(users.deletedAt)))
+        .limit(1);
       if (!artist) throw new HttpError(404, "Artist not found.");
-      await db.insert(follows).values({ userId: user.id, artistId }).onConflictDoNothing();
+      await db.transaction(async (tx) => {
+        const added = await tx
+          .insert(follows)
+          .values({ userId: user.id, artistId })
+          .onConflictDoNothing()
+          .returning({ artistId: follows.artistId });
+        await recordFollowChanges(
+          tx,
+          "follow",
+          added.map((f) => f.artistId),
+        );
+      });
       return reply.code(204).send();
     });
 
     app.delete<{ Params: { artistId: string } }>("/me/follows/:artistId", async (request, reply) => {
       const user = await requireUser(db, request);
       const artistId = z.uuid().parse(request.params.artistId);
-      await db.delete(follows).where(and(eq(follows.userId, user.id), eq(follows.artistId, artistId)));
+      await db.transaction(async (tx) => {
+        const gone = await tx
+          .delete(follows)
+          .where(and(eq(follows.userId, user.id), eq(follows.artistId, artistId)))
+          .returning({ artistId: follows.artistId });
+        await recordFollowChanges(
+          tx,
+          "unfollow",
+          gone.map((f) => f.artistId),
+        );
+      });
       return reply.code(204).send();
     });
 

@@ -23,6 +23,7 @@ import { HttpError } from "../errors";
 import { CreditsSchema } from "../credits";
 import { requireVerifiedEmail } from "../email-tokens";
 import { humanMadeOnly, resolveHumanOnly } from "../human-only";
+import { refuseIfArtistTakenDown } from "../takedowns";
 import { withUpload } from "../uploads";
 import { isArtistOwner, loadTrackDetail, selectTrackSummaries, toAppeal, toTrackSummary } from "../views";
 
@@ -136,6 +137,7 @@ export const trackRoutes =
         if (!(await isArtistOwner(db, input.artistId, user.id))) {
           throw new HttpError(403, "You can only upload to your own artist profiles.");
         }
+        await refuseIfArtistTakenDown(db, input.artistId);
         if (input.releaseId) {
           const [release] = await db
             .select({ id: releases.id })

@@ -152,7 +152,10 @@ describe("releases", () => {
     const image = await t.app.inject({ method: "GET", url });
     expect(image.statusCode).toBe(200);
     expect(image.headers["content-type"]).toBe("image/png");
-    expect(image.headers["cache-control"]).toContain("immutable");
+    // Kept for an hour, then checked again cheaply, so a takedown reaches people who've seen it.
+    expect(image.headers["cache-control"]).toBe("public, max-age=3600");
+    const again = await t.app.inject({ method: "GET", url, headers: { "if-none-match": image.headers.etag } });
+    expect(again.statusCode).toBe(304);
 
     // Every track on the release now carries the artwork.
     const list = await call<TrackList>(t, "GET", "/api/tracks?q=chalk");

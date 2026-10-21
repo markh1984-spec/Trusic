@@ -15,7 +15,9 @@ import { ShareButton } from "../components/Share";
 import { TrackLyrics } from "../components/Lyrics";
 import { TrackShelf } from "../components/Shelves";
 import { TrackMenu } from "../components/TrackMenu";
-import { ProcessingNote, useReloadWhenProcessed } from "../components/UploadsInProgress";
+import { TrackStatusNotice } from "../components/TrackStatusNotice";
+import { LoadFailed } from "../components/Unavailable";
+import { useReloadWhenProcessed } from "../components/UploadsInProgress";
 import { usePageTitle } from "../share";
 import { duration, money } from "../format";
 import { useAuth } from "../auth";
@@ -40,23 +42,25 @@ const SOURCE_TEXT = {
 
 export function TrackPage() {
   const { id = "" } = useParams();
-  const { data: track, error, loading, reload } = useAsync(() => api.track(id), [id]);
+  const { data: track, error, errorStatus, loading, reload } = useAsync(() => api.track(id), [id]);
   useReloadWhenProcessed(track, reload);
   const play = usePlayTracks();
   const player = usePlayer();
   const { me } = useAuth();
   usePageTitle(track ? `${track.title} · ${track.artist.name}` : null);
 
-  if (error) return <ErrorNote message={error} />;
+  if (error) return <LoadFailed kind="track" error={error} status={errorStatus} />;
   if (loading || !track) return <Loading />;
 
   const isCurrent = player.current?.id === track.id;
   const label = AI_LABELS[track.aiLabel];
   const d = track.declaration;
+  // Not live: only its uploader and admins can see it, and it can't be played or shared.
+  const live = track.unavailable === null;
 
   return (
     <>
-      {track.processing ? <ProcessingNote status={track.processing} /> : null}
+      <TrackStatusNotice track={track} onChange={reload} />
       <section className="track-hero">
         <Artwork url={track.artworkUrl} title={track.title} label={track.aiLabel} size={200} />
         <div>
@@ -83,22 +87,28 @@ export function TrackPage() {
           <div className="track-hero__actions">
             <button
               className="play-button play-button--large"
-              disabled={track.processing !== null}
+              disabled={!live}
               onClick={() => (isCurrent ? player.toggle() : play([track], 0))}
               aria-label={isCurrent && player.playing ? "Pause" : "Play"}
             >
               <Icon name={isCurrent && player.playing ? "pause" : "play"} size={26} />
             </button>
             <AiBadge score={track.aiScore} />
-            <LikeButton trackId={track.id} title={track.title} size={24} />
-            <ShareButton target={{ kind: "track", key: track.id, title: `${track.title} · ${track.artist.name}` }} />
-            <RadioButton seed={{ type: "track", id: track.id }} name={track.title} />
+            {live ? (
+              <>
+                <LikeButton trackId={track.id} title={track.title} size={24} />
+                <ShareButton
+                  target={{ kind: "track", key: track.id, title: `${track.title} · ${track.artist.name}` }}
+                />
+                <RadioButton seed={{ type: "track", id: track.id }} name={track.title} />
+              </>
+            ) : null}
             {track.isOwner ? (
               <Link to={`/studio/track/${track.id}`} className="button button--ghost">
                 <Icon name="chart" size={18} /> Stats
               </Link>
             ) : null}
-            <TrackMenu track={track} />
+            {live ? <TrackMenu track={track} /> : null}
           </div>
         </div>
       </section>
@@ -157,7 +167,7 @@ export function TrackPage() {
       </section>
 
       <TrackLyrics track={track} />
-      <MoreLikeThis trackId={track.id} />
+      {live ? <MoreLikeThis trackId={track.id} /> : null}
     </>
   );
 }

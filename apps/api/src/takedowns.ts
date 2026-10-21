@@ -4,6 +4,7 @@ import type { Db, Tx } from "./db/client";
 import {
   artists,
   copyrightStrikes,
+  mediaJobs,
   playlists,
   releases,
   reports,
@@ -291,9 +292,26 @@ export async function takeDown(tx: Tx, type: ReportTargetType, id: string): Prom
 }
 
 /**
+ * How far converting a track's upload has got: "done" once its streaming files are made (or if this server streams
+ * uploads as they are), otherwise still "processing", or "failed".
+ */
+async function conversionState(tx: Tx, trackId: string): Promise<"done" | "processing" | "failed"> {
+  const [row] = await tx
+    .select({ processedAt: tracks.audioProcessedAt, job: mediaJobs.status })
+    .from(tracks)
+    .leftJoin(mediaJobs, and(eq(mediaJobs.trackId, tracks.id), eq(mediaJobs.kind, "audio")))
+    .where(eq(tracks.id, trackId))
+    .limit(1);
+  // No job and no streaming files: a server without ffmpeg let the job go, so it plays as uploaded.
+  if (!row || row.processedAt || !row.job) return "done";
+  return row.job === "failed" ? "failed" : row.job === "done" ? "done" : "processing";
+}
+
+/**
  * Put back what a takedown changed. Tracks return to how they were, except that a suspended owner's tracks stay
- * hidden until they're reinstated, and a deleted owner's stay removed. Artwork the owner has replaced since stays
- * replaced.
+ * hidden until they're reinstated, and a deleted owner's stay removed. A track taken down while its upload was
+ * still being converted goes back to "processing" (and goes live when that's done), or to "failed" if converting
+ * it failed meanwhile: never live on the upload itself. Artwork the owner has replaced since stays replaced.
  */
 export async function restore(tx: Tx, record: TakedownRecord, ownerUserId: string | null): Promise<void> {
   const [owner] = ownerUserId
@@ -303,14 +321,18 @@ export async function restore(tx: Tx, record: TakedownRecord, ownerUserId: strin
         .where(eq(users.id, ownerUserId))
         .limit(1)
     : [];
-  const statusFor = (previous: TrackStatus): TrackStatus => {
+  const statusFor = async (id: string, previous: TrackStatus): Promise<TrackStatus> => {
     if (owner?.deletedAt || previous === "removed") return "removed";
+    if (previous === "processing" || previous === "failed") {
+      const conversion = await conversionState(tx, id);
+      if (conversion !== "done") return conversion;
+    }
     return owner?.suspendedAt ? "suspended" : "live";
   };
   for (const t of record.tracks) {
     await tx
       .update(tracks)
-      .set({ status: statusFor(t.previousStatus) })
+      .set({ status: await statusFor(t.id, t.previousStatus) })
       .where(and(eq(tracks.id, t.id), eq(tracks.status, "taken_down")));
   }
   if (record.releaseIds.length) {
@@ -334,6 +356,21 @@ export async function restore(tx: Tx, record: TakedownRecord, ownerUserId: strin
         .set({ imageKey: image.key })
         .where(and(eq(artists.id, image.id), isNull(artists.imageKey)));
     }
+  }
+}
+
+/** Nothing new goes on a taken-down artist: it would be public while the artist is hidden. */
+export async function refuseIfArtistTakenDown(db: Db | Tx, artistId: string): Promise<void> {
+  const [artist] = await db
+    .select({ takenDownAt: artists.takenDownAt })
+    .from(artists)
+    .where(eq(artists.id, artistId))
+    .limit(1);
+  if (artist?.takenDownAt) {
+    throw new HttpError(
+      403,
+      "This artist profile has been taken down after a report, so you can't add music to it. Studio explains why, and what you can do.",
+    );
   }
 }
 

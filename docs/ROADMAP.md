@@ -48,7 +48,8 @@
 - Uploads are converted in the background with ffmpeg: 160 kbps AAC (about 1.2 MB a minute, against 10 MB for
   WAV), turned up or down towards −14 LUFS without compressing anything, plus a separate 30-second preview file. The
   upload itself is kept privately, so tracks can be re-encoded later. New tracks show as "Processing" in Studio and
-  go live when they're ready; work interrupted by a restart carries on.
+  go live when they're ready; work interrupted by a restart carries on. If converting fails, Studio says why in
+  plain words and offers "Try again" from the kept upload; admins see every failed upload and can retry it too.
 - Artwork and artist photos are cropped square and kept as WebP at 120, 300 and 640 pixels. The web, desktop and
   phone apps load the size they show.
 
@@ -62,6 +63,9 @@
 - Reports for copyright, offensive or illegal content, impersonation and wrong AI labels, from a "Report…" item on
   tracks, releases, artists and playlists, by anyone. An admin takedown queue with counter-notices and restoring,
   copyright strikes (three suspend the account), and a page explaining copyright notices. Terms are a placeholder.
+- Taken-down content and deleted accounts take their artwork and photos with them: only the owner and admins can
+  load them, and public pictures are only cached for an hour. A plain "isn't available" page for anything people
+  can't see, and on their own track, uploaders see why it isn't live and what to do (counter-notice, Try again).
 
 **Sharing and lyrics**
 
@@ -88,7 +92,8 @@
 - Personalised home page, "More like this", "Fans also like" and endless radio from a track, an artist or a
   playlist, all built in-house from listening on Trusic, each saying why it was picked.
 - "Trusic for Artists" in Studio: streams, listeners, followers and likes over 7, 28 and 365 days, top tracks, where
-  listeners pressed play, per-track pages, and each person's own money by track and month.
+  listeners pressed play, per-track pages, and each person's own money by track and month. Follows and unfollows are
+  recorded, so followers over time shows losses as well as gains.
 - Every play records where it started. The demo data has six months of listening by 35 subscribers.
 
 **Offline listening**
@@ -101,21 +106,22 @@
 - Both apps queue every play with an id made up on the device and send them when back online, so offline listening
   pays artists and a play sent twice counts once. Plays that arrive after their month is finalised count in the next
   month calculated, and listeners' statements say so.
+- "Your devices" in the website's Settings: each device keeping downloads, when it last checked in and how many
+  tracks it has, with Remove (its downloads are deleted at its next check-in).
 
 ## Next: things Spotify has that we don't yet
 
 - Editorial: playlists picked by people at Trusic, clearly marked as such.
-- Stats: keep a record of unfollows and unlikes so followers over time can show losses too; a daily summary table if
-  one artist ever has millions of plays a year (see `apps/api/src/stats-service.ts`).
+- Stats: keep a record of unlikes, as follows now have, so likes over time can show losses too; a daily summary table
+  if one artist ever has millions of plays a year (see `apps/api/src/stats-service.ts`).
 - Accounts: sign in with Apple/Google, two-step sign-in.
 - Releases: pre-release scheduling.
 - Lyrics and sharing in the phone app (the server and the shared client already support them). A lyric licence
   for covers, if the founder wants one (open question 19).
-- Audio: a "data saver" setting with a lower bitrate, HLS with several bitrates, and a CDN in front of storage. A
-  button for an artist to retry an upload that failed to convert.
+- Audio: a "data saver" setting with a lower bitrate, HLS with several bitrates, and a CDN in front of storage.
 - Social: collaborative playlists.
-- Downloads: a "Your devices" page to see and remove devices, downloading over mobile data per collection, and
-  saving artwork on phones for offline browsing.
+- Downloads: "Your devices" in the phone app's settings too (the website has it), downloading over mobile data per
+  collection, and saving artwork on phones for offline browsing.
 
 ## Apps
 

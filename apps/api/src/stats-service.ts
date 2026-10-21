@@ -28,6 +28,7 @@ import { and, count, desc, eq, gte, inArray, lt, ne, sql, type AnyColumn, type S
 import type { Db } from "./db/client";
 import {
   artists,
+  followEvents,
   follows,
   ledgerEntries,
   likes,
@@ -118,11 +119,15 @@ export async function listeningStats(
   ListeningStats & {
     followers: number;
     followersGained: number;
+    followersLost: number;
     byTrack: Map<string, { streams: number; listeners: number }>;
   }
 > {
   const series = new Map<string, StatsPoint>(
-    window.buckets.map((start) => [start, { start, ...zeroTotals(), followers: 0 }]),
+    window.buckets.map((start) => [
+      start,
+      { start, ...zeroTotals(), followers: 0, followersGained: 0, followersLost: 0 },
+    ]),
   );
   const totals = zeroTotals();
   const previous = zeroTotals();
@@ -130,6 +135,7 @@ export async function listeningStats(
   const sources: ListeningStats["sources"] = [];
   let followers = 0;
   let followersGained = 0;
+  let followersLost = 0;
 
   if (trackIds.length) {
     const playBucket = bucketOf(plays.playedAt, window.bucket);
@@ -204,26 +210,38 @@ export async function listeningStats(
   }
 
   if (options.artistId) {
-    // Follows are deleted when someone unfollows, so this is the people who follow now, by when they followed.
-    const from = window.from.toISOString();
-    const followBucket = sql<string>`case when ${follows.createdAt} < ${from} then 'before' else ${bucketOf(follows.createdAt, window.bucket)} end`;
-    const rows = await db
-      .select({ bucket: followBucket, n: count() })
-      .from(follows)
-      .where(eq(follows.artistId, options.artistId))
-      .groupBy(sql`1`);
-    const gained = new Map<string, number>();
-    for (const row of rows) {
-      followers += row.n;
-      const key = row.bucket === "before" ? "before" : clampBucket(row.bucket, window);
-      gained.set(key, (gained.get(key) ?? 0) + row.n);
+    // Follows and unfollows in the window, from follow_events. The chart counts back from the followers the artist
+    // has now, so it always ends at the real number.
+    const [[now], changes] = await Promise.all([
+      db.select({ n: count() }).from(follows).where(eq(follows.artistId, options.artistId)),
+      db
+        .select({ bucket: bucketOf(followEvents.createdAt, window.bucket), kind: followEvents.kind, n: count() })
+        .from(followEvents)
+        .where(
+          and(
+            eq(followEvents.artistId, options.artistId),
+            gte(followEvents.createdAt, window.from),
+            lt(followEvents.createdAt, window.to),
+          ),
+        )
+        .groupBy(sql`1`, followEvents.kind),
+    ]);
+    followers = now?.n ?? 0;
+    for (const row of changes) {
+      const point = series.get(clampBucket(row.bucket, window));
+      if (row.kind === "follow") {
+        followersGained += row.n;
+        if (point) point.followersGained += row.n;
+      } else {
+        followersLost += row.n;
+        if (point) point.followersLost += row.n;
+      }
     }
-    let running = gained.get("before") ?? 0;
+    let running = followers - followersGained + followersLost;
     for (const point of series.values()) {
-      running += gained.get(point.start) ?? 0;
-      point.followers = running;
+      running += point.followersGained - point.followersLost;
+      point.followers = Math.max(0, running);
     }
-    followersGained = followers - (gained.get("before") ?? 0);
   }
 
   return {
@@ -238,6 +256,7 @@ export async function listeningStats(
     role,
     followers,
     followersGained,
+    followersLost,
     byTrack,
   };
 }

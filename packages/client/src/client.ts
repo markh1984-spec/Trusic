@@ -65,6 +65,7 @@ import type {
   TrackStats,
 } from "./insights";
 import type { DownloadAuthorization, OfflineSync, OfflineSyncRequest, PlayBatchResult, PlayReport } from "./types";
+import type { DownloadDevice, FailedUpload } from "./types";
 
 export class ApiError extends Error {
   constructor(
@@ -218,6 +219,10 @@ export class TrusicClient {
   myUploads() {
     return this.request<UploadInProgress[]>("GET", "/me/uploads");
   }
+  /** Convert a failed upload again, from the file that was uploaded. Its uploader or an admin. */
+  retryUpload(trackId: string) {
+    return this.request<void>("POST", `/tracks/${trackId}/retry`);
+  }
   setCredits(trackId: string, credits: TrackCredits) {
     return this.request<TrackDetail>("PUT", `/tracks/${trackId}/credits`, credits);
   }
@@ -274,6 +279,14 @@ export class TrusicClient {
   /** Signed links to download tracks with. Subscribers only. */
   authorizeDownloads(deviceId: string, trackIds: string[]) {
     return this.request<DownloadAuthorization>("POST", "/offline/downloads", { deviceId, trackIds });
+  }
+  /** The phones and computers keeping downloads for this account. */
+  downloadDevices() {
+    return this.request<DownloadDevice[]>("GET", "/me/download-devices");
+  }
+  /** Its downloads are deleted the next time it checks in. */
+  removeDownloadDevice(id: string) {
+    return this.request<void>("DELETE", `/me/download-devices/${id}`);
   }
 
   // Library
@@ -507,6 +520,14 @@ export class TrusicClient {
   }
   adminCopyrightStrikes() {
     return this.request<AdminCopyrightStrike[]>("GET", "/admin/copyright-strikes");
+  }
+
+  // Uploads that failed to convert or resize (admins)
+  failedUploads() {
+    return this.request<FailedUpload[]>("GET", "/admin/uploads/failed");
+  }
+  retryFailedUpload(jobId: string) {
+    return this.request<void>("POST", `/admin/uploads/failed/${jobId}/retry`);
   }
 }
 

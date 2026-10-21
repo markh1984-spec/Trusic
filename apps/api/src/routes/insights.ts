@@ -77,7 +77,7 @@ export const insightRoutes =
         db.select({ n: count() }).from(likes).where(eq(likes.trackId, trackId)),
         artistMoney(db, row.artistId, user.id, config.currency, trackId),
       ]);
-      const { followers: _artistsOnly, followersGained: _alsoArtistsOnly, byTrack: _oneTrack, ...rest } = stats;
+      const { followers: _artists, followersGained: _only, followersLost: _too, byTrack: _oneTrack, ...rest } = stats;
       return { ...rest, track: summaries.get(trackId)!, likesTotal: liked?.n ?? 0, money } satisfies TrackStats;
     });
   };

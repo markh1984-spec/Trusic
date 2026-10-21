@@ -2,7 +2,9 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router";
 import { App } from "./App";
+import { tokenStore } from "./api";
 import { AuthProvider } from "./auth";
+import { setImageLogin } from "./components/Artwork";
 import { HumanOnlyProvider } from "./human-only";
 import { LibraryProvider } from "./library";
 import { OfflineProvider } from "./offline/offline";
@@ -10,6 +12,9 @@ import { PlayerProvider } from "./player";
 import { ToastProvider } from "./toast";
 import "./styles.css";
 import "./insights.css";
+
+// Owners and admins still see pictures that have been taken down.
+setImageLogin(() => tokenStore.get());
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

@@ -131,8 +131,11 @@ export interface StatsTotals {
 export interface StatsPoint extends StatsTotals {
   /** First day of the day or week, "2026-10-14". */
   start: string;
-  /** Followers at the end of this day or week (people who follow now, by when they followed). Artists only. */
+  /** Followers at the end of this day or week, after any unfollows. Artists only. */
   followers: number;
+  /** Follows and unfollows during this day or week. Artists only. */
+  followersGained: number;
+  followersLost: number;
 }
 
 export interface ListeningStats {
@@ -155,8 +158,9 @@ export interface ArtistStats extends ListeningStats {
   artist: ArtistRef;
   /** People following the artist now. */
   followers: number;
-  /** Of those, how many followed during this time. */
+  /** Follows and unfollows during this time. Gained minus lost is the net change. */
   followersGained: number;
+  followersLost: number;
   topTracks: { track: TrackSummary; streams: number; listeners: number }[];
 }
 

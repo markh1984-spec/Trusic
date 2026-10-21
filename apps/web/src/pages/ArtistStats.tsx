@@ -6,6 +6,7 @@ import { ErrorNote, Loading, RequireAuth } from "../components/Guards";
 import {
   ListeningChart,
   MoneyCard,
+  netChange,
   RangePicker,
   ROLE_NOTES,
   SourcesCard,
@@ -52,7 +53,8 @@ function ArtistStats() {
           label="Followers"
           value={stats.followers}
           range={range}
-          note={`${stats.followersGained.toLocaleString("en-GB")} followed in this time`}
+          change={netChange(stats.followersGained - stats.followersLost)}
+          note={`${stats.followersGained.toLocaleString("en-GB")} followed and ${stats.followersLost.toLocaleString("en-GB")} unfollowed in this time`}
         />
         <StatTile label="New likes" value={totals.likes} previous={previous.likes} range={range} />
       </section>

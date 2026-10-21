@@ -5,6 +5,7 @@ import { useAuth } from "../auth";
 import { ErrorNote, RequireAuth } from "../components/Guards";
 import { money } from "../format";
 import { useAsync } from "../hooks";
+import { YourDevices } from "../offline/YourDevices";
 import { useToast } from "../toast";
 
 export function SettingsPage() {
@@ -61,6 +62,7 @@ function Settings() {
       <Email />
       <Password />
       <SignOutEverywhere />
+      <YourDevices />
       <YourData />
       <DeleteAccount />
     </div>
