@@ -82,7 +82,7 @@
   system's "now playing" controls. The server is chosen in the app. Unsigned installers come from a manual GitHub
   workflow.
 
-**Discovery and artist stats** (web and desktop; rules in [PRODUCT.md](PRODUCT.md) section 7)
+**Discovery and artist stats** (web and desktop; rules in [PRODUCT.md](PRODUCT.md) section 4)
 
 - "Human-made only" switch, kept on the listener's account.
 - Personalised home page, "More like this", "Fans also like" and endless radio from a track, an artist or a

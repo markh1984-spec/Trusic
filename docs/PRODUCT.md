@@ -217,114 +217,7 @@ artist's declaration will remain the main evidence; see [research/ai-detection.m
 - **Public pages:** the web app's Copyright page (`/legal/copyright`) explains how to send a notice. Its Terms page
   (`/legal/terms`) is a placeholder listing what a lawyer must write.
 
-## 4. Decisions log
-
-| Date       | Decision                                                                                                                              | Why                                                                                                                                         |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-10-06 | 80% artists / 20% platform, applied to net revenue.                                                                                   | Founder's model.                                                                                                                            |
-| 2026-10-06 | AI forfeits are redistributed human-weighted, not only to score-0 artists.                                                            | No cliff edge: an artist with score 1 shouldn't lose all redistribution compared with score 0. Every track earns exactly its score's rate.  |
-| 2026-10-06 | User-centric payouts rather than Spotify-style pro-rata.                                                                              | Fairer to indie artists, much harder to game with stream farms, and suits a transparency brand.                                             |
-| 2026-10-06 | Score = declare + detect (raise only) + human appeal.                                                                                 | Partial AI use can't be reliably detected from audio alone, and false positives shouldn't silently cut a human artist's pay.                |
-| 2026-10-06 | AI mastering and other engineering tools never affect the score.                                                                      | "What we're eliminating is the entire song being someone typing prompts."                                                                   |
-| 2026-10-06 | A listener's AI forfeits go to the human tracks _that listener_ played; only AI-only listeners' money goes to the platform-wide pot.  | Keeps the user-centric promise: your money only reaches artists you listened to, unless none of them were human.                            |
-| 2026-10-06 | Payouts use each track's score at the time the month is calculated.                                                                   | Simple for now. To revisit before real payouts (see open questions).                                                                        |
-| 2026-10-06 | The score is per track. Artist pages show how many of their tracks are human-made.                                                    | Bands may use AI on one song and not others.                                                                                                |
-| 2026-10-06 | No free tier and no adverts. Non-subscribers can browse and hear 30-second previews.                                                  | Founder: no advertising on the platform. Previews let people discover music without free listening.                                         |
-| 2026-10-06 | Labels are "Human-made", "Partly AI" and "AI Slop".                                                                                   | Founder's choice: plain about what fully generated music is.                                                                                |
-| 2026-10-06 | AI assistance is free; only AI-generated parts raise the score.                                                                       | Light help can't be detected, so a penalty would only punish honest artists.                                                                |
-| 2026-10-06 | False declarations get a strike and an exact clawback; three strikes suspends the account.                                            | Declarations are the main evidence for partial AI, so lying has to cost more than it can earn.                                              |
-| 2026-10-06 | Months are finalised before payout; corrections after that are clawbacks.                                                             | A month can't be both recalculated and clawed back, which would charge an artist twice.                                                     |
-| 2026-10-06 | Collect songwriting details at upload; keep 80/20 as is until PRS's terms are known.                                                  | Needed for a PRS licence either way; how songwriting royalties fit the split needs legal advice (open question 10).                         |
-| 2026-10-21 | "Human-made only" hides Partly AI and AI Slop from browsing, search, recommendations and radio. What you open still plays in full.    | The switch is about what Trusic puts in front of you. Hiding tracks inside an album or a shared playlist would break them.                  |
-| 2026-10-21 | Recommendations rank only by listening (streams and likes) and the Human-made only switch. No paid placement, no boost for a label.   | Transparency is the brand: nobody can buy a place, and every recommendation says why in plain English.                                      |
-| 2026-10-21 | Artist stats count streams exactly as payouts do. Band members see all of the artist's listening but only their own money.            | Stats that disagree with the money would confuse artists. A band shares its audience, but each member's pay is their own.                   |
-| 2026-10-21 | Apps say where each play started (an album, a playlist, radio…). It's optional, and an unknown value is kept as "other".              | Artists want to know how listeners find them, and a stats label must never cost a listener's play.                                          |
-| 2026-10-21 | Uploading and payouts need a confirmed email address; listening doesn't.                                                              | People can start listening at once, but anyone we pay, or take music down from, can be reached.                                             |
-| 2026-10-21 | A new email address only replaces the old one once it's confirmed, and the old one is warned.                                         | A typo can't lock anyone out, and someone using a stolen session can't quietly take over the account.                                       |
-| 2026-10-21 | Deleting an account anonymises its plays and money records instead of deleting them.                                                  | Other listeners' statements and artists' payouts are built from them; deleting them would change what other people were paid.               |
-| 2026-10-21 | A deleted account's share of band splits goes to the track's uploader. Money still owed to it is held, not paid out.                  | The band's track keeps paying out in full. There's nobody left to pay the deleted account (open question 12).                               |
-| 2026-10-21 | A taken-down track earns nothing in months not yet finalised. Finalised months aren't reopened.                                       | Same rule as clawbacks: corrections never rewrite a finalised month. The listener's money goes to what else they played.                    |
-| 2026-10-21 | Only upheld copyright takedowns are strikes. Three suspend, counted separately from AI declaration strikes.                           | A repeat-infringer policy is expected for the hosting defence. Keeping the two kinds apart makes each easy to explain and to appeal.        |
-| 2026-10-21 | Putting content back withdraws its copyright strike, but doesn't lift a suspension by itself.                                         | An admin decides on reinstating, as with AI strikes, because the account may have other strikes too.                                        |
-| 2026-10-21 | Wrong-label reports go to the score review with appeals, using the same tools.                                                        | One process for AI scores, and the same strikes and clawbacks for false declarations however they're found.                                 |
-| 2026-10-21 | Uploaders see a copyright claimant's name and the work claimed, not their contact details. Counter-notices go to the claimant.        | Uploaders need to know what's claimed to respond; claimants' addresses are private. Uploaders agree to their details being passed on.       |
-| 2026-10-21 | Offline downloads for subscribers in the phone and desktop apps only, on up to five devices, checked online at least every 30 days.   | As Spotify does. Downloads stay tied to paying subscribers; the website can't keep files privately.                                         |
-| 2026-10-21 | Downloads are deleted when the subscription ends or the listener signs out. No DRM: files are kept inside the app, named by track id. | Simple and honest. Keeping them out of music folders stops casual copying; DRM would cost money and only slow down determined copiers.      |
-| 2026-10-21 | Plays from a month already finalised count in the next month calculated, paid from the listener's money for that month.               | Finalised months never change, so clawbacks stay exact. The listener's own money still only goes to music they played.                      |
-| 2026-10-21 | An offline play counts only if the listener was subscribed when they played it, it's under 30 days old and the track is still up.     | Stops listening on downloads after cancelling, and a track taken down (for a false declaration, say) shouldn't earn from plays heard later. |
-| 2026-10-21 | Every play the apps send carries an id made up on the device; the server keeps one play per id, with the longest listen reported.     | Retries never double-count, so the phone app can safely report a listen when it goes to the background, before the phone closes it.         |
-| 2026-10-21 | Plays are dated when the listen started; a phone whose clock is ahead has its plays dated when they reach us.                         | The start is when the listener chose to play it. A wrong clock shouldn't push plays into a future month.                                    |
-| 2026-10-21 | Lyrics for covers are never shown. Lyrics for original songs are shown on the uploader's word.                                        | Showing lyrics needs the songwriters' permission. Trusic has none for covers; bands can give it for their own songs (question 19).          |
-| 2026-10-21 | Only the uploader and the band split can edit a track's lyrics.                                                                       | The people who wrote and recorded the song; the same people who share its money.                                                            |
-| 2026-10-21 | Embedded players play 30-second previews to everyone, never full tracks, and never count as plays.                                    | Nobody should sign in inside someone else's website, and only listening on Trusic moves money. Embeds send people to Trusic instead.        |
-| 2026-10-21 | Link previews and share pictures never include private playlists or taken-down content.                                               | A preview is shown to everyone the link is sent to, so it must only show what anyone could see on Trusic.                                   |
-| 2026-10-21 | Tracks are turned up or down towards −14 LUFS, but a quiet track only as far as its peaks allow. Nothing is compressed.               | An even volume from track to track, without changing how an artist's music sounds.                                                          |
-| 2026-10-21 | A preview is a separate file of a track's first 30 seconds.                                                                           | A preview link can never play more, and players show the preview's real length.                                                             |
-| 2026-10-21 | New uploads aren't public until they've been converted for streaming.                                                                 | Everyone hears the same quality and volume, and nobody downloads a 40 MB WAV.                                                               |
-| 2026-10-21 | Audio and artwork are sent through Trusic's own links, not straight from file storage.                                                | Previews stay limited, the desktop app works unchanged and storage stays private. The cost is the site's own bandwidth.                     |
-
-## 5. Open questions
-
-These need a decision from the founder. The current behaviour is in brackets.
-
-1. **Rubric weights.** Are the weights right? For example, a song with human lyrics and vocals but an AI-generated
-   melody and backing scores 55 and is labelled "Partly AI". Should it be higher? [weights above]
-2. ~~"AI-assisted" penalty~~: decided, assistance is free.
-3. ~~Penalties for lying~~: decided, strikes and clawbacks.
-4. **Fully AI tracks.** Allowed, labelled, earn nothing. Should they also be hidden from default recommendations,
-   or have their own section? [shown like any other track and ranked only by listening; listeners can turn on
-   "Human-made only" to hide them, see section 7]
-5. ~~Free tier~~: decided, subscribers only, with previews.
-6. **Price and market.** UK-first in GBP at £10.99/month? [GBP, £10.99 incl. VAT]
-7. **Score changes mid-month.** If an appeal changes a track's score on the 20th, should earlier streams use the
-   old score? [the score at calculation time applies to the whole month. Each play now records the score it was
-   played at, so switching to "score at play time" is a small change once decided]
-8. **Who can upload.** Direct uploads from artists only, or also deliveries from distributors (DistroKid, CD Baby…)
-   and labels? [direct uploads only]
-9. **Payout timing.** How often are artists paid, and is £10 the right minimum? [Stripe Connect, paid by an admin
-   after a month is finalised, £10 minimum]
-10. **What "80% to artists" covers.** Songwriting royalties (PRS for Music, about 16% of revenue on its small-service
-    licence) are normally paid out of the music makers' share. Does "80%" mean recording artists only (Trusic keeps
-    about 4%), recording plus songwriting (recording artists get about 64%), or 80/20 of what's left after
-    songwriters (67% / 17%)? See [research/uk-licensing.md](research/uk-licensing.md). [not modelled yet: the engine
-    pays 80% to recording payees]
-11. **How confident detection must be.** The research suggests only raising scores automatically when two signals
-    agree that a whole track is generated, and sending partial-AI signals to a person. Adopt that? See
-    [research/ai-detection.md](research/ai-detection.md). [one confident signal is enough]
-12. **Money owed to deleted accounts.** Should it be paid out before an account can be deleted, kept in case the
-    person asks for it, or go to the human pot after a while? [held, not paid out; the deletion page warns about it]
-13. **Takedown rules, for a lawyer.** Are the notice and counter-notice contents right? Is waiting 10 working days
-    after a counter-notice before putting content back right for the UK? Should offensive-content or impersonation
-    takedowns also count as strikes? Should a taken-down track's earnings from finalised months be clawed back and held
-    for the rights owner? [as built: no strikes for those, no clawback]
-14. **A contact address for legal notices.** UK law expects a business website to show an email address, and some
-    rights owners prefer to email notices. [none published; notices come through the report form]
-15. **Repeat infringers who delete their account.** A suspended account can be deleted and its email address used to
-    sign up again. Should Trusic keep a scrambled copy of suspended accounts' addresses to stop that? [no]
-16. **"Human-made only" by default.** Should new accounts start with it switched on? [off: everything is shown, with
-    its label]
-17. **Downloads.** Is five devices per account right, and should there be a limit on tracks per device (Spotify's is
-    10,000)? [five devices, no track limit]
-18. **Late plays after cancelling.** Someone who cancels, then sends plays from their last weeks of offline
-    listening, has no money in the month those plays are counted. Their plays then only share in the human pot.
-    Should those plays be paid some other way? [they share in the human pot]
-19. **Showing lyrics.** Can Trusic show lyrics that bands wrote themselves without a lyric licence, including when a
-    writer has a music publisher or belongs to PRS? And should Trusic pay for a lyric licence (LyricFind or
-    Musixmatch) so covers can show lyrics too? See [research/uk-licensing.md](research/uk-licensing.md). [lyrics
-    for original songs are shown on the uploader's word; lyrics for covers are never shown]
-
-## 6. Research
-
-- [Detecting AI-generated music](research/ai-detection.md): what detection can and can't do, vendors to trial, an
-  evaluation plan, and what other platforms do.
-- [Licensing and legal obligations in the UK](research/uk-licensing.md): recording versus songwriting rights, PRS for
-  Music, how songwriting royalties affect the 80/20 split, showing lyrics, platform liability, online safety and AI
-  labelling.
-
-Both were compiled from web searches on 6 October 2026. Several primary sources couldn't be opened directly, so
-figures marked unverified must be checked before they go into a financial model.
-
-## 7. Discovery and artist stats
+## 4. Discovery and artist stats
 
 ### "Human-made only"
 
@@ -377,3 +270,110 @@ for.
 - **Where plays start:** the apps send it with each play: an album, EP or single; a playlist; the artist's page;
   search; Liked songs; radio; recommendations; the queue; or elsewhere. Plays from older apps say nothing and are shown
   as "not recorded".
+
+## 5. Decisions log
+
+| Date       | Decision                                                                                                                              | Why                                                                                                                                         |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-10-06 | 80% artists / 20% platform, applied to net revenue.                                                                                   | Founder's model.                                                                                                                            |
+| 2026-10-06 | AI forfeits are redistributed human-weighted, not only to score-0 artists.                                                            | No cliff edge: an artist with score 1 shouldn't lose all redistribution compared with score 0. Every track earns exactly its score's rate.  |
+| 2026-10-06 | User-centric payouts rather than Spotify-style pro-rata.                                                                              | Fairer to indie artists, much harder to game with stream farms, and suits a transparency brand.                                             |
+| 2026-10-06 | Score = declare + detect (raise only) + human appeal.                                                                                 | Partial AI use can't be reliably detected from audio alone, and false positives shouldn't silently cut a human artist's pay.                |
+| 2026-10-06 | AI mastering and other engineering tools never affect the score.                                                                      | "What we're eliminating is the entire song being someone typing prompts."                                                                   |
+| 2026-10-06 | A listener's AI forfeits go to the human tracks _that listener_ played; only AI-only listeners' money goes to the platform-wide pot.  | Keeps the user-centric promise: your money only reaches artists you listened to, unless none of them were human.                            |
+| 2026-10-06 | Payouts use each track's score at the time the month is calculated.                                                                   | Simple for now. To revisit before real payouts (see open questions).                                                                        |
+| 2026-10-06 | The score is per track. Artist pages show how many of their tracks are human-made.                                                    | Bands may use AI on one song and not others.                                                                                                |
+| 2026-10-06 | No free tier and no adverts. Non-subscribers can browse and hear 30-second previews.                                                  | Founder: no advertising on the platform. Previews let people discover music without free listening.                                         |
+| 2026-10-06 | Labels are "Human-made", "Partly AI" and "AI Slop".                                                                                   | Founder's choice: plain about what fully generated music is.                                                                                |
+| 2026-10-06 | AI assistance is free; only AI-generated parts raise the score.                                                                       | Light help can't be detected, so a penalty would only punish honest artists.                                                                |
+| 2026-10-06 | False declarations get a strike and an exact clawback; three strikes suspends the account.                                            | Declarations are the main evidence for partial AI, so lying has to cost more than it can earn.                                              |
+| 2026-10-06 | Months are finalised before payout; corrections after that are clawbacks.                                                             | A month can't be both recalculated and clawed back, which would charge an artist twice.                                                     |
+| 2026-10-06 | Collect songwriting details at upload; keep 80/20 as is until PRS's terms are known.                                                  | Needed for a PRS licence either way; how songwriting royalties fit the split needs legal advice (open question 10).                         |
+| 2026-10-21 | "Human-made only" hides Partly AI and AI Slop from browsing, search, recommendations and radio. What you open still plays in full.    | The switch is about what Trusic puts in front of you. Hiding tracks inside an album or a shared playlist would break them.                  |
+| 2026-10-21 | Recommendations rank only by listening (streams and likes) and the Human-made only switch. No paid placement, no boost for a label.   | Transparency is the brand: nobody can buy a place, and every recommendation says why in plain English.                                      |
+| 2026-10-21 | Artist stats count streams exactly as payouts do. Band members see all of the artist's listening but only their own money.            | Stats that disagree with the money would confuse artists. A band shares its audience, but each member's pay is their own.                   |
+| 2026-10-21 | Apps say where each play started (an album, a playlist, radio…). It's optional, and an unknown value is kept as "other".              | Artists want to know how listeners find them, and a stats label must never cost a listener's play.                                          |
+| 2026-10-21 | Uploading and payouts need a confirmed email address; listening doesn't.                                                              | People can start listening at once, but anyone we pay, or take music down from, can be reached.                                             |
+| 2026-10-21 | A new email address only replaces the old one once it's confirmed, and the old one is warned.                                         | A typo can't lock anyone out, and someone using a stolen session can't quietly take over the account.                                       |
+| 2026-10-21 | Deleting an account anonymises its plays and money records instead of deleting them.                                                  | Other listeners' statements and artists' payouts are built from them; deleting them would change what other people were paid.               |
+| 2026-10-21 | A deleted account's share of band splits goes to the track's uploader. Money still owed to it is held, not paid out.                  | The band's track keeps paying out in full. There's nobody left to pay the deleted account (open question 12).                               |
+| 2026-10-21 | A taken-down track earns nothing in months not yet finalised. Finalised months aren't reopened.                                       | Same rule as clawbacks: corrections never rewrite a finalised month. The listener's money goes to what else they played.                    |
+| 2026-10-21 | Only upheld copyright takedowns are strikes. Three suspend, counted separately from AI declaration strikes.                           | A repeat-infringer policy is expected for the hosting defence. Keeping the two kinds apart makes each easy to explain and to appeal.        |
+| 2026-10-21 | Putting content back withdraws its copyright strike, but doesn't lift a suspension by itself.                                         | An admin decides on reinstating, as with AI strikes, because the account may have other strikes too.                                        |
+| 2026-10-21 | Wrong-label reports go to the score review with appeals, using the same tools.                                                        | One process for AI scores, and the same strikes and clawbacks for false declarations however they're found.                                 |
+| 2026-10-21 | Uploaders see a copyright claimant's name and the work claimed, not their contact details. Counter-notices go to the claimant.        | Uploaders need to know what's claimed to respond; claimants' addresses are private. Uploaders agree to their details being passed on.       |
+| 2026-10-21 | Offline downloads for subscribers in the phone and desktop apps only, on up to five devices, checked online at least every 30 days.   | As Spotify does. Downloads stay tied to paying subscribers; the website can't keep files privately.                                         |
+| 2026-10-21 | Downloads are deleted when the subscription ends or the listener signs out. No DRM: files are kept inside the app, named by track id. | Simple and honest. Keeping them out of music folders stops casual copying; DRM would cost money and only slow down determined copiers.      |
+| 2026-10-21 | Plays from a month already finalised count in the next month calculated, paid from the listener's money for that month.               | Finalised months never change, so clawbacks stay exact. The listener's own money still only goes to music they played.                      |
+| 2026-10-21 | An offline play counts only if the listener was subscribed when they played it, it's under 30 days old and the track is still up.     | Stops listening on downloads after cancelling, and a track taken down (for a false declaration, say) shouldn't earn from plays heard later. |
+| 2026-10-21 | Every play the apps send carries an id made up on the device; the server keeps one play per id, with the longest listen reported.     | Retries never double-count, so the phone app can safely report a listen when it goes to the background, before the phone closes it.         |
+| 2026-10-21 | Plays are dated when the listen started; a phone whose clock is ahead has its plays dated when they reach us.                         | The start is when the listener chose to play it. A wrong clock shouldn't push plays into a future month.                                    |
+| 2026-10-21 | Lyrics for covers are never shown. Lyrics for original songs are shown on the uploader's word.                                        | Showing lyrics needs the songwriters' permission. Trusic has none for covers; bands can give it for their own songs (question 19).          |
+| 2026-10-21 | Only the uploader and the band split can edit a track's lyrics.                                                                       | The people who wrote and recorded the song; the same people who share its money.                                                            |
+| 2026-10-21 | Embedded players play 30-second previews to everyone, never full tracks, and never count as plays.                                    | Nobody should sign in inside someone else's website, and only listening on Trusic moves money. Embeds send people to Trusic instead.        |
+| 2026-10-21 | Link previews and share pictures never include private playlists or taken-down content.                                               | A preview is shown to everyone the link is sent to, so it must only show what anyone could see on Trusic.                                   |
+| 2026-10-21 | Tracks are turned up or down towards −14 LUFS, but a quiet track only as far as its peaks allow. Nothing is compressed.               | An even volume from track to track, without changing how an artist's music sounds.                                                          |
+| 2026-10-21 | A preview is a separate file of a track's first 30 seconds.                                                                           | A preview link can never play more, and players show the preview's real length.                                                             |
+| 2026-10-21 | New uploads aren't public until they've been converted for streaming.                                                                 | Everyone hears the same quality and volume, and nobody downloads a 40 MB WAV.                                                               |
+| 2026-10-21 | Audio and artwork are sent through Trusic's own links, not straight from file storage.                                                | Previews stay limited, the desktop app works unchanged and storage stays private. The cost is the site's own bandwidth.                     |
+
+## 6. Open questions
+
+These need a decision from the founder. The current behaviour is in brackets.
+
+1. **Rubric weights.** Are the weights right? For example, a song with human lyrics and vocals but an AI-generated
+   melody and backing scores 55 and is labelled "Partly AI". Should it be higher? [weights above]
+2. ~~"AI-assisted" penalty~~: decided, assistance is free.
+3. ~~Penalties for lying~~: decided, strikes and clawbacks.
+4. **Fully AI tracks.** Allowed, labelled, earn nothing. Should they also be hidden from default recommendations,
+   or have their own section? [shown like any other track and ranked only by listening; listeners can turn on
+   "Human-made only" to hide them, see section 4]
+5. ~~Free tier~~: decided, subscribers only, with previews.
+6. **Price and market.** UK-first in GBP at £10.99/month? [GBP, £10.99 incl. VAT]
+7. **Score changes mid-month.** If an appeal changes a track's score on the 20th, should earlier streams use the
+   old score? [the score at calculation time applies to the whole month. Each play now records the score it was
+   played at, so switching to "score at play time" is a small change once decided]
+8. **Who can upload.** Direct uploads from artists only, or also deliveries from distributors (DistroKid, CD Baby…)
+   and labels? [direct uploads only]
+9. **Payout timing.** How often are artists paid, and is £10 the right minimum? [Stripe Connect, paid by an admin
+   after a month is finalised, £10 minimum]
+10. **What "80% to artists" covers.** Songwriting royalties (PRS for Music, about 16% of revenue on its small-service
+    licence) are normally paid out of the music makers' share. Does "80%" mean recording artists only (Trusic keeps
+    about 4%), recording plus songwriting (recording artists get about 64%), or 80/20 of what's left after
+    songwriters (67% / 17%)? See [research/uk-licensing.md](research/uk-licensing.md). [not modelled yet: the engine
+    pays 80% to recording payees]
+11. **How confident detection must be.** The research suggests only raising scores automatically when two signals
+    agree that a whole track is generated, and sending partial-AI signals to a person. Adopt that? See
+    [research/ai-detection.md](research/ai-detection.md). [one confident signal is enough]
+12. **Money owed to deleted accounts.** Should it be paid out before an account can be deleted, kept in case the
+    person asks for it, or go to the human pot after a while? [held, not paid out; the deletion page warns about it]
+13. **Takedown rules, for a lawyer.** Are the notice and counter-notice contents right? Is waiting 10 working days
+    after a counter-notice before putting content back right for the UK? Should offensive-content or impersonation
+    takedowns also count as strikes? Should a taken-down track's earnings from finalised months be clawed back and held
+    for the rights owner? [as built: no strikes for those, no clawback]
+14. **A contact address for legal notices.** UK law expects a business website to show an email address, and some
+    rights owners prefer to email notices. [none published; notices come through the report form]
+15. **Repeat infringers who delete their account.** A suspended account can be deleted and its email address used to
+    sign up again. Should Trusic keep a scrambled copy of suspended accounts' addresses to stop that? [no]
+16. **"Human-made only" by default.** Should new accounts start with it switched on? [off: everything is shown, with
+    its label]
+17. **Downloads.** Is five devices per account right, and should there be a limit on tracks per device (Spotify's is
+    10,000)? [five devices, no track limit]
+18. **Late plays after cancelling.** Someone who cancels, then sends plays from their last weeks of offline
+    listening, has no money in the month those plays are counted. Their plays then only share in the human pot.
+    Should those plays be paid some other way? [they share in the human pot]
+19. **Showing lyrics.** Can Trusic show lyrics that bands wrote themselves without a lyric licence, including when a
+    writer has a music publisher or belongs to PRS? And should Trusic pay for a lyric licence (LyricFind or
+    Musixmatch) so covers can show lyrics too? See [research/uk-licensing.md](research/uk-licensing.md). [lyrics
+    for original songs are shown on the uploader's word; lyrics for covers are never shown]
+
+## 7. Research
+
+- [Detecting AI-generated music](research/ai-detection.md): what detection can and can't do, vendors to trial, an
+  evaluation plan, and what other platforms do.
+- [Licensing and legal obligations in the UK](research/uk-licensing.md): recording versus songwriting rights, PRS for
+  Music, how songwriting royalties affect the 80/20 split, showing lyrics, platform liability, online safety and AI
+  labelling.
+
+Both were compiled from web searches on 6 October 2026. Several primary sources couldn't be opened directly, so
+figures marked unverified must be checked before they go into a financial model.

@@ -48,10 +48,12 @@ packages/core     The rules: AI scoring and the payout engine. Pure TypeScript, 
 packages/client   Typed API client and response types, shared by every app.
 packages/player   The play queue (shuffle, repeat, play next), plus offline downloads and the queue of plays
                   waiting to be sent, shared by the web, desktop and mobile apps.
-apps/api          Fastify + Drizzle + Postgres. Accounts, uploads, streaming, scoring, appeals, payouts.
-apps/web          React web app (Vite). Spotify-style player with queue, shuffle and repeat; releases,
-                  playlists, liked songs and follows; upload with live AI-score preview; listener
-                  statements, artist earnings, public transparency page, admin.
+apps/api          Fastify + Drizzle + Postgres. Accounts, uploads (converted with ffmpeg), streaming,
+                  scoring, appeals, payouts, recommendations, reports and takedowns, share previews.
+apps/web          React web app (Vite). Spotify-style player with queue, shuffle, repeat, radio and synced
+                  lyrics; a personalised home page and a "Human-made only" switch; releases, playlists,
+                  liked songs and follows; upload with live AI-score preview; artist stats; sharing and
+                  embeddable players; listener statements, settings, reporting, transparency page, admin.
 apps/mobile       iPhone and Android app (Expo). Browse, search, AI labels, player with background audio,
                   library, downloads for listening offline, "your money" and accounts. Try it on your phone
                   with Expo Go: see apps/mobile/README.md.
