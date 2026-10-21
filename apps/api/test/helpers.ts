@@ -8,7 +8,8 @@ import { buildApp } from "../src/app";
 import { loadConfig } from "../src/config";
 import { openDatabase, type Database } from "../src/db/client";
 import { MetadataDetector } from "../src/detection";
-import { LocalMediaStorage } from "../src/storage";
+import { MediaProcessor, type MediaProcessorOptions } from "../src/media/processor";
+import { LocalMediaStorage, type MediaStorage } from "../src/storage";
 import { synthPng, synthWav } from "../src/synth";
 
 export const ADMIN_EMAIL = "admin@trusic.test";
@@ -16,26 +17,47 @@ export const ADMIN_EMAIL = "admin@trusic.test";
 export interface TestApp {
   app: FastifyInstance;
   database: Database;
+  storage: MediaStorage;
+  media: MediaProcessor;
   close(): Promise<void>;
 }
 
 export async function createTestApp(
-  options: { env?: Record<string, string>; stripe?: Stripe | null } = {},
+  options: {
+    env?: Record<string, string>;
+    stripe?: Stripe | null;
+    /** Convert uploads with the real ffmpeg. Off by default: uploads go live at once and play as uploaded. */
+    media?: boolean | Partial<MediaProcessorOptions>;
+    storage?: MediaStorage;
+  } = {},
 ): Promise<TestApp> {
   const dir = await mkdtemp(path.join(tmpdir(), "trusic-test-"));
   const config = loadConfig({ ADMIN_EMAILS: ADMIN_EMAIL, TRUSIC_DATA_DIR: dir, ...options.env });
   const database = await openDatabase({});
+  const storage = options.storage ?? new LocalMediaStorage(path.join(dir, "media"));
+  const media = await MediaProcessor.create({
+    db: database.db,
+    storage,
+    ffmpegPath: options.media ? "ffmpeg" : null,
+    retryDelayMs: 0,
+    ...(typeof options.media === "object" ? options.media : {}),
+  });
+  media.start();
   const app = await buildApp({
     db: database.db,
-    storage: new LocalMediaStorage(path.join(dir, "media")),
+    storage,
     detector: new MetadataDetector(),
     config,
     stripe: options.stripe ?? null,
+    media,
   });
   return {
     app,
     database,
+    storage,
+    media,
     async close() {
+      await media.stop();
       await app.close();
       await database.close();
       await rm(dir, { recursive: true, force: true });

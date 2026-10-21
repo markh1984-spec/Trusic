@@ -9,6 +9,7 @@ import { CardGrid, TYPE_NAMES } from "../components/Cards";
 import { ErrorNote, Loading, RequireAuth } from "../components/Guards";
 import { Icon } from "../components/Icon";
 import { ImagePicker } from "../components/ImagePicker";
+import { UploadsInProgress } from "../components/UploadsInProgress";
 import { money, periodName, plural } from "../format";
 import { useAsync } from "../hooks";
 
@@ -23,6 +24,8 @@ export function StudioPage() {
 function Studio() {
   const { me } = useAuth();
   const artists = me!.artists;
+  // Bumped when an upload goes live, to reload the artist sections that list it.
+  const [uploadsDone, setUploadsDone] = useState(0);
 
   return (
     <>
@@ -32,10 +35,11 @@ function Studio() {
           Upload a track
         </Link>
       </div>
+      <UploadsInProgress onLive={() => setUploadsDone((n) => n + 1)} />
       <BalanceCard />
       <Earnings />
       {artists.map((a) => (
-        <ArtistSection key={a.id} slug={a.slug} />
+        <ArtistSection key={`${a.id}-${uploadsDone}`} slug={a.slug} />
       ))}
       <NewArtist />
     </>

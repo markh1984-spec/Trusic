@@ -9,12 +9,14 @@ import type { Config } from "./config";
 import type { Db } from "./db/client";
 import type { AiDetector } from "./detection";
 import { HttpError } from "./errors";
+import type { MediaProcessor } from "./media/processor";
 import { accountRoutes } from "./routes/accounts";
 import { adminRoutes } from "./routes/admin";
 import { artistRoutes } from "./routes/artists";
 import { billingRoutes } from "./routes/billing";
 import { libraryRoutes } from "./routes/library";
 import { listeningRoutes } from "./routes/listening";
+import { mediaRoutes } from "./routes/media";
 import { moneyRoutes } from "./routes/money";
 import { playlistRoutes } from "./routes/playlists";
 import { releaseRoutes } from "./routes/releases";
@@ -28,6 +30,8 @@ export interface AppDeps {
   config: Config;
   /** Real payments when configured; null means demo billing. */
   stripe: Stripe | null;
+  /** Converts uploaded audio and resizes images in the background. */
+  media: MediaProcessor;
 }
 
 export async function buildApp(deps: AppDeps, options: { logger?: boolean } = {}): Promise<FastifyInstance> {
@@ -75,6 +79,7 @@ export async function buildApp(deps: AppDeps, options: { logger?: boolean } = {}
       await api.register(moneyRoutes(deps));
       await api.register(billingRoutes(deps));
       await api.register(adminRoutes(deps));
+      await api.register(mediaRoutes(deps));
     },
     { prefix: "/api" },
   );

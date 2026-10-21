@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import path from "node:path";
+import { loadS3Config, type S3Config } from "./storage";
 
 export interface Config {
   port: number;
@@ -33,6 +34,10 @@ export interface Config {
   registrationOpen: boolean;
   /** Password for the demo accounts the seed script creates. */
   demoPassword: string;
+  /** S3-compatible bucket for uploads, so they survive restarts. Null = files on local disk in dataDir. */
+  s3: S3Config | null;
+  /** ffmpeg, which converts uploads for streaming and resizes artwork. Null = off: files are served as uploaded. */
+  ffmpegPath: string | null;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -60,6 +65,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     maxUploadBytes: Number(env.MAX_UPLOAD_MB ?? 200) * 1024 * 1024,
     registrationOpen: env.REGISTRATION !== "closed",
     demoPassword: env.DEMO_PASSWORD || "trusic-demo",
+    s3: loadS3Config(env),
+    ffmpegPath: env.FFMPEG_PATH === "off" ? null : env.FFMPEG_PATH || "ffmpeg",
   };
 }
 

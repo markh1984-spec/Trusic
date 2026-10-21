@@ -4,6 +4,7 @@ import { open, rm } from "node:fs/promises";
 import { pipeline } from "node:stream/promises";
 import type { FastifyRequest } from "fastify";
 import { HttpError } from "./errors";
+import type { MediaProcessor } from "./media/processor";
 import type { MediaStorage } from "./storage";
 
 export interface ReceivedUpload {
@@ -66,9 +67,13 @@ export const IMAGE_MIME_BY_EXT: Record<string, string> = Object.fromEntries(IMAG
 /**
  * Check an uploaded file really is a PNG, JPEG or WebP (by its bytes, not its
  * name), store it under a fresh key and return the key. A new key per upload
- * means image URLs can be cached forever.
+ * means image URLs can be cached forever. Smaller copies are made in the background.
  */
-export async function storeImage(storage: MediaStorage, filePath: string | null): Promise<string> {
+export async function storeImage(
+  storage: MediaStorage,
+  filePath: string | null,
+  media: Pick<MediaProcessor, "queueImage">,
+): Promise<string> {
   if (!filePath) throw new HttpError(400, 'Attach an image in a field named "image".');
   const handle = await open(filePath, "r");
   let header: Buffer;
@@ -85,6 +90,7 @@ export async function storeImage(storage: MediaStorage, filePath: string | null)
   if (!type) throw new HttpError(415, "Images must be PNG, JPEG or WebP.");
   const key = `images/${randomUUID()}.${type.ext}`;
   await storage.save(key, filePath);
+  await media.queueImage(key);
   return key;
 }
 

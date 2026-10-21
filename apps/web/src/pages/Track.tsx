@@ -11,6 +11,7 @@ import { LikeButton } from "../components/LikeButton";
 import { CreditsFields, fromDraft, toDraft, type CreditsDraft } from "../components/CreditsFields";
 import { ScoreBreakdown } from "../components/ScoreBreakdown";
 import { TrackMenu } from "../components/TrackMenu";
+import { ProcessingNote, useReloadWhenProcessed } from "../components/UploadsInProgress";
 import { duration, money } from "../format";
 import { useAuth } from "../auth";
 import { useAsync } from "../hooks";
@@ -34,6 +35,7 @@ const SOURCE_TEXT = {
 export function TrackPage() {
   const { id = "" } = useParams();
   const { data: track, error, loading, reload } = useAsync(() => api.track(id), [id]);
+  useReloadWhenProcessed(track, reload);
   const play = usePlayTracks();
   const player = usePlayer();
   const { me } = useAuth();
@@ -47,6 +49,7 @@ export function TrackPage() {
 
   return (
     <>
+      {track.processing ? <ProcessingNote status={track.processing} /> : null}
       <section className="track-hero">
         <Artwork url={track.artworkUrl} title={track.title} label={track.aiLabel} size={200} />
         <div>
@@ -73,6 +76,7 @@ export function TrackPage() {
           <div className="track-hero__actions">
             <button
               className="play-button play-button--large"
+              disabled={track.processing !== null}
               onClick={() => (isCurrent ? player.toggle() : play([track], 0))}
               aria-label={isCurrent && player.playing ? "Pause" : "Play"}
             >

@@ -17,7 +17,8 @@ import { plays, revenueEntries, users } from "./db/schema";
 import { MetadataDetector } from "./detection";
 import { createStripeClient } from "./routes/billing";
 import { currentPeriod, finalizeRun, periodBounds, previousPeriod, runPayouts } from "./payout-service";
-import { LocalMediaStorage } from "./storage";
+import { MediaProcessor } from "./media/processor";
+import { createStorage } from "./storage";
 import { synthPng, synthWav } from "./synth";
 
 // The seed creates accounts through the API, so it needs sign-ups open even where the live site has them closed.
@@ -33,21 +34,31 @@ if (process.argv.includes("--reset")) {
 
 const database = await openDatabase({ url: config.databaseUrl, dataDir: path.join(config.dataDir, "pglite") });
 const { db } = database;
+const storage = createStorage(config);
+const media = await MediaProcessor.create({ db, storage, ffmpegPath: config.ffmpegPath });
 const app = await buildApp({
   db,
-  storage: new LocalMediaStorage(path.join(config.dataDir, "media")),
+  storage,
   detector: new MetadataDetector(),
   config,
   stripe: createStripeClient(config),
+  media,
 });
 
 const [existing] = await db.select({ id: users.id }).from(users).limit(1);
 if (existing) {
-  console.log("The database already has data. Run `pnpm seed --reset` to start again.");
+  console.log(
+    config.databaseUrl
+      ? "The database already has data, so the demo data isn't loaded again."
+      : "The database already has data. Run `pnpm seed --reset` to start again.",
+  );
   await app.close();
   await database.close();
   process.exit(0);
 }
+// Stop before creating anything if files can't be stored: half the demo data would be worse than none.
+await storage.check();
+media.start(console);
 
 async function call<T>(method: string, url: string, token: string | null, body?: unknown): Promise<T> {
   const res = await app.inject({
@@ -274,6 +285,9 @@ for (const [owner, key, credits] of [
   await call("PUT", `/api/tracks/${t[key]}/credits`, owner.token, credits);
 }
 
+// Tracks go on releases and playlists once they're live, which is once they've been converted for streaming.
+await media.idle();
+
 console.log("Creating releases and libraries…");
 const releaseIds: Record<string, string> = {};
 async function release(
@@ -385,6 +399,9 @@ console.log(
   `  ${run.totals.revenue}p in, ${run.totals.platform}p to Trusic, ${run.totals.paidToArtists}p to artists, ${run.totals.forfeitedByAi}p moved from AI to human music`,
 );
 
+// Finish resizing the artwork, so a site built with this data has nothing left to do when it starts.
+await media.idle();
+await media.stop();
 await app.close();
 await database.close();
 

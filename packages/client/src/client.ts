@@ -35,6 +35,7 @@ import type {
   TrackDetail,
   TrackList,
   Transparency,
+  UploadInProgress,
 } from "./types";
 
 export class ApiError extends Error {
@@ -183,6 +184,10 @@ export class TrusicClient {
   }
   removeTrack(id: string) {
     return this.request<void>("DELETE", `/tracks/${id}`);
+  }
+  /** Your uploads that are still being prepared for streaming, or that couldn't be. */
+  myUploads() {
+    return this.request<UploadInProgress[]>("GET", "/me/uploads");
   }
   setCredits(trackId: string, credits: TrackCredits) {
     return this.request<TrackDetail>("PUT", `/tracks/${trackId}/credits`, credits);

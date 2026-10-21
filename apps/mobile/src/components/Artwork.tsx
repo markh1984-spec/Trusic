@@ -1,3 +1,4 @@
+import { imageSources } from "@trusic/client";
 import type { AiLabel } from "@trusic/core";
 import { Image, StyleSheet, Text, View, type DimensionValue } from "react-native";
 import { mediaUrl } from "../lib/api";
@@ -24,7 +25,8 @@ export function Artwork({
     aspectRatio: 1,
     borderRadius: round ? 9999 : typeof size === "number" ? Math.max(4, size * 0.08) : 8,
   } as const;
-  if (uri) return <Image source={{ uri }} style={[styles.image, box]} accessibilityIgnoresInvertColors />;
+  // Every size the server keeps: React Native picks the one that suits the view and the screen.
+  if (uri) return <Image source={imageSources(uri)} style={[styles.image, box]} accessibilityIgnoresInvertColors />;
   const fontSize = typeof size === "number" ? Math.max(12, size * 0.4) : 48;
   return (
     <View style={[styles.placeholder, box, { backgroundColor: artworkTints[label ?? "none"] }]} aria-hidden>
@@ -50,7 +52,7 @@ export function PlaylistCover({
       aria-hidden
     >
       {urls.slice(0, 4).map((u) => (
-        <Image key={u} source={{ uri: mediaUrl(u) ?? undefined }} style={styles.tile} />
+        <Image key={u} source={imageSources(mediaUrl(u)!)} style={styles.tile} />
       ))}
     </View>
   );

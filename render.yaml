@@ -20,3 +20,12 @@ services:
       # Only people you give the demo password to can log in; anyone can browse and hear previews.
       - key: REGISTRATION
         value: closed
+      # Optional, to keep uploads, accounts, plays and payouts when the site restarts: a free Supabase project.
+      # Add these on the service's Environment page in Render (not here, so they stay private). See "Keep your data
+      # (free)" in docs/HOSTING.md. Without them, the demo starts afresh from the demo data on every restart.
+      #   DATABASE_URL           Supabase's "Session pooler" connection string, with your database password in it
+      #   S3_ENDPOINT            Supabase Storage's S3 endpoint
+      #   S3_REGION              e.g. eu-west-2 for London
+      #   S3_BUCKET              e.g. trusic
+      #   S3_ACCESS_KEY_ID       an S3 access key from Supabase Storage
+      #   S3_SECRET_ACCESS_KEY   its secret

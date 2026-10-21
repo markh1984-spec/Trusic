@@ -87,6 +87,23 @@ export interface TrackDetail extends TrackSummary {
   /** The most recent appeal, if any. Only shown to the track's owner and admins. */
   appeal: Appeal | null;
   isOwner: boolean;
+  /**
+   * A new upload is "processing" while it's prepared for streaming (only its owner and admins can see it), or
+   * "failed" if that didn't work. Null once it's live.
+   */
+  processing: UploadStatus | null;
+}
+
+export type UploadStatus = "processing" | "failed";
+
+/** One of your uploads that isn't live yet, for Studio. */
+export interface UploadInProgress {
+  track: { id: string; title: string };
+  artist: ArtistRef;
+  status: UploadStatus;
+  /** What went wrong, in plain words, when it failed. */
+  message: string | null;
+  uploadedAt: string;
 }
 
 export interface TrackList {

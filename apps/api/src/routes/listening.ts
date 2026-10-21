@@ -100,15 +100,28 @@ export const listeningRoutes =
           throw new HttpError(403, "This stream link has expired.");
         }
         const [track] = await db
-          .select({ audioKey: tracks.audioKey, mime: tracks.audioMimeType, durationMs: tracks.durationMs })
+          .select({
+            audioKey: tracks.audioKey,
+            audioBytes: tracks.audioBytes,
+            previewKey: tracks.previewAudioKey,
+            previewBytes: tracks.previewAudioBytes,
+            mime: tracks.audioMimeType,
+            durationMs: tracks.durationMs,
+          })
           .from(tracks)
           .where(eq(tracks.id, trackId))
           .limit(1);
         if (!track) throw new HttpError(404, "Track not found.");
 
-        const fileSize = await storage.size(track.audioKey);
-        // A preview is served as if the file ended after about 30 seconds.
-        const size = preview ? previewBytes(fileSize, track.durationMs) : fileSize;
+        // Processed tracks have a separate 30-second preview file. Otherwise (no ffmpeg, or short tracks) a preview
+        // is served as if the file ended after about 30 seconds.
+        const { key, size } =
+          preview && track.previewKey
+            ? { key: track.previewKey, size: track.previewBytes! }
+            : {
+                key: track.audioKey,
+                size: preview ? previewBytes(track.audioBytes, track.durationMs) : track.audioBytes,
+              };
         reply
           .header("accept-ranges", "bytes")
           .header("content-type", track.mime)
@@ -122,9 +135,9 @@ export const listeningRoutes =
             .code(206)
             .header("content-range", `bytes ${range.start}-${range.end}/${size}`)
             .header("content-length", range.end - range.start + 1)
-            .send(storage.read(track.audioKey, range));
+            .send(storage.read(key, range));
         }
-        return reply.header("content-length", size).send(storage.read(track.audioKey, { start: 0, end: size - 1 }));
+        return reply.header("content-length", size).send(storage.read(key, { start: 0, end: size - 1 }));
       },
     );
 

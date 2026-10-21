@@ -29,7 +29,7 @@ export interface Database {
  */
 export async function openDatabase(opts: { url?: string; dataDir?: string }): Promise<Database> {
   if (opts.url) {
-    const pool = new pg.Pool({ connectionString: opts.url });
+    const pool = new pg.Pool({ connectionString: opts.url, ssl: sslFor(opts.url) });
     const db = drizzlePg({ client: pool, schema });
     await migratePg(db, { migrationsFolder });
     return { db: db as unknown as Db, close: () => pool.end() };
@@ -39,4 +39,20 @@ export async function openDatabase(opts: { url?: string; dataDir?: string }): Pr
   const db = drizzlePglite({ client, schema });
   await migratePglite(db, { migrationsFolder });
   return { db, close: () => client.close() };
+}
+
+/**
+ * Supabase's connection strings don't ask for encryption, and its certificates come from its own authority, which
+ * node-postgres doesn't know. So for Supabase, unless the URL says otherwise (sslmode=…), connect encrypted without
+ * checking the certificate, as libpq's sslmode=require does.
+ */
+export function sslFor(url: string): pg.PoolConfig["ssl"] {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return undefined; // node-postgres will explain what's wrong with it
+  }
+  if (parsed.searchParams.has("sslmode") || parsed.searchParams.has("ssl")) return undefined;
+  return /\.supabase\.(co|com)$/.test(parsed.hostname) ? { rejectUnauthorized: false } : undefined;
 }
