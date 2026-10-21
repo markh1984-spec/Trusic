@@ -9,11 +9,14 @@ import { ErrorNote, Loading } from "../components/Guards";
 import { Icon } from "../components/Icon";
 import { LikeButton } from "../components/LikeButton";
 import { CreditsFields, fromDraft, toDraft, type CreditsDraft } from "../components/CreditsFields";
+import { RadioButton } from "../components/RadioButton";
 import { ScoreBreakdown } from "../components/ScoreBreakdown";
+import { TrackShelf } from "../components/Shelves";
 import { TrackMenu } from "../components/TrackMenu";
 import { duration, money } from "../format";
 import { useAuth } from "../auth";
 import { useAsync } from "../hooks";
+import { useHumanOnly } from "../human-only";
 import { usePlayer, usePlayTracks } from "../player";
 
 const TOOL_NAMES: Record<string, string> = {
@@ -80,6 +83,12 @@ export function TrackPage() {
             </button>
             <AiBadge score={track.aiScore} />
             <LikeButton trackId={track.id} title={track.title} size={24} />
+            <RadioButton seed={{ type: "track", id: track.id }} name={track.title} />
+            {track.isOwner ? (
+              <Link to={`/studio/track/${track.id}`} className="button button--ghost">
+                <Icon name="chart" size={18} /> Stats
+              </Link>
+            ) : null}
             <TrackMenu track={track} />
           </div>
         </div>
@@ -137,8 +146,18 @@ export function TrackPage() {
           {me?.user.isAdmin ? <AdminTrackCard track={track} onChange={reload} /> : null}
         </div>
       </section>
+
+      <MoreLikeThis trackId={track.id} />
     </>
   );
+}
+
+/** Tracks streamed and liked by the same people. */
+function MoreLikeThis({ trackId }: { trackId: string }) {
+  const { humanOnly } = useHumanOnly();
+  const { data } = useAsync(() => api.similarTracks(trackId, { humanOnly }), [trackId, humanOnly]);
+  if (!data?.tracks.length) return null;
+  return <TrackShelf title="More like this" why={data.why} items={data.tracks} />;
 }
 
 /** Admins can re-score a track, or record a false declaration as a strike. */

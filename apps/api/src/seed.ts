@@ -1,7 +1,7 @@
 /**
  * Fill a local Trusic with demo data: human bands, an AI-assisted act, a
- * prompt-generated "artist", a flagged upload awaiting review, listeners, and a
- * finished payout month.
+ * prompt-generated "artist", a flagged upload awaiting review, listeners with
+ * six months of listening, and finished payout months.
  *
  *   pnpm seed           seed an empty database
  *   pnpm seed --reset   wipe local data first (embedded database only)
@@ -11,12 +11,21 @@ import path from "node:path";
 import type { AiDeclaration, StageDeclaration } from "@trusic/core";
 import { eq } from "drizzle-orm";
 import { buildApp } from "./app";
+import { createSession, hashPassword } from "./auth";
 import { loadConfig } from "./config";
 import { openDatabase } from "./db/client";
-import { plays, revenueEntries, users } from "./db/schema";
+import { follows, likes, plays, revenueEntries, users } from "./db/schema";
 import { MetadataDetector } from "./detection";
 import { createStripeClient } from "./routes/billing";
 import { currentPeriod, finalizeRun, periodBounds, previousPeriod, runPayouts } from "./payout-service";
+import {
+  EXTRA_LISTENERS,
+  extraTaste,
+  seededRandom,
+  simulateListening,
+  TASTE_GROUPS,
+  type DemoListener,
+} from "./seed-listening";
 import { LocalMediaStorage } from "./storage";
 import { synthPng, synthWav } from "./synth";
 
@@ -58,6 +67,17 @@ async function call<T>(method: string, url: string, token: string | null, body?:
   });
   if (res.statusCode >= 400) throw new Error(`${method} ${url} failed: ${res.statusCode} ${res.body}`);
   return (res.body ? res.json() : null) as T;
+}
+
+let demoPasswordHash: string | null = null;
+/** An account made straight in the database, because sign-ups through the API are rate limited. */
+async function directAccount(email: string, displayName: string) {
+  demoPasswordHash ??= await hashPassword(PASSWORD);
+  const [user] = await db
+    .insert(users)
+    .values({ email, passwordHash: demoPasswordHash, displayName })
+    .returning({ id: users.id });
+  return { id: user!.id, email, token: await createSession(db, user!.id) };
 }
 
 async function account(email: string, displayName: string) {
@@ -239,6 +259,31 @@ t.neon3 = await upload(prompter, neonId, "Midnight Algorithm", "Dance", ALL_AI);
 // Declared human, but the file says otherwise.
 t.neon4 = await upload(prompter, neonId, "Totally Real Band Song", "Rock", human(), "Created with Suno v5 - suno.com");
 
+// More human artists, so recommendations have something to choose between.
+const morrow = await directAccount("morrow@trusic.local", "Morrow Lane");
+const morrowId = await artist(
+  morrow,
+  "Morrow Lane",
+  "Indie folk trio from Bristol. Harmonies first, everything else second.",
+);
+t.morrow1 = await upload(morrow, morrowId, "Lantern Weather", "Folk", human());
+t.morrow2 = await upload(
+  morrow,
+  morrowId,
+  "Small Hours",
+  "Singer-Songwriter",
+  human({}, { assistiveTools: ["mastering"] }),
+);
+const kiln = await directAccount("kiln@trusic.local", "Kiln");
+const kilnId = await artist(kiln, "Kiln", "Modular synths and tape loops, made in an old pottery in Stoke.");
+const instrumental = { lyrics: "not_applicable", vocals: "not_applicable" } as const;
+t.kiln1 = await upload(kiln, kilnId, "Glaze", "Electronic", human(instrumental));
+t.kiln2 = await upload(kiln, kilnId, "Firing Order", "Electronic", human({ ...instrumental, composition: "assisted" }));
+const ada = await directAccount("ada@trusic.local", "Ada Brightwater");
+const adaId = await artist(ada, "Ada Brightwater", "Jazz and soul singer, recorded live with a five-piece band.");
+t.ada1 = await upload(ada, adaId, "Blue Hour", "Soul", human());
+t.ada2 = await upload(ada, adaId, "Northern Line", "Jazz", human());
+
 await call("POST", `/api/tracks/${t.neon4}/appeals`, prompter.token, {
   message: "We wrote and played this ourselves. The tag must have come from a template we used.",
 });
@@ -300,6 +345,9 @@ await release(mara, maraId, "Paper Boats", "ep", "2025-11-02", ["mara1", "mara2"
 await release(harbour, harbourId, "Low Tide", "ep", "2026-06-20", ["harbour2", "harbour1"], 4);
 await release(velvet, velvetId, "After Hours", "single", "2026-08-01", ["velvet1"], 2);
 await release(prompter, neonId, "Infinite Content Vol. 1", "album", "2026-09-28", ["neon1", "neon2", "neon3"], 9);
+await release(morrow, morrowId, "Lantern Weather", "ep", "2026-09-12", ["morrow1", "morrow2"], 5);
+await release(kiln, kilnId, "Glaze", "ep", "2026-07-03", ["kiln1", "kiln2"], 6);
+await release(ada, adaId, "Blue Hour", "ep", "2026-05-22", ["ada1", "ada2"], 8);
 
 for (const [owner, artistId, art] of [
   [pines, pinesId, 11],
@@ -307,6 +355,9 @@ for (const [owner, artistId, art] of [
   [harbour, harbourId, 13],
   [velvet, velvetId, 14],
   [prompter, neonId, 15],
+  [morrow, morrowId, 16],
+  [kiln, kilnId, 17],
+  [ada, adaId, 18],
 ] as const) {
   await sendFile("PUT", `/api/artists/${artistId}/image`, owner.token, {}, image(art));
 }
@@ -335,8 +386,11 @@ for (const [owner, artistId, art] of [
   }
 }
 
-console.log("Simulating listening…");
-// Each listener's taste: track key → plays per month.
+console.log("Simulating six months of listening…");
+const random = seededRandom(20261006);
+// Oldest first; the last is this month, which stays open.
+const months = [5, 4, 3, 2, 1].reduce((list) => [previousPeriod(list[0]!), ...list], [currentPeriod()]);
+// The first demo listeners' tastes: track key → plays per month. They've been here three months.
 const tastes: Record<string, number>[] = [
   { pines1: 14, pines2: 9, mara1: 6, neon1: 12, neon2: 8, velvet1: 4 }, // listener: mixed
   { neon1: 30, neon2: 22, neon3: 18 }, // jo: AI only
@@ -346,52 +400,93 @@ const tastes: Record<string, number>[] = [
   {}, // kim: not subscribed, so only hears previews (which never count)
 ];
 const premium = [0, 1, 2, 3, 4];
+const demoListeners: DemoListener[] = premium.map((i) => ({ id: listeners[i]!.id, taste: tastes[i]!, firstMonth: 3 }));
 
-const previous = previousPeriod(currentPeriod());
-for (const period of [previous, currentPeriod()]) {
-  const [start, end] = periodBounds(period);
-  const span = Math.min(end.getTime(), Date.now()) - start.getTime();
-  const rows: (typeof plays.$inferInsert)[] = [];
-  listeners.forEach((listener, i) => {
-    for (const [key, count] of Object.entries(tastes[i]!)) {
-      for (let n = 0; n < count; n++) {
-        const skipped = (n * 7 + i) % 9 === 0;
-        rows.push({
-          userId: listener.id,
-          trackId: t[key]!,
-          aiScore: scores[t[key]!],
-          msPlayed: skipped ? 8_000 : 45_000,
-          playedAt: new Date(start.getTime() + (((n * 2_654_435_761 + i * 97) % 1000) / 1000) * span),
-        });
-      }
-    }
-  });
-  await db.insert(plays).values(rows);
-  await db.insert(revenueEntries).values(
-    premium.map((i) => ({
-      userId: listeners[i]!.id,
+// Thirty more subscribers, more of them joining each month, each with a taste of their own.
+demoPasswordHash ??= await hashPassword(PASSWORD);
+const extras = await db
+  .insert(users)
+  .values(
+    EXTRA_LISTENERS.map((name) => ({
+      email: `${name}@trusic.local`,
+      passwordHash: demoPasswordHash!,
+      displayName: name[0]!.toUpperCase() + name.slice(1),
+      plan: "premium",
+    })),
+  )
+  .returning({ id: users.id });
+const extraListeners: DemoListener[] = extras.map((u, n) => ({
+  id: u.id,
+  taste: extraTaste(n, random),
+  firstMonth: Math.min(5, Math.floor((n / extras.length) ** 1.5 * 6)),
+}));
+demoListeners.push(...extraListeners);
+
+const rows = simulateListening({ listeners: demoListeners, months, trackIds: t, scores, now: new Date(), random });
+for (let i = 0; i < rows.length; i += 1000) await db.insert(plays).values(rows.slice(i, i + 1000));
+await db.insert(revenueEntries).values(
+  demoListeners.flatMap((l) =>
+    months.slice(l.firstMonth).map((period) => ({
+      userId: l.id,
       period,
       source: "subscription" as const,
       amount: config.premiumMonthlyNetMinor,
     })),
-  );
-}
+  ),
+);
 for (const i of premium) await db.update(users).set({ plan: "premium" }).where(eq(users.id, listeners[i]!.id));
 
-console.log(`Running payouts for ${previous}…`);
-const run = await runPayouts(db, previous, config.currency);
-await finalizeRun(db, previous);
+// The newer listeners' likes and follows, on the days they happened, so artists can see them grow.
+const artistOfKey: Record<string, string> = {
+  pines: pinesId,
+  mara: maraId,
+  harbour: harbourId,
+  velvet: velvetId,
+  neon: neonId,
+  morrow: morrowId,
+  kiln: kilnId,
+  ada: adaId,
+};
+const sometimeAfter = (month: number) => {
+  const start = periodBounds(months[month]!)[0].getTime();
+  return new Date(start + random() * (Date.now() - start));
+};
+for (const l of extraListeners) {
+  const favourites = Object.entries(l.taste)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 1 + Math.floor(random() * 3))
+    .map(([key]) => key);
+  await db
+    .insert(likes)
+    .values(favourites.map((key) => ({ userId: l.id, trackId: t[key]!, createdAt: sometimeAfter(l.firstMonth) })))
+    .onConflictDoNothing();
+  const artistIds = [...new Set(favourites.map((key) => artistOfKey[key.replace(/\d+$/, "")]!))].slice(0, 2);
+  await db
+    .insert(follows)
+    .values(artistIds.map((artistId) => ({ userId: l.id, artistId, createdAt: sometimeAfter(l.firstMonth) })))
+    .onConflictDoNothing();
+}
 console.log(
-  `  ${run.totals.revenue}p in, ${run.totals.platform}p to Trusic, ${run.totals.paidToArtists}p to artists, ${run.totals.forfeitedByAi}p moved from AI to human music`,
+  `  ${rows.length} plays by ${demoListeners.length} subscribers (${Object.keys(TASTE_GROUPS).length} tastes)`,
 );
+
+for (const period of months.slice(0, -1)) {
+  console.log(`Running payouts for ${period}…`);
+  const run = await runPayouts(db, period, config.currency);
+  await finalizeRun(db, period);
+  console.log(
+    `  ${run.totals.revenue}p in, ${run.totals.platform}p to Trusic, ${run.totals.paidToArtists}p to artists, ${run.totals.forfeitedByAi}p moved from AI to human music`,
+  );
+}
 
 await app.close();
 await database.close();
 
 console.log(`
 Done. Log in with any of these (password ${process.env.DEMO_PASSWORD ? "from the DEMO_PASSWORD setting" : `"${PASSWORD}"`}):
-  listener@trusic.local   a Premium listener: see "Your money"
-  pines@trusic.local      The Hollow Pines: see "Studio" for earnings and band splits
+  listener@trusic.local   a Premium listener: see "Home" and "Your money"
+  pines@trusic.local      The Hollow Pines: see "Studio" for stats, earnings and band splits
+  pines-bass@trusic.local a band member: sees the band's stats, and only his own money
   prompter@trusic.local   Neon Prompt: an AI act with a flagged track under appeal
   admin@trusic.local      review appeals and run payouts
 `);

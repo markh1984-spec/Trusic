@@ -1,4 +1,4 @@
-import type { TrackCredits } from "@trusic/client";
+import type { PlaySource, TrackCredits } from "@trusic/client";
 import type {
   AiDeclaration,
   DetectionResult,
@@ -42,6 +42,8 @@ export const users = pgTable("users", {
   stripeSubscriptionId: text("stripe_subscription_id"),
   /** Stripe Connect: the account artist payouts are sent to. */
   stripeAccountId: text("stripe_account_id"),
+  /** "Human-made only": leave Partly AI and AI Slop tracks out of browsing, search, recommendations and radio. */
+  humanOnly: boolean("human_only").notNull().default(false),
   createdAt: createdAt(),
 });
 
@@ -197,8 +199,16 @@ export const plays = pgTable(
      */
     aiScore: integer("ai_score"),
     playedAt: timestamp("played_at", { withTimezone: true }).notNull().defaultNow(),
+    /** Where the play started: a release, a playlist, search, radio… (PLAY_SOURCES). Null from older apps. */
+    source: text("source").$type<PlaySource>(),
   },
-  (t) => [index("plays_played_at_idx").on(t.playedAt), index("plays_user_idx").on(t.userId, t.playedAt)],
+  (t) => [
+    index("plays_played_at_idx").on(t.playedAt),
+    index("plays_user_idx").on(t.userId, t.playedAt),
+    // Artist stats and recommendations read one track's plays at a time, so they never scan the whole table.
+    // The extra columns let Postgres answer them from the index alone (see stats-service.ts).
+    index("plays_track_idx").on(t.trackId, t.playedAt, t.userId, t.msPlayed, t.source),
+  ],
 );
 
 /**
@@ -306,7 +316,7 @@ export const likes = pgTable(
       .references(() => tracks.id, { onDelete: "cascade" }),
     createdAt: createdAt(),
   },
-  (t) => [primaryKey({ columns: [t.userId, t.trackId] })],
+  (t) => [primaryKey({ columns: [t.userId, t.trackId] }), index("likes_track_idx").on(t.trackId)],
 );
 
 export const follows = pgTable(

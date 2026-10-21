@@ -22,7 +22,7 @@ embedded Postgres locally.
 
 ```sh
 pnpm install
-pnpm seed      # demo artists, tracks, listeners and a finished payout month
+pnpm seed      # demo artists, tracks, listeners, six months of listening and payouts
 pnpm dev       # API on :3001, web app on http://localhost:5173
 ```
 
@@ -30,8 +30,8 @@ Demo logins (password `trusic-demo`):
 
 | Email                   | What to look at                                                                               |
 | ----------------------- | --------------------------------------------------------------------------------------------- |
-| `listener@trusic.local` | A Premium listener with playlists and liked songs. **Your money** shows where the money went. |
-| `pines@trusic.local`    | The Hollow Pines (a human band). **Studio** shows earnings and band splits.                   |
+| `listener@trusic.local` | A Premium listener. **Home** is made for them, and **Your money** shows where the money went. |
+| `pines@trusic.local`    | The Hollow Pines (a human band). **Studio** shows listener stats, earnings and band splits.   |
 | `prompter@trusic.local` | An AI act, including a track flagged by detection and under appeal.                           |
 | `admin@trusic.local`    | **Admin**: review appeals and run monthly payouts.                                            |
 

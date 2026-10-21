@@ -36,6 +36,20 @@ import type {
   TrackList,
   Transparency,
 } from "./types";
+import type {
+  ArtistMoney,
+  ArtistStats,
+  HomeFeed,
+  HumanOnlySetting,
+  PlaySource,
+  RadioBatch,
+  RadioSeed,
+  SimilarArtists,
+  SimilarTracks,
+  StatsRange,
+  StudioArtist,
+  TrackStats,
+} from "./insights";
 
 export class ApiError extends Error {
   constructor(
@@ -138,8 +152,8 @@ export class TrusicClient {
   }
 
   // Releases
-  newReleases() {
-    return this.request<ReleaseSummary[]>("GET", "/releases");
+  newReleases(params: { humanOnly?: boolean } = {}) {
+    return this.request<ReleaseSummary[]>("GET", `/releases${query(params)}`);
   }
   release(id: string) {
     return this.request<ReleaseDetail>("GET", `/releases/${id}`);
@@ -161,7 +175,8 @@ export class TrusicClient {
   }
 
   // Tracks
-  tracks(params: { q?: string; label?: string; limit?: number; offset?: number } = {}) {
+  /** `humanOnly` overrides the account's "Human-made only" setting. */
+  tracks(params: { q?: string; label?: string; limit?: number; offset?: number; humanOnly?: boolean } = {}) {
     const qs = new URLSearchParams();
     for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== "") qs.set(k, String(v));
     const suffix = qs.size ? `?${qs}` : "";
@@ -204,8 +219,9 @@ export class TrusicClient {
   streamUrl(trackId: string) {
     return this.request<StreamUrl>("GET", `/tracks/${trackId}/stream`);
   }
-  recordPlay(trackId: string, msPlayed: number) {
-    return this.request<PlayRecorded>("POST", "/plays", { trackId, msPlayed });
+  /** `source` says where the play started (an album, a playlist, radio…), for artists' stats. */
+  recordPlay(trackId: string, msPlayed: number, source?: PlaySource) {
+    return this.request<PlayRecorded>("POST", "/plays", { trackId, msPlayed, ...(source ? { source } : {}) });
   }
 
   // Library
@@ -328,6 +344,52 @@ export class TrusicClient {
   reinstate(userId: string) {
     return this.request<void>("POST", `/admin/users/${userId}/reinstate`);
   }
+
+  // Recommendations and radio. `humanOnly` overrides the account's setting (visitors have no account).
+  humanOnly() {
+    return this.request<HumanOnlySetting>("GET", "/me/human-only");
+  }
+  setHumanOnly(humanOnly: boolean) {
+    return this.request<HumanOnlySetting>("PUT", "/me/human-only", { humanOnly });
+  }
+  home(params: { humanOnly?: boolean } = {}) {
+    return this.request<HomeFeed>("GET", `/recommendations/home${query(params)}`);
+  }
+  similarTracks(trackId: string, params: { humanOnly?: boolean } = {}) {
+    return this.request<SimilarTracks>("GET", `/recommendations/tracks/${trackId}${query(params)}`);
+  }
+  similarArtists(artistId: string, params: { humanOnly?: boolean } = {}) {
+    return this.request<SimilarArtists>("GET", `/recommendations/artists/${artistId}${query(params)}`);
+  }
+  /** The next tracks for a radio station. Pass what it has played so far as `exclude`, oldest first. */
+  radio(seed: RadioSeed, params: { exclude?: string[]; limit?: number; humanOnly?: boolean } = {}) {
+    const { exclude, ...rest } = params;
+    return this.request<RadioBatch>(
+      "GET",
+      `/radio${query({ seed: `${seed.type}:${seed.id}`, exclude: exclude?.join(","), ...rest })}`,
+    );
+  }
+
+  // Artist stats ("Trusic for Artists")
+  studioArtists() {
+    return this.request<StudioArtist[]>("GET", "/studio/artists");
+  }
+  artistStats(artistId: string, range: StatsRange = "28d") {
+    return this.request<ArtistStats>("GET", `/studio/artists/${artistId}/stats?range=${range}`);
+  }
+  artistMoney(artistId: string) {
+    return this.request<ArtistMoney>("GET", `/studio/artists/${artistId}/money`);
+  }
+  trackStats(trackId: string, range: StatsRange = "28d") {
+    return this.request<TrackStats>("GET", `/studio/tracks/${trackId}/stats?range=${range}`);
+  }
+}
+
+/** "?a=1&b=2" from the values that are set, or "" if none are. */
+function query(params: Record<string, string | number | boolean | undefined>): string {
+  const qs = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== "") qs.set(k, String(v));
+  return qs.size ? `?${qs}` : "";
 }
 
 function imageForm(image: Blob, filename: string): FormData {

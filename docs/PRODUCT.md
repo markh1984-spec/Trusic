@@ -130,6 +130,10 @@ artist's declaration will remain the main evidence; see [research/ai-detection.m
 | 2026-10-06 | False declarations get a strike and an exact clawback; three strikes suspends the account.                                           | Declarations are the main evidence for partial AI, so lying has to cost more than it can earn.                                             |
 | 2026-10-06 | Months are finalised before payout; corrections after that are clawbacks.                                                            | A month can't be both recalculated and clawed back, which would charge an artist twice.                                                    |
 | 2026-10-06 | Collect songwriting details at upload; keep 80/20 as is until PRS's terms are known.                                                 | Needed for a PRS licence either way; how songwriting royalties fit the split needs legal advice (open question 10).                        |
+| 2026-10-21 | "Human-made only" hides Partly AI and AI Slop from browsing, search, recommendations and radio. What you open still plays in full.   | The switch is about what Trusic puts in front of you. Hiding tracks inside an album or a shared playlist would break them.                 |
+| 2026-10-21 | Recommendations rank only by listening (streams and likes) and the Human-made only switch. No paid placement, no boost for a label.  | Transparency is the brand: nobody can buy a place, and every recommendation says why in plain English.                                     |
+| 2026-10-21 | Artist stats count streams exactly as payouts do. Band members see all of the artist's listening but only their own money.           | Stats that disagree with the money would confuse artists. A band shares its audience, but each member's pay is their own.                  |
+| 2026-10-21 | Apps say where each play started (an album, a playlist, radio…). It's optional, and an unknown value is kept as "other".             | Artists want to know how listeners find them, and a stats label must never cost a listener's play.                                         |
 
 ## 4. Open questions
 
@@ -140,7 +144,8 @@ These need a decision from the founder. The current behaviour is in brackets.
 2. ~~"AI-assisted" penalty~~: decided, assistance is free.
 3. ~~Penalties for lying~~: decided, strikes and clawbacks.
 4. **Fully AI tracks.** Allowed, labelled, earn nothing. Should they also be hidden from default recommendations,
-   or have their own section? [shown like any other track]
+   or have their own section? [shown like any other track and ranked only by listening; listeners can turn on
+   "Human-made only" to hide them, see section 6]
 5. ~~Free tier~~: decided, subscribers only, with previews.
 6. **Price and market.** UK-first in GBP at £10.99/month? [GBP, £10.99 incl. VAT]
 7. **Score changes mid-month.** If an appeal changes a track's score on the 20th, should earlier streams use the
@@ -158,6 +163,8 @@ These need a decision from the founder. The current behaviour is in brackets.
 11. **How confident detection must be.** The research suggests only raising scores automatically when two signals
     agree that a whole track is generated, and sending partial-AI signals to a person. Adopt that? See
     [research/ai-detection.md](research/ai-detection.md). [one confident signal is enough]
+12. **"Human-made only" by default.** Should new accounts start with it switched on? [off: everything is shown, with
+    its label]
 
 ## 5. Research
 
@@ -168,3 +175,55 @@ These need a decision from the founder. The current behaviour is in brackets.
 
 Both were compiled from web searches on 6 October 2026. Several primary sources couldn't be opened directly, so
 figures marked unverified must be checked before they go into a financial model.
+
+## 6. Discovery and artist stats
+
+### "Human-made only"
+
+- Any listener can switch it on, from the top of every page. Signed in, it's kept on their account, so it follows
+  them to every device. Visitors keep it in their browser.
+- When it's on, tracks labelled Partly AI and AI Slop are left out of browsing, search, the home page, "More like
+  this", "Fans also like" and radio. New releases only shows releases where every track is Human-made.
+- **Albums, playlists, artist pages and tracks the listener opens themselves still show and play everything**, with
+  every track labelled, and a note says how many of them aren't Human-made. A radio started from a track plays that
+  track first, because the listener chose it; everything after it is Human-made.
+- It's off by default (open question 12).
+
+### Recommendations
+
+Trusic builds its own recommendations from listening on Trusic. No outside service is involved, and nothing is paid
+for.
+
+- **No secret favouring.** Ranking uses only what listeners do (streams, meaning plays of 30 seconds or more, and
+  likes) and the "Human-made only" switch. Nobody can pay to be recommended. No label gets a boost either way: a
+  Partly AI track that the same people love ranks exactly where it would if it were Human-made. The "Fresh
+  human-made music" shelf is openly about the label, and is simply in date order.
+- **Similar** means streamed and liked by the same people. Each person counts once per track (a like counts double),
+  and tracks that everyone plays anyway count a little less, so a smaller artist with a loyal audience can still
+  come first. When there isn't enough listening yet, Trusic falls back to the same artist, then the same genre, then
+  what's popular.
+- **Everything says why**, for example "8 listeners of “Chalk Paths” also play this", and every shelf has a "Why am I
+  seeing this?" note.
+- **The home page:** Jump back in (what you played last), Made for you (music new to you that people with your
+  taste play), New from artists you follow, Because you liked…, then the same shelves for everyone: Popular on Trusic
+  (the last four weeks), New releases, Fresh human-made music and Artists to discover. Visitors and new listeners also
+  get the most played genres.
+- **Radio** starts from a track, an artist or a playlist and never ends: more is added as it runs low. Artist and
+  playlist radio play one of their own tracks every third track. Radio stays with related music and goes round
+  again, rather than drifting into whatever is popular.
+
+### Artist stats ("Trusic for Artists", in Studio)
+
+- **Who sees them:** the account that owns the artist, band members in any of its tracks' splits, and Trusic admins.
+- **Streams are counted exactly as payouts count them:** plays of 30 seconds or more by subscribers, on UTC days, so
+  a month of stats adds up to that month's payout run. Listeners are different subscribers who streamed. Previews
+  never count.
+- **What's shown:** streams, listeners, followers and new likes for the last 7, 28 or 365 days, compared with the
+  time just before; a chart by day (by week for 365 days); top tracks; where listeners pressed play; and the same
+  for each track on its own page.
+- **Followers over time** counts the people who follow now, by the day they followed. Unfollows aren't recorded yet.
+- **Money is always the viewer's own:** their share of each track, month by month, from the payout runs, with any
+  clawbacks from their balance. Band members see the whole band's listening but only their own money.
+- **Where plays start:** the apps send it with each play: an album, EP or single; a playlist; the artist's page;
+  search; Liked songs; radio; recommendations; the queue; or elsewhere. Plays from older apps say nothing and are shown
+  as "not recorded".
