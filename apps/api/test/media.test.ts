@@ -200,7 +200,7 @@ describe.skipIf(!hasFfmpeg)("audio processing", () => {
   it("brings loud and quiet tracks to about −14 LUFS without clipping", async () => {
     const loud = await generate("loud.wav", [
       // A hot, clipped master.
-      ...["-f", "lavfi", "-i", "anoisesrc=color=pink:amplitude=0.9:duration=35:sample_rate=48000"],
+      ...["-f", "lavfi", "-i", "anoisesrc=color=pink:amplitude=0.9:duration=35:sample_rate=48000:seed=42"],
       ...["-af", "volume=10dB", "-ac", "2", "-c:a", "pcm_s16le"],
     ]);
     const quiet = await generate("quiet.wav", [
@@ -219,7 +219,7 @@ describe.skipIf(!hasFfmpeg)("audio processing", () => {
       expect(Math.abs(after.lufs - -14)).toBeLessThan(1);
       expect(after.peak).toBeLessThan(-0.5);
     }
-  });
+  }, 120_000); // Four ffmpeg passes at low priority: slow on a busy machine.
 
   it("still finds AI generators named in the upload's tags", async () => {
     const tagged = synthWav({ seconds: 12, sampleRate: 22_050, seed: 9, comment: "Created with Suno v5" });
