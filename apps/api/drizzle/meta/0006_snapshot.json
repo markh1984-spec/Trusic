@@ -1,5 +1,5 @@
 {
-  "id": "8ebd130e-8bbc-4917-9b51-76e2d1d0a181",
+  "id": "04789c99-5680-4f82-8164-cc1f7905596a",
   "prevId": "8f4d1f77-8fac-40d9-914c-608fed1f828d",
   "version": "7",
   "dialect": "postgresql",
@@ -706,7 +706,23 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "likes_track_idx": {
+          "name": "likes_track_idx",
+          "columns": [
+            {
+              "expression": "track_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "likes_user_id_users_id_fk": {
           "name": "likes_user_id_users_id_fk",
@@ -745,140 +761,6 @@
         }
       },
       "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.media_jobs": {
-      "name": "media_jobs",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "kind": {
-          "name": "kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "source_key": {
-          "name": "source_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "track_id": {
-          "name": "track_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'pending'"
-        },
-        "attempts": {
-          "name": "attempts",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "run_after": {
-          "name": "run_after",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "heartbeat_at": {
-          "name": "heartbeat_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "error": {
-          "name": "error",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "variants": {
-          "name": "variants",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "finished_at": {
-          "name": "finished_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "media_jobs_status_idx": {
-          "name": "media_jobs_status_idx",
-          "columns": [
-            {
-              "expression": "status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "run_after",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "media_jobs_track_id_tracks_id_fk": {
-          "name": "media_jobs_track_id_tracks_id_fk",
-          "tableFrom": "media_jobs",
-          "tableTo": "tracks",
-          "columnsFrom": [
-            "track_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "media_jobs_source_key_unique": {
-          "name": "media_jobs_source_key_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "source_key"
-          ]
-        }
-      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -1457,6 +1339,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -1486,6 +1374,45 @@
             },
             {
               "expression": "played_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "plays_track_idx": {
+          "name": "plays_track_idx",
+          "columns": [
+            {
+              "expression": "track_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "played_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "ms_played",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "source",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -2399,42 +2326,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "original_audio_key": {
-          "name": "original_audio_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "preview_audio_key": {
-          "name": "preview_audio_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "preview_audio_bytes": {
-          "name": "preview_audio_bytes",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "loudness_lufs": {
-          "name": "loudness_lufs",
-          "type": "real",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "loudness_gain_db": {
-          "name": "loudness_gain_db",
-          "type": "real",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "audio_processed_at": {
-          "name": "audio_processed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
         "declaration": {
           "name": "declaration",
           "type": "jsonb",
@@ -2658,6 +2549,13 @@
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
+        },
+        "human_only": {
+          "name": "human_only",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         },
         "created_at": {
           "name": "created_at",

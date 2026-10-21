@@ -2,6 +2,7 @@ import { Stack } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { LabelChip } from "../components/AiBadge";
 import { Artwork } from "../components/Artwork";
+import { DownloadToggle } from "../components/DownloadToggle";
 import { TrackList } from "../components/TrackList";
 import { ErrorScreen, Loading, PlayButton, Screen } from "../components/ui";
 import { api } from "../lib/api";
@@ -9,16 +10,19 @@ import { duration, plural, RELEASE_TYPE_NAMES, releaseYear } from "../lib/format
 import { useAsync } from "../lib/hooks";
 import { releaseAiSummary, releaseLabel } from "../lib/labels";
 import { routes, useGo, usePlayTracks } from "../lib/navigation";
+import { useDownloadedCollection } from "../state/offline";
 import { usePlayer } from "../state/player";
 import { colors, space } from "../theme";
+import { OfflineCollectionScreen } from "./OfflineCollectionScreen";
 
 export function ReleaseScreen({ id }: { id: string }) {
   const { data: release, error, loading, reload } = useAsync(() => api.release(id), [id]);
   const play = usePlayTracks();
   const player = usePlayer();
   const go = useGo();
+  const downloaded = useDownloadedCollection({ type: "release", id });
 
-  if (error) return <ErrorScreen message={error} />;
+  if (error) return downloaded ? <OfflineCollectionScreen {...downloaded} /> : <ErrorScreen message={error} />;
   if (loading || !release) return <Loading />;
 
   const label = releaseLabel(release);
@@ -53,6 +57,16 @@ export function ReleaseScreen({ id }: { id: string }) {
           />
         ) : null}
       </View>
+      <DownloadToggle
+        collection={{
+          type: "release",
+          id: release.id,
+          title: release.title,
+          subtitle: release.artist.name,
+          artworkUrl: release.artworkUrl,
+          trackIds: release.tracks.map((t) => t.id),
+        }}
+      />
       <TrackList tracks={release.tracks} label={release.title} numbered showArtist={false} />
     </Screen>
   );

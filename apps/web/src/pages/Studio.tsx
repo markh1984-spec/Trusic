@@ -9,6 +9,7 @@ import { CardGrid, TYPE_NAMES } from "../components/Cards";
 import { ErrorNote, Loading, RequireAuth } from "../components/Guards";
 import { Icon } from "../components/Icon";
 import { ImagePicker } from "../components/ImagePicker";
+import { StudioStats } from "../components/StudioStats";
 import { StudioTakedowns } from "../components/StudioTakedowns";
 import { UploadsInProgress } from "../components/UploadsInProgress";
 import { money, periodName, plural } from "../format";
@@ -37,6 +38,7 @@ function Studio() {
         </Link>
       </div>
       <UploadsInProgress onLive={() => setUploadsDone((n) => n + 1)} />
+      <StudioStats />
       <BalanceCard />
       <StudioTakedowns />
       <Earnings />
@@ -230,7 +232,7 @@ function ArtistSection({ slug }: { slug: string }) {
         <Artwork url={artist.imageUrl} title={artist.name} size={72} round />
         <div className="studio-artist__name">
           <h2>{artist.name}</h2>
-          <Link to={`/artist/${slug}`}>Public page →</Link>
+          <Link to={`/artist/${slug}`}>Public page →</Link> · <Link to={`/studio/artist/${artist.id}`}>Stats →</Link>
         </div>
         <ImagePicker
           label={artist.imageUrl ? "Change photo" : "Add photo"}
@@ -273,7 +275,10 @@ function ArtistSection({ slug }: { slug: string }) {
             {tracks.map((t) => (
               <tr key={t.id}>
                 <td>
-                  <Link to={`/track/${t.id}`}>{t.title}</Link>
+                  <Link to={`/track/${t.id}`}>{t.title}</Link>{" "}
+                  <Link to={`/studio/track/${t.id}`} className="small muted" aria-label={`Stats for ${t.title}`}>
+                    Stats
+                  </Link>
                 </td>
                 <td className="muted">{t.release?.title ?? "–"}</td>
                 <td>

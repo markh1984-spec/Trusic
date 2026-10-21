@@ -8,6 +8,7 @@ import type { AppDeps } from "../app";
 import { optionalUser, requireUser } from "../auth";
 import { artists, plays, tracks } from "../db/schema";
 import { HttpError } from "../errors";
+import { PlaySourceField } from "../play-sources";
 
 const STREAM_URL_TTL_SECONDS = 6 * 60 * 60;
 
@@ -145,6 +146,8 @@ export const listeningRoutes =
     const PlayBody = z.object({
       trackId: z.uuid(),
       msPlayed: z.number().int().min(0),
+      /** Where the play started, for artists' stats. Optional. */
+      source: PlaySourceField,
     });
 
     /**
@@ -165,7 +168,9 @@ export const listeningRoutes =
 
       // A play can't be longer than the track (small slack for clock jitter).
       const msPlayed = Math.min(body.msPlayed, track.durationMs + 2_000);
-      await db.insert(plays).values({ userId: user.id, trackId: body.trackId, msPlayed, aiScore: track.aiScore });
+      await db
+        .insert(plays)
+        .values({ userId: user.id, trackId: body.trackId, msPlayed, aiScore: track.aiScore, source: body.source });
       return reply.code(201).send({ counted: msPlayed >= DEFAULT_PAYOUT_CONFIG.minStreamMs } satisfies PlayRecorded);
     });
   };

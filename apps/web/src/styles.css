@@ -1855,3 +1855,58 @@ details summary {
 .segmented--3 {
   grid-template-columns: repeat(3, 1fr);
 }
+
+/* Downloads (desktop app only) */
+
+.offline-banner {
+  margin: 0 0 20px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: rgba(244, 191, 79, 0.12);
+  border: 1px solid rgba(244, 191, 79, 0.35);
+}
+.offline-banner a {
+  color: var(--assisted);
+  font-weight: 600;
+}
+.download-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+.download-toggle .button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.download-toggle .download-toggle--on {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.downloads-stats {
+  margin: 18px 0 24px;
+}
+.downloads-stats__status {
+  font-size: 1.4rem;
+}
+.download-list {
+  list-style: none;
+  margin: 0 0 28px;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.download-list__item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: var(--card);
+}
+.download-list__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}

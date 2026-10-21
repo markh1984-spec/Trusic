@@ -7,6 +7,7 @@ import { TrackList } from "../components/TrackList";
 import { plural } from "../format";
 import { useAsync } from "../hooks";
 import { useLibrary } from "../library";
+import { DownloadButton } from "../offline/DownloadButton";
 import { usePlayTracks } from "../player";
 
 const TABS = [
@@ -129,14 +130,29 @@ function Liked() {
         {tracks.length ? (
           <button
             className="play-button play-button--large"
-            onClick={() => play(tracks, 0, "Liked songs")}
+            onClick={() => play(tracks, 0, "Liked songs", "liked")}
             aria-label="Play liked songs"
           >
             <Icon name="play" size={26} />
           </button>
         ) : null}
+        <DownloadButton
+          collection={{
+            type: "liked",
+            id: null,
+            title: "Liked songs",
+            subtitle: null,
+            artworkUrl: null,
+            trackIds: tracks.map((t) => t.id),
+          }}
+        />
       </div>
-      <TrackList tracks={tracks} label="Liked songs" empty="Tap the heart on any track to save it here." />
+      <TrackList
+        tracks={tracks}
+        label="Liked songs"
+        source="liked"
+        empty="Tap the heart on any track to save it here."
+      />
     </>
   );
 }

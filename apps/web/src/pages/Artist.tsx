@@ -1,15 +1,19 @@
 import { aiLabel } from "@trusic/core";
-import { useParams } from "react-router";
+import { Link, useParams } from "react-router";
 import { api } from "../api";
 import { useAuth } from "../auth";
 import { Artwork } from "../components/Artwork";
 import { CardGrid, ReleaseCard } from "../components/Cards";
 import { ErrorNote, Loading } from "../components/Guards";
+import { OpenedYourselfNote } from "../components/HumanOnlyToggle";
 import { Icon } from "../components/Icon";
 import { MoreMenu } from "../components/MoreMenu";
+import { RadioButton } from "../components/RadioButton";
+import { ArtistShelf } from "../components/Shelves";
 import { TrackList } from "../components/TrackList";
 import { plural } from "../format";
 import { useAsync } from "../hooks";
+import { useHumanOnly } from "../human-only";
 import { useLibrary } from "../library";
 import { usePlayTracks } from "../player";
 
@@ -45,7 +49,7 @@ export function ArtistPage() {
         {tracks.length ? (
           <button
             className="play-button play-button--large"
-            onClick={() => play(tracks, 0, artist.name)}
+            onClick={() => play(tracks, 0, artist.name, "artist")}
             aria-label={`Play ${artist.name}`}
           >
             <Icon name="play" size={26} />
@@ -59,6 +63,12 @@ export function ArtistPage() {
           >
             {following ? "Following" : "Follow"}
           </button>
+        ) : null}
+        {tracks.length ? <RadioButton seed={{ type: "artist", id: artist.id }} name={artist.name} /> : null}
+        {data.isOwner ? (
+          <Link to={`/studio/artist/${artist.id}`} className="button button--ghost">
+            <Icon name="chart" size={18} /> Your stats
+          </Link>
         ) : null}
         <MoreMenu
           label={artist.name}
@@ -79,8 +89,19 @@ export function ArtistPage() {
 
       <section>
         <h2>Tracks</h2>
-        <TrackList tracks={tracks} showArtist={false} label={artist.name} />
+        <OpenedYourselfNote tracks={tracks} what="this artist's page" />
+        <TrackList tracks={tracks} showArtist={false} label={artist.name} source="artist" />
       </section>
+
+      <FansAlsoLike artistId={artist.id} />
     </>
   );
+}
+
+/** Artists streamed and liked by the same people. */
+function FansAlsoLike({ artistId }: { artistId: string }) {
+  const { humanOnly } = useHumanOnly();
+  const { data } = useAsync(() => api.similarArtists(artistId, { humanOnly }), [artistId, humanOnly]);
+  if (!data?.artists.length) return null;
+  return <ArtistShelf title="Fans also like" why={data.why} items={data.artists} />;
 }

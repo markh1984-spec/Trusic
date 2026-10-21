@@ -38,6 +38,7 @@ import {
 import { compose, emails } from "./emails";
 import { HttpError } from "./errors";
 import { sendLater, type Mailer } from "./mailer";
+import { deleteOfflineAccountData, offlineAccountData } from "./offline-data";
 import { removeMediaFiles } from "./media/processor";
 import type { MediaStorage } from "./storage";
 
@@ -84,6 +85,7 @@ export async function exportAccountData(db: Db, userId: string): Promise<DataExp
         msPlayed: plays.msPlayed,
         aiScore: plays.aiScore,
         playedAt: plays.playedAt,
+        source: plays.source,
       })
       .from(plays)
       .innerJoin(tracks, eq(tracks.id, plays.trackId))
@@ -172,6 +174,7 @@ export async function exportAccountData(db: Db, userId: string): Promise<DataExp
       isAdmin: user.isAdmin,
       emailVerifiedAt: user.emailVerifiedAt,
       suspendedAt: user.suspendedAt,
+      humanMadeOnly: user.humanOnly,
       createdAt: user.createdAt,
       billing: {
         stripeCustomerId: user.stripeCustomerId,
@@ -291,6 +294,8 @@ export async function exportAccountData(db: Db, userId: string): Promise<DataExp
       createdAt: r.createdAt,
       decidedAt: r.decidedAt,
     })),
+    // Subscription history and the devices keeping downloads (offline listening).
+    ...(await offlineAccountData(db, userId)),
   };
 }
 
@@ -408,6 +413,7 @@ export async function deleteAccount(deps: DeletionDeps, userId: string): Promise
     await tx.delete(playlists).where(eq(playlists.ownerUserId, userId));
     await tx.delete(sessions).where(eq(sessions.userId, userId));
     await tx.delete(emailTokens).where(eq(emailTokens.userId, userId));
+    await deleteOfflineAccountData(tx, userId);
     // Copyright notices they sent are kept whole as a legal record. Other reports forget who sent them.
     await tx
       .update(reports)

@@ -12,6 +12,9 @@ import {
 import { APP_ID, BACKGROUND_COLOR } from "./constants";
 import { readJson, writeJson } from "./json-file";
 import { buildMenuTemplate } from "./menu";
+import { registerOfflineIpc } from "./offline-ipc";
+import { withOfflineCache } from "./offline-protocol";
+import { OfflineStore } from "./offline-store";
 import { openServerDialog } from "./server-dialog";
 import { normalizeServerUrl, resolveServerUrl, type ServerUrlSource } from "./server-url";
 import { MIN_SIZE, restoreWindowState } from "./window-state";
@@ -29,6 +32,8 @@ const userFile = (name: string) => path.join(app.getPath("userData"), name);
 let server: { url: string; source: ServerUrlSource } = resolveServerUrl({});
 let mainWindow: BrowserWindow | null = null;
 let quitting = false;
+/** Downloads for listening offline (see offline-store.ts). */
+let offlineStore: OfflineStore | null = null;
 
 // app://trusic behaves like an https origin: localStorage, fetch, module scripts, and streamed <audio>
 // with seeking ("stream"). This has to happen before the app is ready.
@@ -70,14 +75,25 @@ async function start() {
   console.log(`[trusic] Server: ${server.url} (from ${server.source})`);
 
   const devServerUrl = await findDevServer();
-  const webApp = createWebAppHandler({
-    webRoot,
+  offlineStore = new OfflineStore({
+    dir: userFile("offline"),
     serverUrl: () => server.url,
     fetch: (url, init) => net.fetch(url, init),
-    devServerUrl,
-    // Vite's dev server injects inline scripts, so the policy only applies to the built app.
-    contentSecurityPolicy: devServerUrl ? undefined : CONTENT_SECURITY_POLICY,
   });
+  const connection = registerOfflineIpc({ store: offlineStore, window: () => mainWindow, serverUrl: () => server.url });
+  // Downloaded tracks play from disk, and keep playing when the server can't be reached.
+  const webApp = withOfflineCache(
+    createWebAppHandler({
+      webRoot,
+      serverUrl: () => server.url,
+      fetch: (url, init) => net.fetch(url, init),
+      devServerUrl,
+      // Vite's dev server injects inline scripts, so the policy only applies to the built app.
+      contentSecurityPolicy: devServerUrl ? undefined : CONTENT_SECURITY_POLICY,
+    }),
+    offlineStore,
+    connection.setOnline,
+  );
   const desktopPages = createStaticHandler(staticDir);
   protocol.handle(APP_SCHEME, (request) => {
     const { host } = new URL(request.url);
@@ -121,6 +137,8 @@ function createMainWindow(): BrowserWindow {
     // macOS and Windows take the icon from the app bundle and the .exe.
     ...(process.platform === "linux" ? { icon: path.join(staticDir, "icon.png") } : {}),
     webPreferences: {
+      // Only gives the web app window.trusicDesktop, for offline downloads.
+      preload: path.join(__dirname, "main-preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -199,6 +217,8 @@ async function changeServer(url: string) {
   if (url !== previous) {
     // Accounts belong to a server. Sign out, so the old server's login is never sent to the new one.
     await session.defaultSession.clearStorageData({ origin: APP_ORIGIN });
+    // Signing out deletes downloads.
+    offlineStore?.removeAll();
   }
   if (mainWindow) {
     showMainWindow();

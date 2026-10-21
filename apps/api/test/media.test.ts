@@ -2,7 +2,15 @@ import { spawnSync } from "node:child_process";
 import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import type { Artist, ReleaseDetail, StreamUrl, TrackDetail, TrackList, UploadInProgress } from "@trusic/client";
+import type {
+  Artist,
+  DownloadAuthorization,
+  ReleaseDetail,
+  StreamUrl,
+  TrackDetail,
+  TrackList,
+  UploadInProgress,
+} from "@trusic/client";
 import { eq, sql } from "drizzle-orm";
 import { parseBuffer } from "music-metadata";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -167,6 +175,23 @@ describe.skipIf(!hasFfmpeg)("audio processing", () => {
     const beyond = await fetchBytes(t, signed.body.url, { range: `bytes=${preview.body.length}-` });
     expect(beyond.status).toBe(416);
     expect((await fetchBytes(t, signed.body.url.replace("&preview=1", ""))).status).toBe(403);
+  });
+
+  it("gives offline downloads the converted file, not the upload", async () => {
+    const subscriber = await register(t, "subscriber@trusic.test");
+    await call(t, "POST", "/api/billing/subscribe", subscriber.token);
+    const device = { id: "phone-media-test", name: "Phone", platform: "ios" };
+    await call(t, "POST", "/api/offline/sync", subscriber.token, { device, collections: [], trackIds: [ids.track] });
+    const auth = await call<DownloadAuthorization>(t, "POST", "/api/offline/downloads", subscriber.token, {
+      deviceId: device.id,
+      trackIds: [ids.track],
+    });
+    const [download] = auth.body.downloads;
+    expect(download).toMatchObject({ mimeType: "audio/mp4" });
+    const file = await fetchBytes(t, download!.url);
+    expect(file.headers["content-type"]).toBe("audio/mp4");
+    expect(file.body.length).toBe(download!.bytes);
+    expect(file.body.toString("ascii", 4, 8)).toBe("ftyp");
   });
 
   it("brings loud and quiet tracks to about −14 LUFS without clipping", async () => {

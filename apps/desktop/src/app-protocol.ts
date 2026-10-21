@@ -96,10 +96,13 @@ async function proxyToServer(request: Request, url: URL, serverUrl: string, fetc
       {
         error: `Can't reach the Trusic server at ${serverUrl}. Check that it's running and you're online, or choose another server from the Server… menu.`,
       },
-      { status: 502 },
+      { status: 502, headers: { [UNREACHABLE_HEADER]: "1" } },
     );
   }
 }
+
+/** Marks the app's own reply when the server couldn't be reached, so offline mode can step in. */
+export const UNREACHABLE_HEADER = "x-trusic-unreachable";
 
 async function proxyToDevServer(request: Request, url: URL, devServerUrl: string, fetchImpl: Fetch): Promise<Response> {
   try {

@@ -1,4 +1,4 @@
-import type { TrackSummary } from "@trusic/client";
+import type { PlaySource, RadioSeed, TrackSummary } from "@trusic/client";
 import {
   createContext,
   useCallback,
@@ -11,10 +11,14 @@ import {
   type ReactNode,
 } from "react";
 import { api, API_BASE, tokenStore } from "./api";
+import { useHumanOnly } from "./human-only";
+import { useDesktopOffline } from "./offline/offline";
 import {
+  currentPlaySource,
   hasNext,
   initialQueue,
   queueReducer,
+  radioNeedsMore,
   upcomingFromContext,
   type QueueState,
   type RepeatMode,
@@ -36,7 +40,12 @@ interface PlayerState {
   upNext: TrackSummary[];
   /** The rest of the album, playlist or list that's playing. */
   upcoming: { track: TrackSummary; orderIndex: number }[];
-  playQueue(tracks: TrackSummary[], startIndex: number, label?: string): void;
+  /** What the radio is based on, while radio is playing. */
+  radio: RadioSeed | null;
+  /** `source` says where the tracks were picked from (an album, search…), for artists' stats. */
+  playQueue(tracks: TrackSummary[], startIndex: number, label?: string, source?: PlaySource): void;
+  /** Start an endless radio station from a track, an artist or a playlist. */
+  startRadio(seed: RadioSeed): Promise<void>;
   playNext(track: TrackSummary): void;
   addToQueue(track: TrackSummary): void;
   removeFromQueue(index: number): void;
@@ -78,25 +87,31 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   /** Set once a preview reaches its limit, so we only move on once. */
   const previewDone = useRef(false);
 
-  const listened = useRef({ trackId: null as string | null, ms: 0, lastTime: 0 });
+  const listened = useRef({ trackId: null as string | null, ms: 0, lastTime: 0, source: null as PlaySource | null });
   const current = queue.current;
+  // In the desktop app, plays go through its play queue, so listening offline still counts.
+  const offline = useDesktopOffline();
+  const desktopOffline = useRef(offline);
+  desktopOffline.current = offline;
 
   const report = useCallback((keepalive = false) => {
-    const { trackId, ms } = listened.current;
-    listened.current = { trackId: null, ms: 0, lastTime: 0 };
+    const { trackId, ms, source } = listened.current;
+    listened.current = { trackId: null, ms: 0, lastTime: 0, source: null };
     if (!trackId || ms < 1000) return;
     const msPlayed = Math.round(ms);
-    if (keepalive) {
+    if (desktopOffline.current) {
+      desktopOffline.current.recordPlay(trackId, msPlayed, source);
+    } else if (keepalive) {
       // The page is closing: a normal request would be cancelled.
       const token = tokenStore.get();
       void fetch(`${API_BASE}/plays`, {
         method: "POST",
         keepalive: true,
         headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ trackId, msPlayed }),
+        body: JSON.stringify({ trackId, msPlayed, ...(source ? { source } : {}) }),
       }).catch(() => undefined);
     } else {
-      void api.recordPlay(trackId, msPlayed).catch(() => undefined);
+      void api.recordPlay(trackId, msPlayed, source ?? undefined).catch(() => undefined);
     }
   }, []);
 
@@ -175,6 +190,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     setError(null);
     setPositionMs(0);
+    // Where this play started (an album, search, radio…), for artists' stats.
+    const source = currentPlaySource(queueRef.current);
     api
       .streamUrl(currentId)
       .then(({ url, preview, previewMs: limit }) => {
@@ -183,7 +200,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         previewDone.current = false;
         setPreviewMs(preview ? limit : null);
         // Previews never count as plays, so there's nothing to report.
-        listened.current = { trackId: preview ? null : currentId, ms: 0, lastTime: 0 };
+        listened.current = { trackId: preview ? null : currentId, ms: 0, lastTime: 0, source };
         audio.src = api.resolveUrl(url);
         return audio.play();
       })
@@ -200,17 +217,48 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [volume]);
 
   const playQueue = useCallback(
-    (tracks: TrackSummary[], startIndex: number, label?: string) => {
+    (tracks: TrackSummary[], startIndex: number, label?: string, source?: PlaySource) => {
       const target = tracks[startIndex];
       if (target && target.id === queueRef.current.current?.id && audioRef.current!.paused) {
         void audioRef.current!.play();
         return;
       }
       report();
-      dispatch({ type: "playContext", tracks, startIndex, label: label ?? null });
+      dispatch({ type: "playContext", tracks, startIndex, label: label ?? null, source: source ?? "other" });
     },
     [report],
   );
+
+  // Radio: an endless queue of similar tracks, topped up from the server whenever it runs low.
+  const { humanOnly } = useHumanOnly();
+  const radioFetching = useRef(false);
+  const startRadio = useCallback(
+    async (seed: RadioSeed) => {
+      const batch = await api.radio(seed, { humanOnly });
+      if (batch.tracks.length === 0) throw new Error("There's nothing to play on this radio yet.");
+      report();
+      const tracks = batch.tracks.map((r) => r.track);
+      dispatch({ type: "playContext", tracks, startIndex: 0, label: batch.name, source: "radio", radio: seed });
+    },
+    [humanOnly, report],
+  );
+  useEffect(() => {
+    if (!radioNeedsMore(queue) || radioFetching.current) return;
+    const seed = queue.radio!;
+    radioFetching.current = true;
+    api
+      .radio(seed, { humanOnly, exclude: queue.context.slice(-100).map((t) => t.id) })
+      .then((batch) => {
+        // Only if the same station is still playing.
+        if (queueRef.current.radio === seed) {
+          dispatch({ type: "extendContext", tracks: batch.tracks.map((r) => r.track) });
+        }
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        radioFetching.current = false;
+      });
+  }, [queue, humanOnly]);
 
   const toggle = useCallback(() => {
     const audio = audioRef.current!;
@@ -308,7 +356,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       contextLabel: queue.contextLabel,
       upNext: queue.upNext,
       upcoming: upcomingFromContext(queue),
+      radio: queue.radio,
       playQueue,
+      startRadio,
       playNext: (track) => dispatch({ type: "playNext", track }),
       addToQueue: (track) => dispatch({ type: "addToQueue", track }),
       removeFromQueue: (index) => dispatch({ type: "removeFromQueue", index }),
@@ -332,6 +382,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       error,
       queue,
       playQueue,
+      startRadio,
       jumpToQueued,
       jumpToUpcoming,
       toggle,
@@ -354,7 +405,8 @@ export function usePlayer(): PlayerState {
 export function usePlayTracks() {
   const player = usePlayer();
   return useCallback(
-    (tracks: TrackSummary[], startIndex: number, label?: string) => player.playQueue(tracks, startIndex, label),
+    (tracks: TrackSummary[], startIndex: number, label?: string, source?: PlaySource) =>
+      player.playQueue(tracks, startIndex, label, source),
     [player],
   );
 }

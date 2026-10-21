@@ -2,11 +2,14 @@ import { Route, Routes } from "react-router";
 import { Layout } from "./components/Layout";
 import { AdminPage } from "./pages/Admin";
 import { ArtistPage } from "./pages/Artist";
+import { ArtistStatsPage } from "./pages/ArtistStats";
+import { TrackStatsPage } from "./pages/TrackStats";
 import { LoginPage, RegisterPage } from "./pages/Auth";
 import { HomePage } from "./pages/Home";
 import { LibraryPage, LikedPage } from "./pages/Library";
 import { MoneyPage } from "./pages/Money";
 import { NotFoundPage } from "./pages/NotFound";
+import { DownloadsPage } from "./offline/DownloadsPage";
 import { PlaylistPage } from "./pages/Playlist";
 import { ReleasePage } from "./pages/Release";
 import { ReleaseEditorPage } from "./pages/ReleaseEditor";
@@ -34,10 +37,13 @@ export function App() {
         <Route path="playlist/:id" element={<PlaylistPage />} />
         <Route path="library" element={<LibraryPage />} />
         <Route path="liked" element={<LikedPage />} />
+        <Route path="downloads" element={<DownloadsPage />} />
         <Route path="transparency" element={<TransparencyPage />} />
         <Route path="money" element={<MoneyPage />} />
         <Route path="studio" element={<StudioPage />} />
         <Route path="studio/release/:id" element={<ReleaseEditorPage />} />
+        <Route path="studio/artist/:id" element={<ArtistStatsPage />} />
+        <Route path="studio/track/:id" element={<TrackStatsPage />} />
         <Route path="upload" element={<UploadPage />} />
         <Route path="admin" element={<AdminPage />} />
         <Route path="login" element={<LoginPage />} />

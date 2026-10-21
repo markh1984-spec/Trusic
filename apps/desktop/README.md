@@ -4,6 +4,10 @@ Trusic for Mac, Windows and Linux. It's the Trusic web app in its own window, wi
 media keys and the computer's "now playing" controls. Everything you can do on the website works the same way,
 because it's the same code: there's no separate desktop version of the screens to keep up to date.
 
+The one thing the app adds is **downloads**: subscribers get a Download button on albums, playlists and liked
+songs, and a Downloads page. Downloaded music keeps playing when the computer is offline (or the server can't be
+reached), and plays made offline are sent when it's back. The rules are in [docs/PRODUCT.md](../../docs/PRODUCT.md).
+
 The app carries a copy of the web app inside it and gets music and accounts from a **Trusic server** (the API in
 `apps/api`). Out of the box that's a server running on the same computer. Once Trusic is online, it will be the
 public address (see [Choosing the server](#choosing-the-server)).
@@ -126,11 +130,23 @@ Signing removes the warnings above. Prices are as of 2026 and change, so check b
   headers (`Authorization`, `Range`…) and body pass through, and the response streams back unchanged,
   including `206 Partial Content`, so seeking in `<audio>` works. The web app's relative URLs therefore work
   as they are, and the server sees an ordinary client.
-- Security: `contextIsolation`, `sandbox` and no Node.js in pages. The Trusic window has no preload at all. It
-  can't navigate away from `app://trusic` (web links open in the browser), and it gets a Content-Security-Policy
-  and no browser permissions beyond clipboard and full screen. Only the small Server… window has a preload,
-  and the main process only accepts its messages. The packaged app also switches off Electron features it
-  doesn't need ("fuses"), such as running as plain Node.js or accepting a debugger.
+- Security: `contextIsolation`, `sandbox` and no Node.js in pages. The Trusic window's preload
+  (`src/main-preload.ts`) gives the web app one small object, `window.trusicDesktop.offline`, with only the
+  functions downloads need (load, save the list of downloads, download a track, remove, prune and hear when the
+  server comes and goes). It passes no file paths or Electron objects, the main process only accepts these
+  messages from the Trusic window showing `app://trusic`, and it only downloads links to the chosen server's own
+  audio and artwork. The window can't navigate away from `app://trusic` (web links open in the browser), and it
+  gets a Content-Security-Policy and no browser permissions beyond clipboard and full screen. The small Server…
+  window has its own preload, and the main process only accepts its messages from it. The packaged app also
+  switches off Electron features it doesn't need ("fuses"), such as running as plain Node.js or accepting a
+  debugger.
+- Offline downloads: the web app shows Download buttons only when `window.trusicDesktop` exists, so the website
+  never does. It decides what to download (with the shared rules in `@trusic/player`) and asks the main process
+  to fetch each signed link. Files go in the app's data folder under `offline/` (`audio/<track id>`, plus artwork),
+  never in a music folder. The `app://` handler (`src/offline-protocol.ts`) plays downloaded tracks from there,
+  online or not, and when the server can't be reached it answers the web app's request for a stream link for
+  downloaded tracks, so the player works unchanged. Previews are never served from downloads. Plays go into a
+  queue in the web app and are sent when the server is back. Changing server or signing out deletes downloads.
 - Media keys and the system's "now playing" controls come from the web app's own `navigator.mediaSession` code.
   Electron needs nothing extra for them (on Windows the app registers its app ID so the controls are linked
   to Trusic). Chromium only accepts http(s), `data:` and `blob:` artwork there, so the web app hands cover art
@@ -143,6 +159,8 @@ Signing removes the warnings above. Prices are as of 2026 and change, so check b
 | ------------------------ | ---------------------------------------------------------------------------- |
 | `src/main.ts`            | Starts the app: window, menu, single instance, security rules                |
 | `src/app-protocol.ts`    | Serves `app://trusic` and proxies `/api` to the server                       |
+| `src/offline-*.ts`       | Downloads: files on disk, serving them, and the main process's messages      |
+| `src/main-preload.ts`    | The small `window.trusicDesktop` bridge the web app uses for downloads       |
 | `src/server-url.ts`      | Default server address and how the app picks one                             |
 | `src/server-dialog*.ts`  | The Server… window (`static/server.html` is its page)                        |
 | `src/window-state.ts`    | Remembering the window's size and position                                   |
@@ -158,5 +176,5 @@ Signing removes the warnings above. Prices are as of 2026 and change, so check b
 | `test` / `typecheck`                        | Unit tests and type checks (also part of the root `pnpm test` and `pnpm typecheck`) |
 | `icons`                                     | Regenerate the app icons                                                            |
 
-Not done yet: automatic updates (they need Mac signing and somewhere to publish releases), offline downloads,
-and Windows on ARM builds (those PCs run the x64 version through emulation).
+Not done yet: automatic updates (they need Mac signing and somewhere to publish releases) and Windows on ARM
+builds (those PCs run the x64 version through emulation).

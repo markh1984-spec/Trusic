@@ -23,7 +23,7 @@ even volume and artwork is resized; without it, files play as uploaded.
 
 ```sh
 pnpm install
-pnpm seed      # demo artists, tracks, listeners and a finished payout month
+pnpm seed      # demo artists, tracks, listeners, six months of listening and payouts
 pnpm dev       # API on :3001, web app on http://localhost:5173
 ```
 
@@ -31,8 +31,8 @@ Demo logins (password `trusic-demo`):
 
 | Email                   | What to look at                                                                               |
 | ----------------------- | --------------------------------------------------------------------------------------------- |
-| `listener@trusic.local` | A Premium listener with playlists and liked songs. **Your money** shows where the money went. |
-| `pines@trusic.local`    | The Hollow Pines (a human band). **Studio** shows earnings and band splits.                   |
+| `listener@trusic.local` | A Premium listener. **Home** is made for them, and **Your money** shows where the money went. |
+| `pines@trusic.local`    | The Hollow Pines (a human band). **Studio** shows listener stats, earnings and band splits.   |
 | `prompter@trusic.local` | An AI act, including a track flagged by detection and under appeal.                           |
 | `admin@trusic.local`    | **Admin**: review appeals and run monthly payouts.                                            |
 
@@ -46,15 +46,18 @@ set up an email service: see [docs/EMAIL.md](docs/EMAIL.md).
 ```
 packages/core     The rules: AI scoring and the payout engine. Pure TypeScript, no dependencies, heavily tested.
 packages/client   Typed API client and response types, shared by every app.
-packages/player   The play queue (shuffle, repeat, play next), shared by the web and mobile players.
+packages/player   The play queue (shuffle, repeat, play next), plus offline downloads and the queue of plays
+                  waiting to be sent, shared by the web, desktop and mobile apps.
 apps/api          Fastify + Drizzle + Postgres. Accounts, uploads, streaming, scoring, appeals, payouts.
 apps/web          React web app (Vite). Spotify-style player with queue, shuffle and repeat; releases,
                   playlists, liked songs and follows; upload with live AI-score preview; listener
                   statements, artist earnings, public transparency page, admin.
 apps/mobile       iPhone and Android app (Expo). Browse, search, AI labels, player with background audio,
-                  library, "your money" and accounts. Try it on your phone with Expo Go: see apps/mobile/README.md.
-apps/desktop      Mac, Windows and Linux app (Electron): the web app in its own window, with media keys.
-                  Installers are built by a manual GitHub workflow. See apps/desktop/README.md.
+                  library, downloads for listening offline, "your money" and accounts. Try it on your phone
+                  with Expo Go: see apps/mobile/README.md.
+apps/desktop      Mac, Windows and Linux app (Electron): the web app in its own window, with media keys and
+                  downloads for listening offline. Installers are built by a manual GitHub workflow. See
+                  apps/desktop/README.md.
 docs/             Product rules, decisions, open questions and roadmap.
 ```
 

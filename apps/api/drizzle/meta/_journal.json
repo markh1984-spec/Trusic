@@ -47,8 +47,22 @@
     {
       "idx": 6,
       "version": "7",
-      "when": 1792610394041,
-      "tag": "0006_media_processing",
+      "when": 1792610353606,
+      "tag": "0006_insights_and_recommendations",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792610973639,
+      "tag": "0007_offline_downloads",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792611413728,
+      "tag": "0008_media_processing",
       "breakpoints": true
     }
   ]
