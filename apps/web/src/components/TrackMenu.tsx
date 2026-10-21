@@ -106,6 +106,18 @@ export function TrackMenu({ track, extraItems = [] }: { track: TrackSummary; ext
               <button role="menuitem" onClick={signedIn(() => void library.toggleLike(track.id))}>
                 {liked ? "Remove from Liked songs" : "Add to Liked songs"}
               </button>
+              <button
+                role="menuitem"
+                onClick={() => {
+                  close();
+                  player
+                    .startRadio({ type: "track", id: track.id })
+                    .then(() => toast(`Playing ${track.title} radio`))
+                    .catch((e: unknown) => toast(e instanceof Error ? e.message : "Couldn't start the radio."));
+                }}
+              >
+                Start radio
+              </button>
               <hr />
               <button role="menuitem" onClick={() => (close(), navigate(`/artist/${track.artist.slug}`))}>
                 Go to artist

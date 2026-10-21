@@ -129,14 +129,19 @@ function Liked() {
         {tracks.length ? (
           <button
             className="play-button play-button--large"
-            onClick={() => play(tracks, 0, "Liked songs")}
+            onClick={() => play(tracks, 0, "Liked songs", "liked")}
             aria-label="Play liked songs"
           >
             <Icon name="play" size={26} />
           </button>
         ) : null}
       </div>
-      <TrackList tracks={tracks} label="Liked songs" empty="Tap the heart on any track to save it here." />
+      <TrackList
+        tracks={tracks}
+        label="Liked songs"
+        source="liked"
+        empty="Tap the heart on any track to save it here."
+      />
     </>
   );
 }

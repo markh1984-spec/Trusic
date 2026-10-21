@@ -4,6 +4,8 @@ import { useNavigate, useParams } from "react-router";
 import { api } from "../api";
 import { PlaylistCover } from "../components/Artwork";
 import { ErrorNote, Loading } from "../components/Guards";
+import { OpenedYourselfNote } from "../components/HumanOnlyToggle";
+import { RadioButton } from "../components/RadioButton";
 import { Icon } from "../components/Icon";
 import { MoreMenu } from "../components/MoreMenu";
 import { TrackList } from "../components/TrackList";
@@ -89,12 +91,13 @@ export function PlaylistPage() {
         {tracks.length ? (
           <button
             className="play-button play-button--large"
-            onClick={() => play(tracks, 0, playlist.name)}
+            onClick={() => play(tracks, 0, playlist.name, "playlist")}
             aria-label={`Play ${playlist.name}`}
           >
             <Icon name="play" size={26} />
           </button>
         ) : null}
+        {tracks.length ? <RadioButton seed={{ type: "playlist", id: playlist.id }} name={playlist.name} /> : null}
         {playlist.isOwner && !editing ? (
           <>
             <button className="button button--ghost" onClick={() => setEditing(true)}>
@@ -111,10 +114,12 @@ export function PlaylistPage() {
         />
       </div>
 
+      <OpenedYourselfNote tracks={tracks} what="this playlist" />
       <TrackList
         tracks={tracks}
         keys={playlist.entries.map((e) => e.entryId)}
         label={playlist.name}
+        source="playlist"
         empty={
           playlist.isOwner
             ? "This playlist is empty. Use the ⋯ menu on any track to add it here."

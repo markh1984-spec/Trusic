@@ -43,6 +43,13 @@
       "when": 1792608510703,
       "tag": "0005_accounts_and_takedowns",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792610353606,
+      "tag": "0006_insights_and_recommendations",
+      "breakpoints": true
     }
   ]
 }

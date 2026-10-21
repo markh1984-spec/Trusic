@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useNavigate, useSearchParams } from "react-route
 import { useAuth } from "../auth";
 import { useLibrary } from "../library";
 import { useToast } from "../toast";
+import { HumanOnlyToggle } from "./HumanOnlyToggle";
 import { Icon, type IconName } from "./Icon";
 import { PlayerBar } from "./PlayerBar";
 import { QueuePanel } from "./QueuePanel";
@@ -95,6 +96,7 @@ export function Layout() {
             />
           </form>
           <div className="topbar__account">
+            <HumanOnlyToggle />
             {me ? (
               <>
                 <Link to="/money" className={`plan-pill plan-pill--${me.user.plan}`}>
